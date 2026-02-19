@@ -1,6 +1,9 @@
 {% extends "shared/common.html" %}
 
 {% block content %}
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" />
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
       <div class="text-center">
         <div class="page-header">
           <h2 class="text-primary">enCompass Node Classifier</h2>
@@ -18,9 +21,11 @@
           {% endfor %}
         {% endif %}
 
-        <!-- Add Group Button -->
-        <div style="margin-bottom: 15px;">
+        <div class="d-flex justify-content-between align-items-center" style="margin: 0 auto 15px; max-width: 1200px;">
           <a href="/encompass/groups/add" class="btn btn-success">+ Add Group</a>
+          <div style="max-width: 320px; width: 100%;">
+            <input type="search" id="groupsSearch" class="form-control" placeholder="Filter groups..." aria-label="Filter groups" style="margin-left: auto;">
+          </div>
         </div>
 
         <div class="table-responsive" style="margin: 0 auto; max-width: 1200px;">
@@ -105,23 +110,30 @@
               </div>
             </div>
           {% endfor %}
-          </table>
         </div>
       </div>
-
-      <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.css" />
-      <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.js"></script>
 
       <script>
         // Initialize DataTables
         $(document).ready(function() {
-          $('#groupsTable').DataTable({
+          const groupsTable = $('#groupsTable').DataTable({
             "pageLength": 25,
             "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
             "columnDefs": [
               { "orderable": false, "targets": [2, 3, 4] }  // Disable sorting on Classes, Hosts, and Actions columns
-            ]
+            ],
+            "dom": 'lrtip',
+            "language": {
+              "lengthMenu": "Show _MENU_ groups per page"
+            }
           });
+
+          const groupsSearch = document.getElementById('groupsSearch');
+          if (groupsSearch) {
+            groupsSearch.addEventListener('input', function() {
+              groupsTable.search(this.value).draw();
+            });
+          }
 
           // Load all group details on page load to populate summary cells
           document.querySelectorAll('tr[data-groupname]').forEach(row => {
