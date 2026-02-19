@@ -1,0 +1,31 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+      <div class="text-center">
+        <div class="page-header">
+          <h2 class="text-primary">enCompass Node Classifier</h2>
+        </div>
+        <form class="form-horizontal" action="/encompass/" method="post">
+          {% csrf_token %}
+          <br />
+          <div class="form-group" align="center">
+            <div class="card text-white bg-danger mb-3" style="max-width: 25rem;">
+              <div class="card-header">{{ card_header|default:'Operational Error' }}</div>
+              <div class="card-body">
+                <h4 class="card-title">Error</h4>
+                {% for item in results %}
+                  <p class="card-text">{{ item }}</p>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <br />
+          <div class="form-group">
+            <div class="col">
+              <a type="button" class="btn btn-outline-primary btn-sm" href="javascript:history.back()"><i class="bi bi-arrow-left"></i> Go Back</a>
+            </div>
+          </div>
+        </form>
+        <!-- <hr style="width: 100%;" /> -->
+      </div>
+{% endblock %}

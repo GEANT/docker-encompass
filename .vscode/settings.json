@@ -1,0 +1,8 @@
+{
+    "python.defaultInterpreterPath": ".venv/enc/bin/python",
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
+    "python-envs.pythonProjects": [],
+    "files.associations": {
+        "vars": "dotenv"
+    }
+}

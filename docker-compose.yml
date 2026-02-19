@@ -1,0 +1,26 @@
+services:
+  encompass:
+    env_file:
+      - vars
+    environment:
+      - name=value
+    dns:
+      - 83.97.93.200
+      - 8.8.8.8
+    restart: unless-stopped
+    volumes:
+      - ./data/enc:/data/
+      - ./data/encompass/:/sqlite/
+    container_name: encompass
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_DEBUG: "true"
+    ports:
+      - "8080:8080"  # enCompass
+      - "8081:8081"  # puppet-enc
+      - "8082:8082"  # Sqlite-web
+      - "8443:8443"  # enCompass SSL
+      - "8444:8444"  # puppet-enc SSL
+      - "8445:8445"  # Sqlite-web SSL

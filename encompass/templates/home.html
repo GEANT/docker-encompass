@@ -1,0 +1,67 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+    <style>
+      .card:hover {
+        transform: translateY(-3px);
+        transition: 0.2s;
+      }
+    </style>
+    <div class="text-center">
+      <div class="page-header">
+        <p class="display-6">enCompass Node Classifier</p>
+      </div>
+
+      <div class="container mt-5">
+        <div class="row g-4 justify-content-center">
+          <div class="col-md-4">
+            <a href="/encompass/hosts" class="text-decoration-none">
+              <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-hdd-network fs-1 mb-3"></i>
+                  <h5 class="card-title">Hosts</h5>
+                  <p class="card-text text-muted">
+                    Manage node definitions and parameters
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="col-md-4">
+            <a href="/encompass/groups" class="text-decoration-none">
+              <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-collection fs-1 mb-3"></i>
+                  <h5 class="card-title">Groups</h5>
+                  <p class="card-text text-muted">
+                    Manage ENC groups and inheritance
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- <div class="col-md-4">
+            {% if group_name == 'admin' %}
+            <a href="/encompass/users" class="text-decoration-none">
+              <div class="card shadow-sm h-100">
+            {% else %}
+            <a href="#" class="text-decoration-none">
+              <div class="card shadow-sm h-100 bg-light text-muted opacity-75">
+            {% endif %}
+                <div class="card-body text-center">
+                  <i class="bi bi-people fs-1 mb-3"></i>
+                  <h5 class="card-title">Users</h5>
+                  <p class="card-text text-muted">
+                    Manage access and permissions
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div> -->
+
+        </div>
+      </div>
+    </div>
+{% endblock %}

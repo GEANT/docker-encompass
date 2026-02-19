@@ -1,0 +1,334 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+      <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" />
+      <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+      <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+      <style>
+        /* Style for DataTables child rows */
+        table.dataTable tbody tr.shown {
+          background-color: #f8f9fa;
+        }
+        table.dataTable tbody tr.shown td {
+          border-bottom: 1px solid #dee2e6;
+        }
+      </style>
+      <div class="text-center">
+        <div class="page-header">
+          <h2 class="text-primary">enCompass Node Classifier</h2>
+        </div>
+        </br />
+        
+        {% if messages %}
+        <div class="container" style="max-width: 800px;">
+          {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="d-flex justify-content-end mb-3">
+          <a href="/encompass/hosts/add" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle"></i> Add Host
+          </a>
+        </div>
+        <form class="form-horizontal" action="/encompass/host_purge_confirmation/" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="tform_folder" value="{{ tform_folder }}" />
+          <input type="hidden" name="tform_group" value="{{ tform_group }}" />
+          <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
+          <input type="hidden" name="disp_name" value="{{ disp_name }}" />
+          <div class="form-group">
+            <table id="hostsTable" class="table table-hover table-light">
+              <caption>Hosts dashboard</caption>
+              <thead>
+                <tr>
+                  <th class="bg-secondary" scope="col">Hosts</th>
+                  <th class="bg-secondary" scope="col" style="text-align: left;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for host in hosts %}
+              <tr class="host-row" data-hostname="{{ host }}" style="cursor:pointer;">
+                <td>{{ host }}</td>
+                <td>
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-action="delete" name="hostname" value="{{ host }}" onclick="event.stopPropagation();">Delete</button>
+                    <button type="button" class="btn btn-sm btn-outline-success" data-action="save" onclick="event.stopPropagation();">Save</button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </form>
+      </div>
+
+      <script>
+        (function () {
+          // Initialize DataTables
+          const table = $('#hostsTable').DataTable({
+            order: [[0, 'asc']],
+            columnDefs: [
+              { orderable: false, targets: 1 }
+            ],
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            language: {
+              search: "Filter hosts:",
+              lengthMenu: "Show _MENU_ hosts per page"
+            }
+          });
+
+          const hostRows = document.querySelectorAll(".host-row");
+
+          function getCsrfToken() {
+            const match = document.cookie.match(/csrftoken=([^;]+)/);
+            return match ? match[1] : "";
+          }
+
+          function collectHostPayload(detailsContent) {
+            const environmentInput = detailsContent.querySelector("[name='host_environment']");
+            const classInputs = detailsContent.querySelectorAll("[name='host_classes[]']");
+            const paramKeyInputs = detailsContent.querySelectorAll("[name='host_param_keys[]']");
+            const paramValueInputs = detailsContent.querySelectorAll("[name='host_param_values[]']");
+
+            const classes = Array.from(classInputs)
+              .map((input) => input.value.trim())
+              .filter((value) => value !== "");
+
+            const parameters = {};
+            paramKeyInputs.forEach((input, index) => {
+              const key = input.value.trim();
+              if (key === "") {
+                return;
+              }
+              const valueInput = paramValueInputs[index];
+              parameters[key] = valueInput ? valueInput.value : "";
+            });
+
+            return {
+              environment: environmentInput ? environmentInput.value.trim() : "",
+              classes,
+              parameters,
+            };
+          }
+
+          // Handle Save button clicks
+          hostRows.forEach((row) => {
+            const saveBtn = row.querySelector('[data-action="save"]');
+            const hostname = row.dataset.hostname;
+            
+            if (saveBtn) {
+              saveBtn.addEventListener("click", async (event) => {
+                event.stopPropagation();
+                const detailsRow = row.nextElementSibling;
+                const detailsContent = detailsRow.querySelector(".host-details-content");
+
+                if (detailsContent.dataset.loaded !== "true") {
+                  try {
+                    await loadHostDetails(hostname, detailsContent);
+                  } catch (_error) {
+                    window.alert("Unable to load host details before saving");
+                    return;
+                  }
+                }
+
+                const payload = collectHostPayload(detailsContent);
+                payload.hostname = hostname;
+
+                try {
+                  const response = await fetch("/encompass/host_save/", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-CSRFToken": getCsrfToken(),
+                    },
+                    body: JSON.stringify(payload),
+                  });
+
+                  if (!response.ok) {
+                    let errorText = "Save failed";
+                    try {
+                      const data = await response.json();
+                      errorText = data.error || errorText;
+                    } catch (_parseError) {
+                      // ignore parse errors
+                    }
+                    window.alert(errorText);
+                    return;
+                  }
+
+                  window.alert("Host saved successfully");
+                } catch (_error) {
+                  window.alert("Save request failed");
+                }
+              });
+            }
+          });
+
+          function escapeHtml(value) {
+            return String(value)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/\"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+          }
+
+          function classRowHtml(value = "") {
+            return `
+              <div class="input-group mb-2 class-item">
+                <input type="text" class="form-control" name="host_classes[]" value="${escapeHtml(value)}" placeholder="profile::example">
+                <button type="button" class="btn btn-outline-secondary" data-remove-class>Remove</button>
+              </div>
+            `;
+          }
+
+          function parameterRowHtml(key = "", value = "") {
+            return `
+              <div class="row g-2 mb-2 parameter-item">
+                <div class="col-md-5">
+                  <input type="text" class="form-control" name="host_param_keys[]" value="${escapeHtml(key)}" placeholder="parameter key">
+                </div>
+                <div class="col-md-5">
+                  <input type="text" class="form-control" name="host_param_values[]" value="${escapeHtml(value)}" placeholder="parameter value">
+                </div>
+                <div class="col-md-2 d-grid">
+                  <button type="button" class="btn btn-outline-secondary" data-remove-parameter>Remove</button>
+                </div>
+              </div>
+            `;
+          }
+
+          function renderDetails(data) {
+            const environment = data.environment ? String(data.environment) : "";
+            const classes = Array.isArray(data.classes) && data.classes.length ? data.classes : [""];
+            const parameters = data.parameters && typeof data.parameters === "object" && !Array.isArray(data.parameters)
+              ? data.parameters
+              : {};
+            const parameterEntries = Object.entries(parameters);
+            const safeParameterEntries = parameterEntries.length
+              ? parameterEntries
+              : [["", ""]];
+
+            return `
+              <div class="mb-3">
+                <label class="form-label"><strong>Environment</strong></label>
+                <input type="text" class="form-control" name="host_environment" value="${escapeHtml(environment)}" placeholder="production">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label"><strong>Classes</strong></label>
+                <div class="classes-list">
+                  ${classes.map((cls) => classRowHtml(cls)).join("")}
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" data-add-class>Add class</button>
+              </div>
+
+              <div>
+                <label class="form-label"><strong>Parameters</strong></label>
+                <div class="parameters-list">
+                  ${safeParameterEntries
+                    .map(([key, value]) => parameterRowHtml(key, typeof value === "string" ? value : JSON.stringify(value)))
+                    .join("")}
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" data-add-parameter>Add parameter</button>
+              </div>
+            `;
+          }
+
+          function bindEditorActions(container) {
+            if (container.dataset.editorBound === "true") {
+              return;
+            }
+
+            container.addEventListener("click", (event) => {
+              if (event.target.matches("[data-add-class]")) {
+                const classesList = container.querySelector(".classes-list");
+                classesList.insertAdjacentHTML("beforeend", classRowHtml(""));
+                return;
+              }
+
+              if (event.target.matches("[data-remove-class]")) {
+                const classItems = container.querySelectorAll(".class-item");
+                if (classItems.length > 1) {
+                  event.target.closest(".class-item").remove();
+                }
+                return;
+              }
+
+              if (event.target.matches("[data-add-parameter]")) {
+                const parametersList = container.querySelector(".parameters-list");
+                parametersList.insertAdjacentHTML("beforeend", parameterRowHtml("", ""));
+                return;
+              }
+
+              if (event.target.matches("[data-remove-parameter]")) {
+                event.target.closest(".parameter-item").remove();
+              }
+            });
+
+            container.dataset.editorBound = "true";
+          }
+
+          async function loadHostDetails(hostname, targetContent) {
+            const response = await fetch(`/encompass/hosts/${encodeURIComponent(hostname)}/details`);
+            const data = await response.json();
+
+            if (!response.ok) {
+              const errorText = data.error ? escapeHtml(data.error) : "Failed to load details";
+              targetContent.innerHTML = `<span class=\"text-danger\">${errorText}</span>`;
+              targetContent.dataset.loaded = "error";
+              return;
+            }
+
+            targetContent.innerHTML = renderDetails(data);
+            bindEditorActions(targetContent);
+            targetContent.dataset.loaded = "true";
+          }
+
+          // Use DataTables child row API for expandable details
+          $('#hostsTable tbody').on('click', 'tr.host-row', async function(event) {
+            if ($(event.target).closest("button").length) {
+              return;
+            }
+
+            const tr = $(this);
+            const row = table.row(tr);
+            const hostname = tr.data('hostname');
+
+            if (row.child.isShown()) {
+              // Close this row
+              row.child.hide();
+              tr.removeClass('shown');
+            } else {
+              // Close all other rows
+              table.rows().every(function() {
+                if (this.child.isShown()) {
+                  this.child.hide();
+                  $(this.node()).removeClass('shown');
+                }
+              });
+
+              // Create child row content container
+              const childContent = $('<div class="p-3 text-start host-details-content bg-light" data-loaded="false"><span class="text-muted">Loading…</span></div>');
+              row.child(childContent).show();
+              tr.addClass('shown');
+
+              // Load details
+              try {
+                await loadHostDetails(hostname, childContent[0]);
+              } catch (_error) {
+                childContent.html('<span class="text-danger">Unable to load host details</span>');
+                childContent.attr('data-loaded', 'error');
+              }
+            }
+          });
+        })();
+      </script>
+{% endblock %}

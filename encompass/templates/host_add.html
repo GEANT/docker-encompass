@@ -1,0 +1,122 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+      <div class="text-center">
+        <div class="page-header">
+          <h2 class="text-primary">enCompass Node Classifier</h2>
+          <p class="text-muted">Add New Host</p>
+        </div>
+        </br />
+        
+        <div class="card mx-auto" style="max-width: 800px;">
+          <div class="card-body text-start">
+            <form id="addHostForm" method="post" action="/encompass/hosts/add">
+              {% csrf_token %}
+              
+              <div class="mb-3">
+                <label for="hostname" class="form-label"><strong>Hostname (FQDN) *</strong></label>
+                <input type="text" class="form-control" id="hostname" name="hostname" required placeholder="server.example.com">
+                <div class="form-text">Fully qualified domain name for the host</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label"><strong>Environment</strong></label>
+                <input type="text" class="form-control" name="environment" placeholder="production">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label"><strong>Classes</strong></label>
+                <div id="classes-list">
+                  <div class="input-group mb-2 class-item">
+                    <input type="text" class="form-control" name="classes[]" placeholder="profile::example">
+                    <button type="button" class="btn btn-outline-secondary" data-remove-class>Remove</button>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="add-class">Add class</button>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label"><strong>Parameters</strong></label>
+                <div id="parameters-list">
+                  <div class="row g-2 mb-2 parameter-item">
+                    <div class="col-md-5">
+                      <input type="text" class="form-control" name="param_keys[]" placeholder="parameter key">
+                    </div>
+                    <div class="col-md-5">
+                      <input type="text" class="form-control" name="param_values[]" placeholder="parameter value">
+                    </div>
+                    <div class="col-md-2 d-grid">
+                      <button type="button" class="btn btn-outline-secondary" data-remove-parameter>Remove</button>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="add-parameter">Add parameter</button>
+              </div>
+
+              <div class="d-flex justify-content-between mt-4">
+                <a href="/encompass/hosts" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Host</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function() {
+          function escapeHtml(value) {
+            return String(value)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+          }
+
+          // Add class handler
+          document.getElementById('add-class').addEventListener('click', function() {
+            const classesList = document.getElementById('classes-list');
+            const newClass = `
+              <div class="input-group mb-2 class-item">
+                <input type="text" class="form-control" name="classes[]" placeholder="profile::example">
+                <button type="button" class="btn btn-outline-secondary" data-remove-class>Remove</button>
+              </div>
+            `;
+            classesList.insertAdjacentHTML('beforeend', newClass);
+          });
+
+          // Add parameter handler
+          document.getElementById('add-parameter').addEventListener('click', function() {
+            const parametersList = document.getElementById('parameters-list');
+            const newParam = `
+              <div class="row g-2 mb-2 parameter-item">
+                <div class="col-md-5">
+                  <input type="text" class="form-control" name="param_keys[]" placeholder="parameter key">
+                </div>
+                <div class="col-md-5">
+                  <input type="text" class="form-control" name="param_values[]" placeholder="parameter value">
+                </div>
+                <div class="col-md-2 d-grid">
+                  <button type="button" class="btn btn-outline-secondary" data-remove-parameter>Remove</button>
+                </div>
+              </div>
+            `;
+            parametersList.insertAdjacentHTML('beforeend', newParam);
+          });
+
+          // Event delegation for remove buttons
+          document.addEventListener('click', function(event) {
+            if (event.target.matches('[data-remove-class]')) {
+              const classItems = document.querySelectorAll('.class-item');
+              if (classItems.length > 1) {
+                event.target.closest('.class-item').remove();
+              }
+            }
+            
+            if (event.target.matches('[data-remove-parameter]')) {
+              event.target.closest('.parameter-item').remove();
+            }
+          });
+        })();
+      </script>
+{% endblock %}

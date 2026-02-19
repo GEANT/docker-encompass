@@ -1,0 +1,51 @@
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+
+    <div class="text-center">
+      <div class="page-header">
+        <h2 class="text-primary">G&Eacute;ANT Terraformator</h2>
+      </div>
+      <input type="hidden" name="tform_group" value="{{ tform_group }}" />
+      <input type="hidden" name="tform_email" value="{{ tform_email }}" />
+      <input type="hidden" name="disp_name" value="{{ disp_name }}" />
+      <p class="text-primary">Help Page</p>
+      <div class="d-grid gap-3">
+        <div class="p-3 bg-info bg-opacity-10 border border-info rounded-start rounded-end">
+          <p class="text-primary">Intro</p>
+          <p class="text-lg-start" style="display:inline-block;vertical-align:left;">
+            Terraformator uses consul KV DB to store terraform statuses and VM information
+            <br />VM configurations and statuses are stored in a hierarchical folder structure
+            <br />Status files inside the folders are handled by Terraform
+          </p>
+        </div>
+        <div class="p-3 bg-info bg-opacity-10 border border-info rounded-start rounded-end">
+          <p class="text-primary">Folders structure</p>
+          <ul class="text-lg-start" style="display:inline-block;vertical-align:left;">
+            <li>1st level: application name. A matching folder on VMware is prefixed with the team name (omitted for Devops team)</li>
+            <li>2nd level: datacenter location (i.e.: lon, fra, par...)</li>
+            <li>3rd level: environment (i.e.: test, uat, prod)</li>
+            <li>Last level: keys like variables.tf.json, nsx_tags.json and others</li>
+          </ul>
+        </div>
+        <div class="p-3 bg-info bg-opacity-10 border border-info rounded-start rounded-end">
+          <p class="text-primary">Authentication</p>
+          <p class="text-lg-start" style="display:inline-block;vertical-align:left;">
+            Authentication is configured against the Windows Domain GEANT.LOCAL
+            <br />The users should be added to proper groups on the domain controller
+            <br />You should use only the username (usually name.surname) without the domain name
+            <br />ToDo: extend AD schema to include SSH keys
+          </p>
+        </div>
+        <div class="p-3 bg-info bg-opacity-10 border border-info rounded-start rounded-end">
+          <p class="text-primary">NSX-T tags</p>
+          <p class="text-lg-start" style="display:inline-block;vertical-align:left;">
+            It's possible to select multiple tags from a list of predefined tags
+            <br />The tags will be the same for all the VMs within the same folder
+            <br />At least one tag must be selected
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

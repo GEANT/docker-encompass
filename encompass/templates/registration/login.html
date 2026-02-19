@@ -1,0 +1,42 @@
+{% extends 'shared/common.html' %} {% block title %}
+  Login
+{% endblock %} {% block content %}
+    <div class="text-center">
+      <div id="content-container" class="container p-none">
+        <div class="page-header">
+          <h2 class="text-primary">enCompass Node Classifier</h2>
+        </div>
+
+        <div class="container spacer">
+          <form action="{{ app_path }}" method="post" id="login-form">
+            {% csrf_token %}
+            <table class="table center-table mx-auto" style="width: 500px">
+              <caption>GEANT.LOCAL credentials (name.surname without domain)</caption>
+              <tr>
+                <th scope="col">
+                  <label for="id_username">Username</label>
+                </th>
+                <td>
+                  <input id="id_username" name="username" type="text" placeholder="<name.surname>" class="form-control" />
+                </td>
+              </tr>
+              <tr>
+                <th scope="col">
+                  <label for="id_password">Password</label>
+                </th>
+                <td>
+                  <input id="id_password" name="password" type="password" class="form-control" />
+                </td>
+              </tr>
+            </table>
+            <br /> {% if form.errors %}
+              <p class="label label-danger">Your username and password didn't match. Please try again.</p>
+              <br />
+            {% endif %}
+            <input type="submit" value="Login" class="btn btn-primary pull-center" />
+            <input type="hidden" name="next" value="{{ next }}" />
+          </form>
+        </div>
+      </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+      <div class="text-center">
+        <div class="page-header">
+          <h2 class="text-primary">enCompass Node Classifier</h2>
+        </div>
+        <form class="form-horizontal mx-auto" style="width: 700px;" action="/encompass/" method="post">
+          {% csrf_token %}
+          <br />
+          <input type="hidden" name="tform_folder" value="{{ tform_folder }}" />
+          <input type="hidden" name="tform_group" value="{{ tform_group }}" />
+          <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
+          <input type="hidden" name="disp_name" value="{{ disp_name }}" />
+          <input type="hidden" name="foldername" value="{{ foldername }}" />
+          <input type="hidden" name="subfoldername" value="{{ subfoldername }}" />
+          <input type="hidden" name="datacenter" value="{{ datacenter }}" />
+          <input type="hidden" name="datacenter_long" value="{{ datacenter_long }}" />
+          <input type="hidden" name="template" value="{{ template }}" />
+          <input type="hidden" name="ssh_group" value="{{ ssh_group }}" />
+          <input type="hidden" name="sudo_group" value="{{ sudo_group }}" />
+          <input type="hidden" name="selected_tags_raw" value="{{ selected_tags_raw }}" />
+          <input type="hidden" name="ignorelock" value="{{ ignorelock }}" />
+
+          <div class="card border-primary bg-light mb-3" style="max-width: 700px;">
+            <div class="card-header">Provisioning information</div>
+            <div class="card-body">
+              <p class="card-text">
+                <pre>Consul top folder: {{ tform_folder }}
+Datacenter: {{ datacenter_long }}
+Folder (application): {{ foldername }}
+Sub-Folder (environment): {{ subfoldername }}</pre>
+              </p>
+            </div>
+          </div>
+          <div class="form-group" align="center">
+            <div class="card text-white bg-danger mb-3" style="max-width: 30rem;">
+              <div class="card-header">{{ card_header }}</div>
+              <div class="card-body">
+                <h4 class="card-title">Session locked</h4>
+                {% for item in results %}
+                  <p class="card-text">{{ item }}</p>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Cancel</button>
+        </form>
+        <hr style="width: 100%;" />
+        <span style="float:left;" class="spacer-left"><a type="button" class="btn btn-outline-primary btn-sm" href="javascript:history.back()"><i class="bi bi-arrow-left"></i> Go Back</a></span>
+        <span style="float:right;" class="spacer-right"><a type="button" class="btn btn-outline-primary btn-sm" href="/encompass">Home</a></span>
+        <br /><br />
+      </div>
+{% endblock %}

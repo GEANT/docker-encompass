@@ -1,0 +1,26 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+      <div class="text-center">
+        <div class="page-header">
+          <h2 class="text-primary">enCompass Node Classifier</h2>
+        </div>
+        <form class="form-horizontal" action="/encompass/group_purge_execute/" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="groupname" value="{{ groupname }}" />
+          <div class="form-group">
+            <div class="alert alert-warning" role="alert">
+              You are about to delete the group <strong>{{ groupname }}</strong>.
+              This action cannot be undone.
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col">
+              <a type="button" class="btn btn-outline-primary btn-sm" href="/encompass/groups">Cancel</a>
+              &nbsp;<button type="submit" class="btn btn-danger">Confirm deletion</button>
+            </div>
+            <br />
+          </div>
+        </form>
+      </div>
+{% endblock %}

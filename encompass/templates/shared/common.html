@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://cds.geant.org/css/bootstrap/5/default/bootstrap.css" />
+    <link rel="stylesheet" href="https://cds.geant.org/css/bootstrap/_vendor/bootstrap-icons/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="https://cds.geant.org/css/bootstrap/_vendor/prismjs/themes/prism-okaidia.css" />
+    <link rel="stylesheet" href="https://cds.geant.org/css/bootstrap/_assets/css/custom.min.css" />
+    <link rel="stylesheet" href="https://cds.geant.org/css/jquery-ui-1.13.2/jquery-ui.css" />
+    <script src="https://cds.geant.org/css/popperjs-2.9.2/popper.min.js"></script>
+    <script src="https://cds.geant.org/css/bootstrap/_vendor/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="https://cds.geant.org/css/jquery-3.2.1/jquery.min.js"></script>
+    <script src="https://cds.geant.org/css/jquery-ui-1.13.2/jquery-ui.js"></script>
+    <script src="https://cds.geant.org/js/jsoneditor-2.12.0/jsoneditor.min.js"></script>
+    <title>enCompass</title>
+    <style>
+      h2 {
+        display: inline;
+      }
+      .form-group {
+        margin: 0 auto;
+        float: none;
+        width: 100%;
+      }
+      .custom-item-left {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        margin-left: 10px;
+      }
+      .custom-item-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        margin-right: 15px;
+      }
+      .vertical-align-middle td {
+        vertical-align: middle !important;
+      }
+      .custom-text-left {
+        text-align: left;
+      }
+      .custom-text-right {
+        text-align: right;
+      }
+    </style>
+  </head>
+
+  <body class="container">
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top bg-primary">
+      <a id="terraform-logo" class="navbar-brand ms-3" href="/encompass/"><img src="https://cds.geant.org/images/compass/compass-blue-clipart-40.png" alt="enCompass" /></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+      <div class="collapse navbar-collapse" id="navbarColor01">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/encompass/">
+              Home
+              <span class="visually-hidden">(current)</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/encompass/help/">Help</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/encompass/about/">About</a>
+          </li>
+          {{ watermark|safe }}
+          <li class="nav-item">
+            <a class="nav-link disabled text-secondary" href="#"> v. {{ current_version }}</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link disabled text-secondary" href="#"> Group: {{ group_name|default:'(not yet known)' }}&nbsp;&nbsp;</a>
+          </li>
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary me-3 dropdown-toggle" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">{{ disp_name|default:'[Known after login]' }}</button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton1">
+              <a class="dropdown-item">Group: {{ group_name|default:'(not yet known)' }}</a>
+              <a class="dropdown-item">Email: {{ encompass_email|default:'(known after login)' }}</a>
+              <div class="dropdown-divider"></div>
+              <a class="dropdown-item" href="/encompass/logout_confirmation/">Logout</a>
+            </ul>
+          </div>
+        </ul>
+      </div>
+    </nav>
+
+      {% block content %}{% endblock %}
+
+  </body>
+</html>

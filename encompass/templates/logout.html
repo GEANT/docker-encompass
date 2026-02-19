@@ -1,0 +1,33 @@
+{% extends 'shared/common.html' %} {% block title %}
+See you!
+{% endblock %} {% block content %}
+<style>
+  .table_custom {
+    --bs-table-bg: transparent !important;
+  }
+
+  body {
+    background-image: url('https://cds.geant.org/images/compass/compass-blue-clipart-300.png');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-attachment: fixed;
+    /* background-size: 300px 300px; */
+    background-position-x: center;
+    background-position-y: 300px;
+  }
+</style>
+
+<div class="text-center">
+  <div class="page-header">
+    <h2 class="text-primary">enCompass Node Classifier</h2>
+  </div>
+</div>
+<div class="text-center spacer"></div>
+<h2>&nbsp;Logged out</h2>
+<br />
+<p>&nbsp;&nbsp;You have been successfully logged out.</p>
+<p>
+  &nbsp;&nbsp;
+  <a href="{% url 'login' %}">Log in</a> again.
+</p>
+{% endblock %}

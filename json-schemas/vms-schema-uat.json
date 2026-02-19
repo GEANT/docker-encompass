@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "Virtual Machines",
+  "additionalProperties": false,
+  "properties": {
+    "VMs": {
+      "type": "array",
+      "format": "tabs-top",
+      "additionalItems": false,
+      "items": {
+        "type": "object",
+        "headerTemplate": "{{ i1 }} - {{ self.hostname }}",
+        "additionalProperties": false,
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "title": "hostname (without domain)",
+            "pattern": "^(ams-|lon-|fra-|par-|)uat-([a-z]*-|)([a-z]*)([0-9][0-9]|)$",
+            "options": {
+              "grid_columns": 5,
+              "infoText": "hostname without domain, following this convention: [<LOC>-]uat-[<DEPT>-]<APPNAME>[<DIGIT><DIGIT>]"
+            }
+          },
+          "domain": {
+            "type": "string",
+            "default": "geant.org",
+            "title": "domain name",
+            "options": {
+              "grid_columns": 4,
+              "infoText": "a valid domain within GEANT. i.e.: geant.org"
+            }
+          },
+          "puppet_env": {
+            "type": "string",
+            "title": "puppet env",
+            "default": "uat",
+            "readonly": true,
+            "options": {
+              "grid_columns": 3,
+              "grid_break": true,
+              "infoText": "Puppet Environment. Terraform post-exec job, will set this value for new VM. It is ignored for unmanged VMs"
+            }
+          },
+          "disk_size_gb": {
+            "type": "integer",
+            "title": "disk size (GB)",
+            "default": 40,
+            "minimum": 40,
+            "options": {
+              "grid_columns": 4,
+              "infoText": "The size of the disk, in GB"
+            }
+          },
+          "extra_disk_number": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "title": "number of extra disks",
+            "options": {
+              "grid_columns": 4,
+              "infoText": "The number extra disks"
+            }
+          },
+          "extra_disk_size_gb": {
+            "type": "integer",
+            "title": "extra disk size (GB)",
+            "default": 0,
+            "minimum": 0,
+            "options": {
+              "grid_columns": 4,
+              "grid_break": true,
+              "infoText": "The size of each extra disk, in GB"
+            }
+          },
+          "memory": {
+            "type": "integer",
+            "title": "memory (GB)",
+            "default": 2,
+            "minimum": 2,
+            "options": {
+              "grid_columns": 4,
+              "infoText": "The size of the virtual machine memory, in GB"
+            }
+          },
+          "num_cpus": {
+            "type": "integer",
+            "default": 2,
+            "minimum": 1,
+            "maximum": 32,
+            "title": "CPU(s) number",
+            "options": {
+              "grid_columns": 4,
+              "infoText": "The total number of virtual processor cores assigned to this virtual machine"
+            }
+          },
+          "bandwidth": {
+            "type": "integer",
+            "default": -1,
+            "options": {
+              "grid_columns": 4,
+              "grid_break": true,
+              "infoText": "Upper bandwidth limit of the network interface, in Mbits/sec. -1 for unlimited"
+            }
+          },
+          "ipv4_address": {
+            "type": "string",
+            "readonly": true,
+            "title": "IPv4 address",
+            "default": "IPAM",
+            "pattern": "^(IPAM|(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$",
+            "options": {
+              "grid_columns": 6,
+              "infoText": "IPAM for a new VM or valid IPv4"
+            }
+          },
+          "ipv6_address": {
+            "type": "string",
+            "readonly": true,
+            "title": "IPv6 address",
+            "default": "IPAM",
+            "pattern": "^(IPAM)$|^(2001:798:3:).*",
+            "options": {
+              "grid_columns": 6,
+              "grid_break": true,
+              "infoText": "IPAM for a new VM or valid IPv6"
+            }
+          },
+          "annotation": {
+            "type": "string",
+            "title": "free annotation",
+            "default": "owned by: Name Surname <name.surname@geant.org>",
+            "options": {
+              "grid_columns": 12,
+              "infoText": "The user-provided description of this virtual machine. The name/email of the owner can be useful"
+            }
+          }
+        },
+        "required": [
+          "hostname",
+          "domain",
+          "puppet_env",
+          "disk_size_gb",
+          "extra_disk_number",
+          "extra_disk_size_gb",
+          "ipv4_address",
+          "ipv6_address",
+          "memory",
+          "num_cpus",
+          "bandwidth",
+          "annotation"
+        ]
+      }
+    }
+  }
+}

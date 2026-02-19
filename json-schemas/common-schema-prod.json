@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "Common Parameters",
+  "additionalProperties": false,
+  "properties": {
+    "common": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ssh_group": {
+          "type": "string",
+          "readonly": true,
+          "title": "ssh group",
+          "description": "UNDEF/None or a group defined on GEANT.LOCAL",
+          "default": "UNDEF",
+          "options": {
+            "grid_columns": 6,
+            "infoText": "UNDEF/None or a group existing in GEANT.LOCAL (read-only in production)"
+          }
+        },
+        "sudo_group": {
+          "type": "string",
+          "readonly": true,
+          "title": "sudo group",
+          "description": "UNDEF/None or a group defined on GEANT.LOCAL",
+          "default": "UNDEF",
+          "options": {
+            "grid_columns": 6,
+            "grid_break": true,
+            "infoText": "UNDEF/None or a group existing in GEANT.LOCAL (read-only in production)"
+          }
+        },
+        "template": {
+          "type": "string",
+          "title": "OS template",
+          "description": "select one from the drop-down menu",
+          "default": "packer-ubuntu-2404",
+          "options": {
+            "grid_columns": 12,
+            "infoText": "Packer template used to provision the VMs"
+          },
+          "enum": [
+            "packer-ubuntu-2404",
+            "packer-ubuntu-2204",
+            "packer-ubuntu-2004",
+            "packer-centos-7"
+          ]
+        }
+      },
+      "required": [
+        "template"
+      ]
+    }
+  }
+}

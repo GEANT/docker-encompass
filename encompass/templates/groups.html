@@ -1,0 +1,461 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+      <div class="text-center">
+        <div class="page-header">
+          <h2 class="text-primary">enCompass Node Classifier</h2>
+          <p class="text-muted">Groups Management</p>
+        </div>
+        </br />
+
+        <!-- Messages -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" style="margin: 15px auto; max-width: 1200px;">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <!-- Add Group Button -->
+        <div style="margin-bottom: 15px;">
+          <a href="/encompass/groups/add" class="btn btn-success">+ Add Group</a>
+        </div>
+
+        <div class="table-responsive" style="margin: 0 auto; max-width: 1200px;">
+          <table class="table table-hover table-light" id="groupsTable" style="text-align: left;">
+            <caption>Groups dashboard</caption>
+            <thead>
+              <tr>
+                <th class="bg-secondary" scope="col">Group Name</th>
+                <th class="bg-secondary" scope="col">Environment</th>
+                <th class="bg-secondary" scope="col">Classes</th>
+                <th class="bg-secondary" scope="col">Hosts</th>
+                <th class="bg-secondary" scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for group in groups_list %}
+                <tr data-groupname="{{ group }}">
+                  <td onclick="toggleGroupDetails(this, '{{ group }}')" class="group-row" style="cursor: pointer;">
+                    <span class="expand-icon">▶</span> {{ group }}
+                  </td>
+                  <td class="environment-cell">-</td>
+                  <td class="classes-cell">-</td>
+                  <td class="hosts-cell">-</td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="expandGroupDetails('{{ group }}')">Edit</button>
+                    <a href="/encompass/group_purge_confirmation/?name={{ group }}" class="btn btn-sm btn-outline-danger">Delete</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <!-- Detail rows (outside tbody to avoid DataTables column count issues) -->
+          {% for group in groups_list %}
+            <div class="detail-row-container" id="detail-{{ group }}" style="display: none; margin-top: 10px; margin-bottom: 10px;">
+              <div class="card">
+                <div class="card-body">
+                  <form id="group-form-{{ group }}" method="post" action="#" onsubmit="saveGroup(event, '{{ group }}'); return false;">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label"><strong>Environment</strong></label>
+                        <input type="text" class="form-control group-environment" placeholder="production" data-group="{{ group }}">
+                      </div>
+                    </div>
+
+                    <div class="row mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label"><strong>Classes</strong></label>
+                        <div class="group-classes" data-group="{{ group }}">
+                          <!-- Populated by loadGroupDetails -->
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addClassField('{{ group }}')">Add class</button>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label"><strong>Hosts</strong></label>
+                        <div class="group-hosts" data-group="{{ group }}">
+                          <!-- Populated by loadGroupDetails -->
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addHostField('{{ group }}')">Add host</button>
+                      </div>
+                    </div>
+
+                    <div class="row mb-3">
+                      <div class="col-md-12">
+                        <label class="form-label"><strong>Parameters</strong></label>
+                        <div class="group-parameters" data-group="{{ group }}">
+                          <!-- Populated by loadGroupDetails -->
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addParameterField('{{ group }}')">Add parameter</button>
+                      </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                      <button type="button" class="btn btn-outline-secondary" onclick="cancelEdit(event, '{{ group }}')">Cancel</button>
+                      <button type="submit" class="btn btn-success">Save Group</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+          </table>
+        </div>
+      </div>
+
+      <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.css" />
+      <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.js"></script>
+
+      <script>
+        // Initialize DataTables
+        $(document).ready(function() {
+          $('#groupsTable').DataTable({
+            "pageLength": 25,
+            "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
+            "columnDefs": [
+              { "orderable": false, "targets": [2, 3, 4] }  // Disable sorting on Classes, Hosts, and Actions columns
+            ]
+          });
+
+          // Load all group details on page load to populate summary cells
+          document.querySelectorAll('tr[data-groupname]').forEach(row => {
+            const groupname = row.getAttribute('data-groupname');
+            loadGroupDetails(groupname);
+          });
+        });
+
+        function escapeHtml(value) {
+          if (value === null || value === undefined) return '';
+          return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        }
+
+        function toggleGroupDetails(element, groupname) {
+          const detailContainer = document.getElementById(`detail-${groupname}`);
+          
+          if (detailContainer) {
+            const isVisible = detailContainer.style.display !== 'none';
+            
+            if (isVisible) {
+              // Collapse
+              detailContainer.style.display = 'none';
+              element.querySelector('.expand-icon').textContent = '▶';
+            } else {
+              // Expand and load details
+              loadGroupDetails(groupname);
+              detailContainer.style.display = 'block';
+              element.querySelector('.expand-icon').textContent = '▼';
+              // Scroll to the detail container
+              setTimeout(() => {
+                detailContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 100);
+            }
+          }
+        }
+
+        function expandGroupDetails(groupname) {
+          const detailContainer = document.getElementById(`detail-${groupname}`);
+          const row = document.querySelector(`tr[data-groupname="${groupname}"]`);
+          
+          if (detailContainer) {
+            if (detailContainer.style.display === 'none') {
+              loadGroupDetails(groupname);
+              detailContainer.style.display = 'block';
+              row.querySelector('.expand-icon').textContent = '▼';
+              // Scroll to the detail container
+              setTimeout(() => {
+                detailContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 100);
+            }
+          }
+        }
+
+        function loadGroupDetails(groupname) {
+          const url = `/encompass/groups/${encodeURIComponent(groupname)}/details`;
+          
+          fetch(url)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+              }
+              return response.text();
+            })
+            .then(text => {
+              // Log response for debugging
+              console.log('Raw response:', text);
+              try {
+                return JSON.parse(text);
+              } catch (e) {
+                throw new Error(`Failed to parse JSON response: ${e.message}`);
+              }
+            })
+            .then(data => {
+              try {
+                populateGroupFields(groupname, data);
+              } catch (e) {
+                throw new Error(`Failed to populate fields: ${e.message}`);
+              }
+            })
+            .catch(error => {
+              console.error('Error loading group details:', error);
+              alert('Failed to load group details: ' + error.message);
+            });
+        }
+
+        function populateGroupFields(groupname, groupData) {
+          // Validate groupData
+          if (!groupData || typeof groupData !== 'object') {
+            throw new Error(`Invalid group data: expected object, got ${typeof groupData}`);
+          }
+
+          // Get main row and containers
+          const mainRow = document.querySelector(`tr[data-groupname="${groupname}"]`);
+          if (!mainRow) {
+            throw new Error(`Could not find main row for group '${groupname}'`);
+          }
+
+          // Environment
+          const envInput = document.querySelector(`.group-environment[data-group="${groupname}"]`);
+          if (envInput) {
+            envInput.value = escapeHtml(groupData.environment || '');
+          }
+
+          // Update the summary cells in the main table row
+          mainRow.querySelector('.environment-cell').textContent = groupData.environment || '-';
+          
+          // Count classes - handle both list and dict formats
+          let classCount = 0;
+          if (groupData.classes) {
+            if (Array.isArray(groupData.classes)) {
+              classCount = groupData.classes.length;
+            } else if (typeof groupData.classes === 'object') {
+              classCount = Object.keys(groupData.classes).length;
+            }
+          }
+          mainRow.querySelector('.classes-cell').textContent = classCount > 0 ? classCount + ' class(es)' : '-';
+          
+          const hostCount = (groupData.hosts && Array.isArray(groupData.hosts) && groupData.hosts.length) || 0;
+          mainRow.querySelector('.hosts-cell').textContent = hostCount > 0 ? hostCount + ' host(s)' : '-';
+
+          // Classes - handle both list and dict formats
+          const classesContainer = document.querySelector(`.group-classes[data-group="${groupname}"]`);
+          if (!classesContainer) {
+            throw new Error(`Could not find classes container for group '${groupname}'`);
+          }
+          classesContainer.innerHTML = '';
+          if (groupData.classes) {
+            if (Array.isArray(groupData.classes)) {
+              groupData.classes.forEach(className => {
+                const div = document.createElement('div');
+                div.className = 'input-group mb-2 class-item';
+                div.innerHTML = `
+                  <input type="text" class="form-control" value="${escapeHtml(className)}" placeholder="profile::example">
+                  <button type="button" class="btn btn-outline-secondary" onclick="removeField(this)">Remove</button>
+                `;
+                classesContainer.appendChild(div);
+              });
+            } else if (typeof groupData.classes === 'object') {
+              Object.keys(groupData.classes).forEach(className => {
+                const div = document.createElement('div');
+                div.className = 'input-group mb-2 class-item';
+                div.innerHTML = `
+                  <input type="text" class="form-control" value="${escapeHtml(className)}" placeholder="profile::example">
+                  <button type="button" class="btn btn-outline-secondary" onclick="removeField(this)">Remove</button>
+                `;
+                classesContainer.appendChild(div);
+              });
+            }
+          }
+
+          // Hosts (Array)
+          const hostsContainer = document.querySelector(`.group-hosts[data-group="${groupname}"]`);
+          if (!hostsContainer) {
+            throw new Error(`Could not find hosts container for group '${groupname}'`);
+          }
+          hostsContainer.innerHTML = '';
+          if (groupData.hosts && Array.isArray(groupData.hosts)) {
+            groupData.hosts.forEach(hostname => {
+              const div = document.createElement('div');
+              div.className = 'input-group mb-2 host-item';
+              div.innerHTML = `
+                <input type="text" class="form-control" value="${escapeHtml(hostname)}" placeholder="hostname.example.com">
+                <button type="button" class="btn btn-outline-secondary" onclick="removeField(this)">Remove</button>
+              `;
+              hostsContainer.appendChild(div);
+            });
+          }
+
+          // Parameters (Dict)
+          const parametersContainer = document.querySelector(`.group-parameters[data-group="${groupname}"]`);
+          if (!parametersContainer) {
+            throw new Error(`Could not find parameters container for group '${groupname}'`);
+          }
+          parametersContainer.innerHTML = '';
+          if (groupData.parameters && typeof groupData.parameters === 'object' && !Array.isArray(groupData.parameters)) {
+            Object.entries(groupData.parameters).forEach(([key, value]) => {
+              const div = document.createElement('div');
+              div.className = 'row g-2 mb-2 parameter-item';
+              div.innerHTML = `
+                <div class="col-md-5">
+                  <input type="text" class="form-control" value="${escapeHtml(key)}" placeholder="parameter key">
+                </div>
+                <div class="col-md-5">
+                  <input type="text" class="form-control" value="${escapeHtml(value)}" placeholder="parameter value">
+                </div>
+                <div class="col-md-2 d-grid">
+                  <button type="button" class="btn btn-outline-secondary" onclick="removeField(this)">Remove</button>
+                </div>
+              `;
+              parametersContainer.appendChild(div);
+            });
+          }
+        }
+
+        function addClassField(groupname) {
+          const classesContainer = document.querySelector(`.group-classes[data-group="${groupname}"]`);
+          const div = document.createElement('div');
+          div.className = 'input-group mb-2 class-item';
+          div.innerHTML = `
+            <input type="text" class="form-control" placeholder="profile::example">
+            <button type="button" class="btn btn-outline-secondary" onclick="removeField(this)">Remove</button>
+          `;
+          classesContainer.appendChild(div);
+        }
+
+        function addHostField(groupname) {
+          const hostsContainer = document.querySelector(`.group-hosts[data-group="${groupname}"]`);
+          const div = document.createElement('div');
+          div.className = 'input-group mb-2 host-item';
+          div.innerHTML = `
+            <input type="text" class="form-control" placeholder="hostname.example.com">
+            <button type="button" class="btn btn-outline-secondary" onclick="removeField(this)">Remove</button>
+          `;
+          hostsContainer.appendChild(div);
+        }
+
+        function addParameterField(groupname) {
+          const parametersContainer = document.querySelector(`.group-parameters[data-group="${groupname}"]`);
+          const div = document.createElement('div');
+          div.className = 'row g-2 mb-2 parameter-item';
+          div.innerHTML = `
+            <div class="col-md-5">
+              <input type="text" class="form-control" placeholder="parameter key">
+            </div>
+            <div class="col-md-5">
+              <input type="text" class="form-control" placeholder="parameter value">
+            </div>
+            <div class="col-md-2 d-grid">
+              <button type="button" class="btn btn-outline-secondary" onclick="removeField(this)">Remove</button>
+            </div>
+          `;
+          parametersContainer.appendChild(div);
+        }
+
+        function removeField(button) {
+          button.closest('.class-item, .host-item, .parameter-item').remove();
+        }
+
+        function cancelEdit(event, groupname) {
+          event.preventDefault();
+          const detailContainer = document.getElementById(`detail-${groupname}`);
+          const mainRow = document.querySelector(`tr[data-groupname="${groupname}"]`);
+          if (mainRow) {
+            mainRow.querySelector('.expand-icon').textContent = '▶';
+          }
+          detailContainer.style.display = 'none';
+        }
+
+        function saveGroup(event, groupname) {
+          event.preventDefault();
+
+          const environment = document.querySelector(`.group-environment[data-group="${groupname}"]`).value.trim();
+          
+          const classes = [];
+          document.querySelectorAll(`.group-classes[data-group="${groupname}"] .class-item input`).forEach(input => {
+            const value = input.value.trim();
+            if (value) classes.push(value);
+          });
+
+          const hosts = [];
+          document.querySelectorAll(`.group-hosts[data-group="${groupname}"] .host-item input`).forEach(input => {
+            const value = input.value.trim();
+            if (value) hosts.push(value);
+          });
+
+          const parameters = {};
+          const paramItems = document.querySelectorAll(`.group-parameters[data-group="${groupname}"] .parameter-item`);
+          paramItems.forEach(item => {
+            const keyInput = item.querySelector('.col-md-5:first-child input');
+            const valueInput = item.querySelector('.col-md-5:last-of-type input');
+            if (keyInput && valueInput) {
+              const keyValue = keyInput.value.trim();
+              const value = valueInput.value.trim();
+              if (keyValue) {
+                parameters[keyValue] = value;
+              }
+            }
+          });
+
+          const payload = {
+            groupname: groupname,
+            environment: environment,
+            classes: classes,
+            hosts: hosts,
+            parameters: parameters
+          };
+
+          console.log('Saving group with payload:', payload);
+
+          fetch('/encompass/group_save/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': document.querySelector('[name="csrfmiddlewaretoken"]').value
+            },
+            body: JSON.stringify(payload)
+          })
+          .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+              return response.text().then(text => {
+                console.log('Error response:', text);
+                try {
+                  const data = JSON.parse(text);
+                  throw new Error(data.error || 'Failed to save group');
+                } catch (e) {
+                  throw new Error(`Server error (${response.status}): ${text}`);
+                }
+              });
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('Success response:', data);
+            if (data.status === 'ok') {
+              alert('Group saved successfully!');
+              const mainRow = document.querySelector(`tr[data-groupname="${groupname}"]`);
+              const detailContainer = document.getElementById(`detail-${groupname}`);
+              mainRow.querySelector('.expand-icon').textContent = '▶';
+              detailContainer.style.display = 'none';
+              // Reload the page to reflect changes
+              location.reload();
+            }
+          })
+          .catch(error => {
+            console.error('Error saving group:', error);
+            alert('Failed to save group: ' + error.message);
+          });
+        }
+      </script>
+{% endblock %}
+
