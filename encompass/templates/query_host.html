@@ -1,0 +1,103 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+    <div class="text-center">
+      <div class="page-header">
+        <h2 class="text-primary">enCompass Node Classifier</h2>
+        <p class="text-muted">Query Host</p>
+      </div>
+      <br />
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" style="margin: 15px auto; max-width: 800px;">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="container" style="max-width: 1000px;">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <form method="post" action="/encompass/query_host/" class="text-start">
+              {% csrf_token %}
+              
+              <div class="mb-4">
+                <label for="hostname" class="form-label"><strong>Hostname (FQDN)</strong></label>
+                <div class="input-group">
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    id="hostname" 
+                    name="hostname" 
+                    placeholder="server.example.com" 
+                    value="{{ hostname|default:'' }}"
+                    required
+                    autofocus>
+                  <button type="submit" class="btn btn-primary">Query Host</button>
+                </div>
+                <div class="form-text">Enter the fully qualified domain name of the host to query</div>
+              </div>
+            </form>
+
+            {% if error %}
+              <div class="alert alert-danger" role="alert">
+                <strong>Error:</strong> {{ error }}
+              </div>
+            {% endif %}
+
+            {% if yaml_output %}
+              <hr>
+              <h5 class="text-start mb-3">ENC Classification for: <code>{{ hostname }}</code></h5>
+              
+              <div class="text-start">
+                <div class="mb-3">
+                  <strong>Environment:</strong> 
+                  <span class="badge bg-secondary">{{ host_data.environment|default:"(not set)" }}</span>
+                </div>
+                
+                {% if host_data.classes %}
+                <div class="mb-3">
+                  <strong>Classes:</strong>
+                  <ul class="list-group list-group-flush">
+                    {% for class in host_data.classes %}
+                      <li class="list-group-item"><code>{{ class }}</code></li>
+                    {% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+                
+                {% if host_data.parameters %}
+                <div class="mb-3">
+                  <strong>Parameters:</strong>
+                  <table class="table table-sm table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for key, value in host_data.parameters.items %}
+                        <tr>
+                          <td><code>{{ key }}</code></td>
+                          <td><code>{{ value }}</code></td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                  <strong>Raw YAML Output:</strong>
+                  <pre class="bg-light p-3 border rounded" style="text-align: left;"><code>{{ yaml_output }}</code></pre>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+{% endblock %}

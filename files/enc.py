@@ -144,14 +144,14 @@ def save_data(what, key, value):
 @app.after_request
 def after_request(response):
     """Log all requests."""
-    if "/healthz" != request.path:
+    if request.path != "/healthz":
         logline = f"{request.remote_addr} -"
         logline = f"{logline} -"
         srv_proto = request.environ.get("SERVER_PROTOCOL", "-")
         logline = f"{logline}{strftime(' [%Y/%b/%d:%H:%M:%S]')}"
         logline = f'{logline} "{request.method} {request.path} {srv_proto}"'
         logline = f"{logline} {response.status_code} {response.content_length}"
-        print(logline)
+        logger.info(logline)
     return response
 
 

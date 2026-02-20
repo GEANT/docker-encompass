@@ -2,6 +2,12 @@
 #
 set -e
 
+until test -S /run/static.sock; do
+    echo "==> HAProxy: Waiting for Static service..."
+    sleep 1
+done
+echo "==> HAProxy: Static service is available"
+
 until test -S /run/enc.sock; do
     echo "==> HAProxy: Waiting for ENC service..."
     sleep 1

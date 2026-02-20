@@ -41,8 +41,9 @@ COPY --chmod=644 files/watermark /local/watermark
 COPY --chmod=644 files/version /local/version
 COPY --chmod=644 files/bashrc /root/.bashrc
 COPY --chmod=644 files/vimrc /root/.vimrc
-COPY json-schemas code/json-schemas
+COPY static code/static/static
 COPY --chmod=755 files/enc.py /code/enc/enc.py
+COPY --chmod=755 files/static.py /code/static/static.py
 COPY encompass code/encompass
 RUN ln -s /data /code/enc/data
 

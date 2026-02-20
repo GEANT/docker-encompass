@@ -743,6 +743,66 @@ def group_list(request):
 
 
 @login_required(login_url="/encompass/login/")
+def query_host(request):
+    """
+    Query a specific host to see its ENC classification.
+    GET: Show the query form
+    POST: Query the host and display results
+    """
+    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
+    groups = request.user.ldap_user.attrs.get("memberOf", [])
+    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
+    group_name = tools.get_groups_info(groups)
+    
+    context = {
+        "encompass_email": encompass_email,
+        "group_name": group_name,
+        "disp_name": disp_name,
+        "watermark": settings.WATERMARK,
+        "current_version": settings.CURRENT_VERSION,
+    }
+    
+    if request.method == "POST":
+        hostname = request.POST.get("hostname", "").strip()
+        
+        if not hostname:
+            context["error"] = "Please enter a hostname"
+            return render(request, "query_host.html", context)
+        
+        try:
+            # Query the ENC API
+            session = requests_unixsocket.Session()
+            response = session.get(f"http+unix://%2Frun%2Fenc.sock/hosts/{hostname}")
+            
+            if response.status_code == 404:
+                context["error"] = f"Host '{hostname}' not found in ENC"
+                context["hostname"] = hostname
+                return render(request, "query_host.html", context)
+            
+            if response.status_code != 200:
+                context["error"] = f"Error querying host: HTTP {response.status_code}"
+                context["hostname"] = hostname
+                return render(request, "query_host.html", context)
+            
+            # Parse the YAML response
+            host_data = yaml.safe_load(response.text)
+            
+            # Convert back to YAML for display (pretty printed)
+            yaml_output = yaml.dump(host_data, default_flow_style=False, sort_keys=False)
+            
+            context["hostname"] = hostname
+            context["yaml_output"] = yaml_output
+            context["host_data"] = host_data
+            
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Error querying host '%s'", hostname)
+            context["error"] = f"Failed to query host: {str(e)}"
+            context["hostname"] = hostname
+    
+    return render(request, "query_host.html", context)
+
+
+@login_required(login_url="/encompass/login/")
 def query(request):
     """
     query VMs from vCenter

@@ -16,6 +16,7 @@
       <div class="text-center">
         <div class="page-header">
           <h2 class="text-primary">enCompass Node Classifier</h2>
+          <p class="text-muted">Hosts Management</p>
         </div>
         </br />
         
@@ -30,30 +31,36 @@
         </div>
         {% endif %}
         
-        <div class="d-flex justify-content-end mb-3">
-          <a href="/encompass/hosts/add" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-circle"></i> Add Host
-          </a>
+        <div class="d-flex justify-content-between align-items-center" style="margin: 0 auto 15px; max-width: 1200px;">
+          <a href="/encompass/hosts/add" class="btn btn-success">+ Add Host</a>
+          <div style="max-width: 320px; width: 100%;">
+            <input type="search" id="hostsSearch" class="form-control" placeholder="Filter hosts..." aria-label="Filter hosts" style="margin-left: auto;">
+          </div>
         </div>
-        <form class="form-horizontal" action="/encompass/host_purge_confirmation/" method="post">
-          {% csrf_token %}
-          <input type="hidden" name="tform_folder" value="{{ tform_folder }}" />
-          <input type="hidden" name="tform_group" value="{{ tform_group }}" />
-          <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
-          <input type="hidden" name="disp_name" value="{{ disp_name }}" />
-          <div class="form-group">
-            <table id="hostsTable" class="table table-hover table-light">
+
+        <div class="table-responsive" style="margin: 0 auto; max-width: 1200px;">
+          <form class="form-horizontal" action="/encompass/host_purge_confirmation/" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="tform_folder" value="{{ tform_folder }}" />
+            <input type="hidden" name="tform_group" value="{{ tform_group }}" />
+            <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
+            <input type="hidden" name="disp_name" value="{{ disp_name }}" />
+            <table id="hostsTable" class="table table-hover table-light" style="text-align: left;">
               <caption>Hosts dashboard</caption>
               <thead>
                 <tr>
                   <th class="bg-secondary" scope="col">Hosts</th>
-                  <th class="bg-secondary" scope="col" style="text-align: left;">Actions</th>
+                  <th class="bg-secondary" scope="col">Environment</th>
+                  <th class="bg-secondary" scope="col">Classes</th>
+                  <th class="bg-secondary" scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
               {% for host in hosts %}
               <tr class="host-row" data-hostname="{{ host }}" style="cursor:pointer;">
-                <td>{{ host }}</td>
+                <td><span class="expand-icon">▶</span> {{ host }}</td>
+                <td class="environment-cell">-</td>
+                <td class="classes-cell">-</td>
                 <td>
                   <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-sm btn-outline-danger" data-action="delete" name="hostname" value="{{ host }}" onclick="event.stopPropagation();">Delete</button>
@@ -64,8 +71,8 @@
               {% endfor %}
               </tbody>
             </table>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
 
       <script>
@@ -74,17 +81,43 @@
           const table = $('#hostsTable').DataTable({
             order: [[0, 'asc']],
             columnDefs: [
-              { orderable: false, targets: 1 }
+              { orderable: false, targets: [2, 3] }
             ],
             pageLength: 25,
-            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            lengthMenu: [[25, 50, 100, -1], [25, 50, 100, "All"]],
+            dom: 'lrtip',
             language: {
-              search: "Filter hosts:",
               lengthMenu: "Show _MENU_ hosts per page"
             }
           });
 
+          const hostsSearch = document.getElementById('hostsSearch');
+          if (hostsSearch) {
+            hostsSearch.addEventListener('input', function() {
+              table.search(this.value).draw();
+            });
+          }
+
           const hostRows = document.querySelectorAll(".host-row");
+
+          function updateHostSummary(hostname, data) {
+            const row = Array.from(hostRows).find((item) => item.dataset.hostname === hostname);
+            if (!row || !data || typeof data !== 'object') {
+              return;
+            }
+
+            row.querySelector('.environment-cell').textContent = data.environment || '-';
+
+            let classCount = 0;
+            if (data.classes) {
+              if (Array.isArray(data.classes)) {
+                classCount = data.classes.length;
+              } else if (typeof data.classes === 'object') {
+                classCount = Object.keys(data.classes).length;
+              }
+            }
+            row.querySelector('.classes-cell').textContent = classCount > 0 ? `${classCount} class(es)` : '-';
+          }
 
           function getCsrfToken() {
             const match = document.cookie.match(/csrftoken=([^;]+)/);
@@ -163,6 +196,7 @@
                     return;
                   }
 
+                  updateHostSummary(hostname, payload);
                   window.alert("Host saved successfully");
                 } catch (_error) {
                   window.alert("Save request failed");
@@ -287,10 +321,24 @@
               return;
             }
 
+            updateHostSummary(hostname, data);
             targetContent.innerHTML = renderDetails(data);
             bindEditorActions(targetContent);
             targetContent.dataset.loaded = "true";
           }
+
+          hostRows.forEach(async (row) => {
+            const hostname = row.dataset.hostname;
+            try {
+              const response = await fetch(`/encompass/hosts/${encodeURIComponent(hostname)}/details`);
+              const data = await response.json();
+              if (response.ok) {
+                updateHostSummary(hostname, data);
+              }
+            } catch (_error) {
+              // Ignore summary preload errors, row stays with default '-'
+            }
+          });
 
           // Use DataTables child row API for expandable details
           $('#hostsTable tbody').on('click', 'tr.host-row', async function(event) {
@@ -306,19 +354,22 @@
               // Close this row
               row.child.hide();
               tr.removeClass('shown');
+              tr.find('.expand-icon').text('▶');
             } else {
               // Close all other rows
               table.rows().every(function() {
                 if (this.child.isShown()) {
                   this.child.hide();
                   $(this.node()).removeClass('shown');
+                  $(this.node()).find('.expand-icon').text('▶');
                 }
               });
 
               // Create child row content container
-              const childContent = $('<div class="p-3 text-start host-details-content bg-light" data-loaded="false"><span class="text-muted">Loading…</span></div>');
+              const childContent = $('<div class="p-3 text-start host-details-content bg-white" data-loaded="false"><span class="text-muted">Loading…</span></div>');
               row.child(childContent).show();
               tr.addClass('shown');
+              tr.find('.expand-icon').text('▼');
 
               // Load details
               try {

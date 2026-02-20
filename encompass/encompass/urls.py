@@ -25,7 +25,7 @@ from django.contrib import admin
 from . import views
 
 favicon_view = RedirectView.as_view(
-    url="https://cds.geant.org/images/compass/favicon.ico", permanent=True
+    url="/static/images/favicon.ico", permanent=True
 )
 
 extra = {
@@ -53,6 +53,7 @@ urlpatterns = [
     re_path(r"^encompass/vm_common/$", views.vm_common, name="vm_common"),
     re_path(r"^encompass/vm_editor/$", views.vm_editor),
     re_path(r"^encompass/query/$", views.query),
+    re_path(r"^encompass/query_host/$", views.query_host),
     re_path(r"^encompass/query_terminal/$", views.query_terminal),
     re_path(r"^encompass/vm_purge_confirmation/$", views.vm_purge_confirmation),
     re_path(r"^encompass/logout_confirmation/$", views.logout_confirmation),
