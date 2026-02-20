@@ -4,18 +4,14 @@ views definition
 
 # -*- coding: utf-8 -*-
 import os
-import ast
 import json
 import logging
-from subprocess import Popen, PIPE, CalledProcessError
 import yaml
 import markdown
 # import requests
-import requests_unixsocket
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
-from django.http import StreamingHttpResponse
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -235,7 +231,7 @@ def host_add(request):
 
     environment = request.POST.get("environment", "").strip()
     classes = [cls.strip() for cls in request.POST.getlist("classes[]") if cls.strip()]
-    
+
     # Build parameters dict from keys and values
     param_keys = request.POST.getlist("param_keys[]")
     param_values = request.POST.getlist("param_values[]")
@@ -283,7 +279,7 @@ def group_purge_confirmation(request):
         )
 
     try:
-        group_details = tools.get_group_details(groupname)
+        group_info = tools.get_group_details(groupname)
     except Exception as e:  # pylint: disable=broad-except
         return render(
             request,
@@ -301,7 +297,7 @@ def group_purge_confirmation(request):
 
     context = {
         "groupname": groupname,
-        "group_details": group_details,
+        "group_details": group_info,
         "encompass_email": encompass_email,
         "disp_name": disp_name,
         "group_name": group_name,
@@ -352,9 +348,9 @@ def group_save(request):
 
     try:
         payload = json.loads(request.body or "{}")
-        logger.info(f"group_save received payload: {payload}")
+        logger.info("group_save received payload: %s", payload)
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {e}")
+        logger.error("JSON decode error: %s", e)
         return JsonResponse({"error": "Invalid JSON payload"}, status=400)
 
     groupname = str(payload.get("groupname", "")).strip()
@@ -370,11 +366,11 @@ def group_save(request):
     }
 
     try:
-        logger.info(f"Calling update_group for '{groupname}' with payload: {group_payload}")
+        logger.info("Calling update_group for '%s' with payload: %s", groupname, group_payload)
         tools.update_group(groupname, group_payload)
-        logger.info(f"Successfully updated group '{groupname}'")
+        logger.info("Successfully updated group '%s'", groupname)
     except Exception as e:  # pylint: disable=broad-except
-        logger.error(f"Error updating group '{groupname}': {e}", exc_info=True)
+        logger.error("Error updating group '%s': %s", groupname, e, exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"status": "ok"})
@@ -425,7 +421,7 @@ def group_add(request):
     environment = request.POST.get("environment", "").strip()
     classes = [cls.strip() for cls in request.POST.getlist("classes[]") if cls.strip()]
     hosts = [host.strip() for host in request.POST.getlist("hosts[]") if host.strip()]
-    
+
     # Validate that at least one class is provided
     if not classes:
         return render(
@@ -436,7 +432,7 @@ def group_add(request):
                 "current_version": settings.CURRENT_VERSION,
             },
         )
-    
+
     # Build parameters dict from keys and values
     param_keys = request.POST.getlist("param_keys[]")
     param_values = request.POST.getlist("param_values[]")
@@ -606,68 +602,6 @@ def about_page(request):
     return render(request, "about.html", context)
 
 
-def run_selfupdate(template_name, cmd, context):
-    """self update terraformware with context variables"""
-    template_path = os.path.join(settings.TEMPLATES_DIR, template_name)
-    with open(template_path, "r", encoding="utf-8") as f:
-        for line in f:
-            # Render variables from the Django context in the template
-            if "I_AM_A_VARIABLE_MATCHER" in line:
-                yield line.format(**context)
-            else:
-                yield line
-
-        with Popen(
-            cmd,
-            shell=True,
-            stdout=PIPE,
-            bufsize=1,
-            universal_newlines=True,
-            env=MY_ENV,
-        ) as p:
-            for line in p.stdout:
-                try:
-                    decoded_line = line.decode(
-                        "utf-8", errors="ignore"
-                    )  # Decode bytes using UTF-8
-                except AttributeError:
-                    decoded_line = line
-                # pre-scrollable does not really work, as we process the output line by line
-                yield f'<pre class="pre-scrollable">{decoded_line}</pre>\n'
-                yield " " * 1024  # Encourage the browser to render incrementally
-
-        if p.returncode != 0:
-            # ! this one needs to be changed. We need to return an html footer showing the error
-            raise CalledProcessError(p.returncode, p.args)
-
-        yield """</div>
-          <hr style="width: 100%;" />
-          <div class="alert alert-success text-center" role="alert" id="warning-banner">
-          <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:"><use xlink:href="#info-fill"/></svg>
-            Job completed!
-          </div>
-
-          <div class="mx-auto text-center">
-            <a type="button" class="btn btn-outline-primary btn-sm" href="/encompass">Home</a>
-          </div>
-        </div>
-        <br /><br />
-        <script>
-          // Auto-scroll to bottom as new content arrives
-          var scrollInterval = setInterval(function() {
-            window.scrollTo(0, document.body.scrollHeight);
-          }, 100);
-
-          // Stop auto-scrolling when job completes
-          document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() {
-              clearInterval(scrollInterval);
-            }, 500);
-          });
-        </script>
-        </body></html>\n"""
-
-
 @login_required(login_url="login/")
 @group_required_ldap(
     [settings.ENC_ADMIN_GROUP, settings.ENC_USER_GROUP, settings.ENC_VIEWER_GROUP]
@@ -697,15 +631,7 @@ def host_list(request):
     groups = request.user.ldap_user.attrs.get("memberOf", [])
     disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
     group_name = tools.get_groups_info(groups)
-    session = requests_unixsocket.Session()
-    r = session.get("http+unix://%2Frun%2Fenc.sock/hosts")
-    hosts_list = yaml.safe_load(r.text)
-    if isinstance(hosts_list, dict):
-        host_names = sorted(hosts_list.keys())
-    elif isinstance(hosts_list, list):
-        host_names = sorted(hosts_list)
-    else:
-        host_names = []
+    host_names = tools.list_hosts()
 
     context = {
         "groups": groups,
@@ -726,9 +652,7 @@ def group_list(request):
     groups = request.user.ldap_user.attrs.get("memberOf", [])
     disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
     group_name = tools.get_groups_info(groups)
-    session = requests_unixsocket.Session()
-    r = session.get("http+unix://%2Frun%2Fenc.sock/groups")
-    groups_list = yaml.safe_load(r.text)
+    groups_list = tools.list_groups()
 
     context = {
         "groups": groups,
@@ -753,7 +677,7 @@ def query_host(request):
     groups = request.user.ldap_user.attrs.get("memberOf", [])
     disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
     group_name = tools.get_groups_info(groups)
-    
+
     context = {
         "encompass_email": encompass_email,
         "group_name": group_name,
@@ -761,44 +685,33 @@ def query_host(request):
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }
-    
+
     if request.method == "POST":
         hostname = request.POST.get("hostname", "").strip()
-        
+
         if not hostname:
             context["error"] = "Please enter a hostname"
             return render(request, "query_host.html", context)
-        
+
         try:
-            # Query the ENC API
-            session = requests_unixsocket.Session()
-            response = session.get(f"http+unix://%2Frun%2Fenc.sock/hosts/{hostname}")
-            
-            if response.status_code == 404:
+            host_data = tools.get_host_details(hostname)
+            if host_data is None:
                 context["error"] = f"Host '{hostname}' not found in ENC"
                 context["hostname"] = hostname
                 return render(request, "query_host.html", context)
-            
-            if response.status_code != 200:
-                context["error"] = f"Error querying host: HTTP {response.status_code}"
-                context["hostname"] = hostname
-                return render(request, "query_host.html", context)
-            
-            # Parse the YAML response
-            host_data = yaml.safe_load(response.text)
-            
+
             # Convert back to YAML for display (pretty printed)
             yaml_output = yaml.dump(host_data, default_flow_style=False, sort_keys=False)
-            
+
             context["hostname"] = hostname
             context["yaml_output"] = yaml_output
             context["host_data"] = host_data
-            
+
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("Error querying host '%s'", hostname)
             context["error"] = f"Failed to query host: {str(e)}"
             context["hostname"] = hostname
-    
+
     return render(request, "query_host.html", context)
 
 
@@ -837,280 +750,6 @@ def query(request):
     }
 
     return render(request, "query.html", context)
-
-
-@login_required(login_url="/encompass/login/")
-def query_terminal(request):
-    """update Terraformware terminal"""
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
-    vm_pattern = request.POST.get("vm_pattern", "")
-    vm_location = request.POST.get("vm_location", "")
-    context = {
-        "encompass_email": encompass_email,
-        "group_name": group_name,
-        "disp_name": disp_name,
-        "action_name": "Query",
-        "vm_pattern": vm_pattern,
-        "vm_location": vm_location,
-        "watermark": settings.WATERMARK,
-        "current_version": settings.CURRENT_VERSION,
-    }
-
-    stream = run_selfupdate(
-        "terminal/terminal.html",
-        f"/usr/local/bin/vm_find.py --vm {vm_pattern} --location {vm_location}",
-        context,
-    )
-    response = StreamingHttpResponse(stream, content_type=settings.TEXT_HTML)
-    response["Cache-Control"] = "no-cache"
-    return response
-
-
-@login_required(login_url="/encompass/login/")
-@group_required_ldap(
-    [settings.ENC_ADMIN_GROUP, settings.ENC_USER_GROUP, settings.ENC_VIEWER_GROUP]
-)
-def hosts(request):
-    """
-    grab all VMs from Consul and list them in a grid
-    add status for each VM and allow deletion
-    """
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    groups_info = tools.get_groups_info(groups)
-    try:
-        encompass_folder = groups_info[group_name]["encompass_folder"]
-    except KeyError:
-        return render(
-            request,
-            settings.ERROR_HTML,
-            {
-                "results": [
-                    "You must select a group and click 'Confirm Group'",
-                    settings.TRY_AGAIN,
-                ],
-                "current_version": settings.CURRENT_VERSION,
-            },
-        )
-
-    folders_list = "aaa"
-    _tf_ison_list, _ = "bbb"
-
-    if settings.IS_MULTIPROCESS:
-        vm_list = "ccc"
-    else:
-        vm_list = "ddd"
-
-    context = {
-        "folders": sorted(folders_list),
-        "encompass_folder": encompass_folder,
-        "encompass_email": encompass_email,
-        "group_name": group_name,
-        "disp_name": disp_name,
-        "vm_list": vm_list,
-        "watermark": settings.WATERMARK,
-        "current_version": settings.CURRENT_VERSION,
-    }
-    return render(request, "dashboard.html", context)
-
-
-@login_required(login_url="/encompass/login/")
-def vm_purge_confirmation(request):
-    """show purge confirmation"""
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    groups_info = tools.get_groups_info(groups)
-    encompass_folder = groups_info[group_name]["encompass_folder"]
-
-    selected_elements = request.POST.getlist("selected_vms[]", "")
-    if not selected_elements:
-        return render(
-            request,
-            settings.ERROR_HTML,
-            {"results": ["No VMs selected", settings.TRY_AGAIN]},
-        )
-
-    # this is an array of arrays: [[vm1, folder1, status], [vm2, folder2, status]]
-    selected_list = [ast.literal_eval(x) for x in selected_elements]
-    context = {
-        "encompass_folder": encompass_folder,
-        "encompass_email": encompass_email,
-        "group_name": group_name,
-        "disp_name": disp_name,
-        "vm_list": selected_list,
-        "watermark": settings.WATERMARK,
-        "current_version": settings.CURRENT_VERSION,
-    }
-
-    return render(request, "vm_purge_confirmation.html", context)
-
-
-@login_required(login_url="login/")
-def vm_common(request):
-    """
-    Create new vm or edit existing vm.
-    If the folder does not exist, call vm_warning.html to ask if the user wants to create it
-    if the user wants to create it, create the folder and call vm_common again.
-    This time the folder will exist.
-    If the folder exists, call vm_common.html
-    """
-    group_name = request.POST.get("group_name", "")
-    encompass_folder = request.POST.get("encompass_folder", "")
-    encompass_email = request.POST.get("encompass_email", "")
-    disp_name = request.POST.get("disp_name", "")
-    newfoldername = request.POST.get("newfoldername", "")
-    existingfoldername = request.POST.get("existingfoldername", "")
-    subfoldername = request.POST.get("subfoldername", "")
-    _create = request.POST.get("create", "")
-    _dc_name = "dd"
-    datacenter, datacenter_long = "cc", "cc"
-
-    # check if all data have been provided
-    data = tools.check(newfoldername, existingfoldername)
-
-    if data == "missing_foldername":
-        context = {
-            "results": ["You did not choose any Folder name", settings.TRY_AGAIN],
-            "watermark": settings.WATERMARK,
-            "current_version": settings.CURRENT_VERSION,
-        }
-        response = render(request, settings.ERROR_HTML, context)
-        return response
-
-    if newfoldername:
-        foldername = newfoldername
-    else:
-        foldername = existingfoldername
-
-    folder_status = True
-    # if folder_status is set to "folder" we have only the Application folder
-    # if folder_status is None we have neither the Application folder nor the Environment folder
-    # else we have both the Application folder and the Environment folder
-    if folder_status == "folder" or not folder_status:
-        if not folder_status:
-            warn_msg = f"An application folder {foldername} does not exist"
-            card_header = "New application notice"
-        else:
-            warn_msg = (
-                f"An environment {subfoldername}, for the application "
-                + f"folder {foldername} does not exist"
-            )
-            card_header = "New environment notice"
-        context = {
-            "results": [warn_msg, "Do you want to create it?"],
-            "card_header": card_header,
-            "encompass_folder": encompass_folder,
-            "group_name": group_name,
-            "encompass_email": encompass_email,
-            "disp_name": disp_name,
-            "newfoldername": newfoldername,
-            "existingfoldername": existingfoldername,
-            "subfoldername": subfoldername,
-            "foldername": foldername,
-            "datacenter_long": datacenter_long,
-            "create": "create",
-            "watermark": settings.WATERMARK,
-            "current_version": settings.CURRENT_VERSION,
-        }
-        response = render(request, "vm_warning.html", context)
-        return response
-
-    vm_editor_context = {}
-    common_context = {}
-    nsx_generic_tags_list = "eee"
-    _folders = os.path.join(encompass_folder, foldername, datacenter, subfoldername)
-    nsx_user_tags_list = "fff"
-
-    vms_startval_data = "ggg"
-    common_startval_data = "hhh"
-    vms_startval_json = json.dumps(vms_startval_data)
-    common_startval_json = json.dumps(common_startval_data)
-    vm_editor_context["vms"] = vms_startval_json
-    common_context["common"] = common_startval_json
-    common_schema_url = f"{settings.CDS_URL}/common-schema-{subfoldername}.json"
-    context = {
-        "foldername": foldername,
-        "newfoldername": newfoldername,
-        "existingfoldername": existingfoldername,
-        "subfoldername": subfoldername,
-        "datacenter": datacenter,
-        "datacenter_long": datacenter_long,
-        "editor_dict": vm_editor_context,
-        "common_dict": common_context,
-        "encompass_folder": encompass_folder,
-        "encompass_email": encompass_email,
-        "disp_name": disp_name,
-        "group_name": group_name,
-        "nsx_generic_tags_list": nsx_generic_tags_list,
-        "nsx_user_tags_list": nsx_user_tags_list,
-        "common_schema_url": common_schema_url,
-        "watermark": settings.WATERMARK,
-        "current_version": settings.CURRENT_VERSION,
-    }
-
-    response = render(request, "vm_common.html", context)
-    return response
-
-
-@login_required(login_url="login/")
-def vm_editor(request):
-    """VM editor"""
-    group_name = request.POST.get("group_name", "")
-    encompass_folder = request.POST.get("encompass_folder", "")
-    encompass_email = request.POST.get("encompass_email", "")
-    disp_name = request.POST.get("disp_name", "")
-    foldername = request.POST.get("foldername", "")
-    subfoldername = request.POST.get("subfoldername", "")
-    datacenter = request.POST.get("datacenter", "")
-    datacenter_long = request.POST.get("datacenter_long", "")
-    json_vms_str = request.POST.get("json_common", "")
-    selected_tags = request.POST.getlist("selected_tags[]", "")
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    _groups_info = tools.get_groups_info(groups)
-
-    common_dict = json.loads(json_vms_str)
-
-    if foldername == "":
-        context = {
-            "results": ["You did not choose any Folder name", settings.TRY_AGAIN],
-            "watermark": settings.WATERMARK,
-            "current_version": settings.CURRENT_VERSION,
-        }
-        html_file = settings.ERROR_HTML
-    else:
-        html_file = "vm_editor.html"
-
-        vm_editor_context = {}
-
-        vms_schema_url = f"{settings.CDS_URL}/vms-schema-{subfoldername}.json"
-        context = {
-            "editor_dict": vm_editor_context["vms"],
-            "common_dict": common_dict["common"],
-            "encompass_folder": encompass_folder,
-            "encompass_email": encompass_email,
-            "disp_name": disp_name,
-            "group_name": group_name,
-            "foldername": foldername,
-            "subfoldername": subfoldername,
-            "datacenter": datacenter,
-            "datacenter_long": datacenter_long,
-            "vms_schema_url": vms_schema_url,
-            "selected_tags": selected_tags,
-            "watermark": settings.WATERMARK,
-            "current_version": settings.CURRENT_VERSION,
-        }
-
-    response = render(request, html_file, context)
-    return response
 
 
 @login_required(login_url="/encompass/login/")

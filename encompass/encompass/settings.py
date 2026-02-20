@@ -64,6 +64,20 @@ SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 
 ALLOWED_CIDR_NETS = env_json("ALLOWED_CIDR_NETS", [])
 CSRF_TRUSTED_ORIGINS = env_json("CSRF_TRUSTED_ORIGINS", [])
+local_proxy_origins = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "https://localhost:8443",
+    "https://127.0.0.1:8443",
+    "https://localhost:8444",
+    "https://127.0.0.1:8444",
+]
+CSRF_TRUSTED_ORIGINS = list(
+    dict.fromkeys(CSRF_TRUSTED_ORIGINS + local_proxy_origins)
+)
+
 ALLOWED_HOSTS = env_json("ALLOWED_HOSTS", []) + [
     socket.getaddrinfo(socket.getfqdn(), None, socket.AF_INET)[0][4][0],
 ]

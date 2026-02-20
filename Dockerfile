@@ -22,7 +22,7 @@ ENV PREFIX="/enc" \
 # Instaall all dependencies and cleanup the image, if not in debug mode
 COPY requirements.txt /requirements.txt
 RUN apt update && \
-    apt install -y libsasl2-dev libldap2-dev sqlite3 haproxy gettext-base supervisor netcat-openbsd && \
+    apt install -y libsasl2-dev libldap2-dev sqlite3 nginx gettext-base supervisor netcat-openbsd && \
     pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
     pip3 install --root-user-action=ignore --no-compile --requirement /requirements.txt
 RUN if [ "$APP_DEBUG" = "true" ]; then \
@@ -36,16 +36,13 @@ RUN if [ "$APP_DEBUG" = "true" ]; then \
 
 COPY files/supervisord /etc/supervisor/conf.d
 COPY --chmod=755 files/scripts /usr/local/bin
-COPY --chmod=644 files/haproxy.cfg.template /root/haproxy.cfg.template
+COPY --chmod=644 files/nginx.conf.template /root/nginx.conf.template
 COPY --chmod=644 files/watermark /local/watermark
 COPY --chmod=644 files/version /local/version
 COPY --chmod=644 files/bashrc /root/.bashrc
 COPY --chmod=644 files/vimrc /root/.vimrc
 COPY static code/static/static
-COPY --chmod=755 files/enc.py /code/enc/enc.py
-COPY --chmod=755 files/static.py /code/static/static.py
 COPY encompass code/encompass
-RUN ln -s /data /code/enc/data
 
 # port explanations: check docker-compose.yml for details
 EXPOSE 8080 8081 8082 8443 8444 8445

@@ -23,6 +23,7 @@ from django.contrib.auth import views as auth_views
 from django.views.generic.base import RedirectView
 from django.contrib import admin
 from . import views
+from . import enc_views
 
 favicon_view = RedirectView.as_view(
     url="/static/images/favicon.ico", permanent=True
@@ -50,12 +51,8 @@ urlpatterns = [
     re_path(r"^encompass/$", views.home_page),
     re_path(r"^encompass/help/$", views.help_page),
     re_path(r"^encompass/about/$", views.about_page),
-    re_path(r"^encompass/vm_common/$", views.vm_common, name="vm_common"),
-    re_path(r"^encompass/vm_editor/$", views.vm_editor),
     re_path(r"^encompass/query/$", views.query),
     re_path(r"^encompass/query_host/$", views.query_host),
-    re_path(r"^encompass/query_terminal/$", views.query_terminal),
-    re_path(r"^encompass/vm_purge_confirmation/$", views.vm_purge_confirmation),
     re_path(r"^encompass/logout_confirmation/$", views.logout_confirmation),
     re_path(r"^encompass/hosts$", views.host_list),
     re_path(r"^encompass/hosts/add$", views.host_add),
@@ -70,4 +67,8 @@ urlpatterns = [
     re_path(r"^encompass/group_purge_execute/$", views.group_purge_execute),
     re_path(r"^encompass/group_save/$", views.group_save),
     re_path(r"^healthz$", views.healthz),
+    re_path(r"^hosts/?$", enc_views.hosts_collection),
+    re_path(r"^hosts/(?P<fqdn>[^/]+)/?$", enc_views.hosts_item),
+    re_path(r"^groups/?$", enc_views.groups_collection),
+    re_path(r"^groups/(?P<name>[^/]+)/?$", enc_views.groups_item),
 ]

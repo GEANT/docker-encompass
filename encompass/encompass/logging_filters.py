@@ -9,6 +9,7 @@ class IgnoreHealthzFilter(logging.Filter):
     """
     class used by logging handler
     """
+
     def filter(self, record):
         try:
             return "/healthz" not in record.getMessage()

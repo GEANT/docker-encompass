@@ -1,117 +1,152 @@
 #!/usr/bin/env bash
 #
 # variables:
-# - ENC_VIEWER_PASSWORD: password for the HAProxy Basic Authentication user (default: "puppet")
-# - USE_SSL: either "true" or "false" to enable/disable SSL in HAProxy
-# - SSL_CERT_PATH: path to the SSL certificate file (default: "/etc/ssl/private/server.pem")
+# - ENC_VIEWER_PASSWORD: password for optional basic auth on read-only ENC endpoint (user: encompass)
+# - USE_SSL: either "true" or "false" to enable/disable SSL listeners in Nginx
+# - SSL_CERT_PATH: path to the SSL certificate/key PEM file (default: "/etc/ssl/private/server.pem")
 # - USE_SQLITE_WEB: either "true" or "false" to enable/disable sqlite-web interface
 #
 set -e
 
-# ============================== #
-# set django backend for HAProxy #
-# ============================== #
+# ================================== #
+# set django backend for Nginx proxy #
+# ================================== #
 if [ "$DEBUG" = "true" ]; then
-    export ENCOMPASS_BACKEND="server django 127.0.0.1:8000 check"
+    export DJANGO_BACKEND="server 127.0.0.1:8000;"
 else
-    export ENCOMPASS_BACKEND="server django unix@/run/encompass.sock check"
+    export DJANGO_BACKEND="server unix:/run/encompass.sock;"
 fi
 
-# ================================================== #
-# set HAProxy authentication if password is provided #
-# ================================================== #
+# ===================================================== #
+# set ENC read-only basic auth if password is provided  #
+# ===================================================== #
 if [ -n "$ENC_VIEWER_PASSWORD" ]; then
-    echo "==> Enabling HAProxy Basic Auth..."
-    export ENC_VIEWER_AUTH="
-    http-request auth unless is_healthcheck or { http_auth(users) }
-    http-request deny unless { http_auth_user() encompass }
-"
+    echo "==> Enabling Nginx Basic Auth for ENC read-only endpoint..."
     HASH=$(openssl passwd -6 "$ENC_VIEWER_PASSWORD")
-    export AUTH_LIST="
-# Authentication
-userlist users
-    user encompass password $HASH
-"
+    printf "encompass:%s\n" "$HASH" >/etc/nginx/.htpasswd_viewer
+    chmod 600 /etc/nginx/.htpasswd_viewer
+    export ENC_VIEWER_AUTH='auth_basic "ENC Viewer";
+            auth_basic_user_file /etc/nginx/.htpasswd_viewer;'
 else
-    echo "==> Disabling HAProxy Basic Auth..."
+    echo "==> Disabling Nginx Basic Auth for ENC read-only endpoint..."
+    rm -f /etc/nginx/.htpasswd_viewer
     export ENC_VIEWER_AUTH=""
-    export AUTH_LIST=""
 fi
 
-# ============================================ #
-# set SSL configuration for HAProxy if enabled #
-# ============================================ #
+# ========================================== #
+# set SSL configuration for Nginx if enabled #
+# ========================================== #
 if [ "$USE_SSL" = "true" ]; then
-    echo "==> Enabling SSL in HAProxy"
-    export ENCOMPASS_UI_SSL="
-    bind *:8443 ssl crt $SSL_CERT_PATH
-    http-request    set-header X-Forwarded-Proto https
-    redirect scheme https code 301 if !{ ssl_fc }
+    echo "==> Enabling SSL in Nginx"
+    export ENCOMPASS_HTTP_REDIRECT='return 301 https://$host:8443$request_uri;'
+    export ENC_HTTP_REDIRECT='return 301 https://$host:8444$request_uri;'
 
+    export ENCOMPASS_SSL_SERVER="
+    server {
+        listen 8443 ssl;
+        ssl_certificate ${SSL_CERT_PATH};
+        ssl_certificate_key ${SSL_CERT_PATH};
+
+        location /static/ {
+            alias /code/static/static/;
+            try_files \$uri =404;
+        }
+
+        location / {
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_pass http://django_backend;
+        }
+    }
 "
-    export ENC_UI_SSL="
-    bind *:8444     ssl crt $SSL_CERT_PATH
-    http-request    set-header X-Forwarded-Proto https
-    redirect scheme https code 301 if !{ ssl_fc }
 
+    export ENC_SSL_SERVER="
+    server {
+        listen 8444 ssl;
+        ssl_certificate ${SSL_CERT_PATH};
+        ssl_certificate_key ${SSL_CERT_PATH};
+
+        location = /healthz {
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-External-Proxy true;
+            proxy_pass http://django_backend;
+        }
+
+        location / {
+            if (\$request_method !~ ^(GET|HEAD|OPTIONS)$) {
+                return 403;
+            }
+            ${ENC_VIEWER_AUTH}
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-External-Proxy true;
+            proxy_pass http://django_backend;
+        }
+    }
 "
-    export SQLITE_WEB_SSL="
-    bind            *:8445 ssl crt $SSL_CERT_PATH
-    redirect        scheme https code 301 if !{ ssl_fc }
-    http-request    set-header X-Forwarded-Proto https
-    default_backend sqlite_web_backend
 
+    export SQLITE_WEB_SSL_SERVER="
+    server {
+        listen 8445 ssl;
+        ssl_certificate ${SSL_CERT_PATH};
+        ssl_certificate_key ${SSL_CERT_PATH};
+
+        location / {
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_pass http://127.0.0.1:8002;
+        }
+    }
 "
 else
-    echo "==> Disabling SSL in HAProxy"
-    export ENC_UI_SSL=""
-    export SQLITE_WEB_SSL=""
+    echo "==> Disabling SSL in Nginx"
+    export ENCOMPASS_HTTP_REDIRECT=""
+    export ENC_HTTP_REDIRECT=""
+    export ENCOMPASS_SSL_SERVER=""
+    export ENC_SSL_SERVER=""
+    export SQLITE_WEB_SSL_SERVER=""
 fi
 
-# ====================================================== #
-# set HAProxy configuration for sqlite-web UI if enabled #
-# ====================================================== #
+# ==================================================== #
+# set Nginx configuration for sqlite-web if requested #
+# ==================================================== #
 if [ "$USE_SQLITE_WEB" = "true" ]; then
     echo "==> Enabling Sqlite-web..."
-    export SQLITE_WEB_FRONTEND="frontend sqlite_web_frontend
-    mode http
-    bind *:8082
-$SQLITE_WEB_SSL
-    default_backend sqlite_web_backend
-"
-    export SQLITE_WEB_BACKEND="backend sqlite_web_backend
-    mode http
-    server sqlite_web 127.0.0.1:8002 check
+    if [ "$USE_SSL" = "true" ]; then
+        export SQLITE_HTTP_REDIRECT='return 301 https://$host:8445$request_uri;'
+    else
+        export SQLITE_HTTP_REDIRECT=""
+    fi
 
+    export SQLITE_WEB_SERVER="
+    server {
+        listen 8082;
+        ${SQLITE_HTTP_REDIRECT}
+
+        location / {
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_pass http://127.0.0.1:8002;
+        }
+    }
 "
 else
     echo "==> Disabling Sqlite-web"
     rm -f /etc/supervisor/conf.d/sqlite-web.conf
-    export SQLITE_WEB_FRONTEND=""
-    export SQLITE_WEB_BACKEND=""
+    export SQLITE_HTTP_REDIRECT=""
+    export SQLITE_WEB_SERVER=""
+    export SQLITE_WEB_SSL_SERVER=""
 fi
 
-# ========================================== #
-# set HAProxy configuration for ENC frontend #
-# ========================================== #
-export HAPROXY_ENC_FRONTEND="frontend enc_frontend
-    mode http
-    bind *:8081
-${ENC_UI_SSL}
-    acl          flask_urls path_reg ^/(hosts|groups|users|healthz)/$
-    acl          is_healthcheck path /healthz
-${ENC_VIEWER_AUTH}
-    http-request redirect code 301 location %[path,regsub(/$,)] if flask_urls
-    http-request set-log-level silent if is_healthcheck
 
-    http-request del-header X-Haproxy-Proxy
-    http-request del-header X-Forwarded-For
-    http-request set-header X-Haproxy-Proxy true
-
-    default_backend enc_backend
-"
-
-envsubst </root/haproxy.cfg.template >/etc/haproxy/haproxy.cfg
-rm /root/haproxy.cfg.template
+# shellcheck disable=SC2016 # variables are just like a docstring for envsubst
+envsubst '${DJANGO_BACKEND} ${ENC_VIEWER_AUTH} ${ENCOMPASS_HTTP_REDIRECT} ${ENC_HTTP_REDIRECT} ${SQLITE_HTTP_REDIRECT} ${ENCOMPASS_SSL_SERVER} ${ENC_SSL_SERVER} ${SQLITE_WEB_SERVER} ${SQLITE_WEB_SSL_SERVER}' </root/nginx.conf.template >/etc/nginx/nginx.conf
+rm /root/nginx.conf.template
 
 exec /usr/bin/supervisord --configuration /etc/supervisor/supervisord.conf
