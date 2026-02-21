@@ -4,7 +4,33 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
+  <style>
+    .markdown-content pre {
+      background-color: var(--bs-dark);
+      color: var(--bs-light);
+      border-radius: 0.375rem;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+
+    .markdown-content pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .markdown-content :not(pre) > code {
+      background-color: var(--bs-gray-200);
+      color: var(--bs-body-color);
+      border-radius: 0.25rem;
+      padding: 0.1rem 0.35rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+  </style>
   <div class="container py-5">
-    {{ content|safe }}
+    <div class="markdown-content">
+      {{ content|safe }}
+    </div>
   </div>
 {% endblock %}

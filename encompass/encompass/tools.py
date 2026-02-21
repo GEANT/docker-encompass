@@ -23,33 +23,36 @@ def host_exists(hostname: str) -> bool:
 
 def delete_host(hostname: str) -> dict:
     """Delete host from ENC."""
-    hosts = enc_data.load_map("hosts")
-    if hostname not in hosts:
-        raise Exception(f"ENC error for {hostname}: 404")  # pylint: disable=broad-exception-raised
-    deleted = hosts[hostname]
-    del hosts[hostname]
-    enc_data.save_map("hosts", hosts)
-    return deleted
+    with enc_data.data_lock("hosts"):
+        hosts = enc_data.load_map("hosts")
+        if hostname not in hosts:
+            raise Exception(f"ENC error for {hostname}: 404")  # pylint: disable=broad-exception-raised
+        deleted = hosts[hostname]
+        del hosts[hostname]
+        enc_data.save_map("hosts", hosts)
+        return deleted
 
 
 def update_host(hostname: str, payload: dict) -> dict:
     """Update host in ENC from full payload."""
-    hosts = enc_data.load_map("hosts")
-    if hostname not in hosts:
-        raise Exception(f"ENC error for {hostname}: 404")  # pylint: disable=broad-exception-raised
-    normalized = enc_data.normalize_host_payload(payload)
-    hosts[hostname] = normalized
-    enc_data.save_map("hosts", hosts)
-    return normalized
+    with enc_data.data_lock("hosts"):
+        hosts = enc_data.load_map("hosts")
+        if hostname not in hosts:
+            raise Exception(f"ENC error for {hostname}: 404")  # pylint: disable=broad-exception-raised
+        normalized = enc_data.normalize_host_payload(payload)
+        hosts[hostname] = normalized
+        enc_data.save_map("hosts", hosts)
+        return normalized
 
 
 def create_host(hostname: str, payload: dict) -> dict:
     """Create new host in ENC."""
-    hosts = enc_data.load_map("hosts")
-    normalized = enc_data.normalize_host_payload(payload)
-    hosts[hostname] = normalized
-    enc_data.save_map("hosts", hosts)
-    return normalized
+    with enc_data.data_lock("hosts"):
+        hosts = enc_data.load_map("hosts")
+        normalized = enc_data.normalize_host_payload(payload)
+        hosts[hostname] = normalized
+        enc_data.save_map("hosts", hosts)
+        return normalized
 
 
 
@@ -78,14 +81,12 @@ def get_groups_info(groups: list, return_all: bool = False) -> str | list:
     """
     get groups information.
     Returns the highest privilege group name.
-    Possible return values: admin, user, viewer, not yet known
+    Possible return values: admin, viewer, not yet known
     """
     if return_all:
         group_names = []
         if settings.ENC_ADMIN_GROUP in groups:
             group_names.append("admin")
-        if settings.ENC_USER_GROUP in groups:
-            group_names.append("user")
         if settings.ENC_VIEWER_GROUP in groups:
             group_names.append("viewer")
 
@@ -93,23 +94,10 @@ def get_groups_info(groups: list, return_all: bool = False) -> str | list:
 
     if settings.ENC_ADMIN_GROUP in groups:
         return "admin"
-    if settings.ENC_USER_GROUP in groups:
-        return "user"
     if settings.ENC_VIEWER_GROUP in groups:
         return "viewer"
 
     return "not yet known"
-
-
-def check(newfolder, existingfolder):
-    """check data consitency"""
-    if newfolder and existingfolder:
-        return "folders_mismatch"
-
-    if not newfolder and not existingfolder:
-        return "missing_foldername"
-
-    return "all_good"
 
 
 def send_purge_mail(encompass_group, encompass_email, vms=None):
@@ -160,35 +148,38 @@ def get_group_details(groupname: str) -> dict:
 
 def delete_group(groupname: str) -> dict:
     """Delete group from ENC."""
-    groups = enc_data.load_map("groups")
-    if groupname not in groups:
-        raise Exception(f"ENC error for {groupname}: 404")  # pylint: disable=broad-exception-raised
-    if groupname == "default":
-        raise Exception(f"ENC error for {groupname}: 403")  # pylint: disable=broad-exception-raised
-    deleted = groups[groupname]
-    del groups[groupname]
-    enc_data.save_map("groups", groups)
-    return deleted
+    with enc_data.data_lock("groups"):
+        groups = enc_data.load_map("groups")
+        if groupname not in groups:
+            raise Exception(f"ENC error for {groupname}: 404")  # pylint: disable=broad-exception-raised
+        if groupname == "default":
+            raise Exception(f"ENC error for {groupname}: 403")  # pylint: disable=broad-exception-raised
+        deleted = groups[groupname]
+        del groups[groupname]
+        enc_data.save_map("groups", groups)
+        return deleted
 
 
 def update_group(groupname: str, payload: dict) -> dict:
     """Update group in ENC from full payload."""
-    groups = enc_data.load_map("groups")
-    if groupname not in groups:
-        raise Exception(f"ENC error for {groupname}: 404")  # pylint: disable=broad-exception-raised
-    normalized = enc_data.normalize_group_payload(payload)
-    groups[groupname] = normalized
-    enc_data.save_map("groups", groups)
-    return normalized
+    with enc_data.data_lock("groups"):
+        groups = enc_data.load_map("groups")
+        if groupname not in groups:
+            raise Exception(f"ENC error for {groupname}: 404")  # pylint: disable=broad-exception-raised
+        normalized = enc_data.normalize_group_payload(payload)
+        groups[groupname] = normalized
+        enc_data.save_map("groups", groups)
+        return normalized
 
 
 def create_group(groupname: str, payload: dict) -> dict:
     """Create new group in ENC."""
-    groups = enc_data.load_map("groups")
-    normalized = enc_data.normalize_group_payload(payload)
-    groups[groupname] = normalized
-    enc_data.save_map("groups", groups)
-    return normalized
+    with enc_data.data_lock("groups"):
+        groups = enc_data.load_map("groups")
+        normalized = enc_data.normalize_group_payload(payload)
+        groups[groupname] = normalized
+        enc_data.save_map("groups", groups)
+        return normalized
 
 
 def group_exists(groupname: str) -> bool:

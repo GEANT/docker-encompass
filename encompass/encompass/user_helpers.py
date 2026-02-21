@@ -1,6 +1,6 @@
 """
 User helper functions to abstract authentication backends
-Supports both LDAP and SQLite authentication
+Supports both LDAP and MySQL authentication
 """
 
 from django.conf import settings
@@ -15,7 +15,7 @@ def get_user_email(user):
         if settings.USE_AUTH_LDAP and hasattr(user, 'ldap_user'):
             return user.ldap_user.attrs.get("mail", [None])[0]
 
-        # SQLite or ModelBackend
+        # MySQL or ModelBackend
         return user.email
     except (AttributeError, IndexError, KeyError):
         return None
@@ -30,7 +30,7 @@ def get_user_display_name(user):
         if settings.USE_AUTH_LDAP and hasattr(user, 'ldap_user'):
             return user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
 
-        # SQLite or ModelBackend
+        # MySQL or ModelBackend
         full_name = f"{user.first_name} {user.last_name}".strip()
         return full_name if full_name else user.username
     except (AttributeError, IndexError, KeyError):
@@ -46,7 +46,7 @@ def get_user_groups(user):
         if settings.USE_AUTH_LDAP and hasattr(user, 'ldap_user'):
             return user.ldap_user.attrs.get("memberOf", [])
 
-        # SQLite or ModelBackend - use Django groups
+        # MySQL or ModelBackend - use Django groups
         return list(user.groups.values_list('name', flat=True))
     except (AttributeError, IndexError, KeyError):
         return []

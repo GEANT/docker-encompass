@@ -1,0 +1,76 @@
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    types_hash_max_size 2048;
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    access_log /dev/stdout;
+    error_log /dev/stderr warn;
+
+    upstream django_backend {
+        ${DJANGO_BACKEND}
+    }
+
+    server {
+        listen 8080;
+        ${ENCOMPASS_HTTP_REDIRECT}
+
+        location /static/ {
+            alias /code/static/static/;
+            try_files $uri =404;
+        }
+
+        # ENC API must not be reachable via UI port.
+        location ~ ^/(hosts|groups)(/|$) {
+            return 403;
+        }
+
+        location / {
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_pass http://django_backend;
+        }
+    }
+
+    server {
+        listen 8081;
+        ${ENC_HTTP_REDIRECT}
+
+        location = /healthz {
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-External-Proxy true;
+            proxy_pass http://django_backend;
+        }
+
+        location ~ ^/(hosts|groups)(/|$) {
+            limit_except GET HEAD OPTIONS {
+                deny all;
+            }
+            ${ENC_VIEWER_AUTH}
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-External-Proxy true;
+            proxy_pass http://django_backend;
+        }
+
+        # Do not expose Django UI or other routes on ENC read-only port.
+        location / {
+            return 404;
+        }
+    }
+${ENCOMPASS_SSL_SERVER}
+${ENC_SSL_SERVER}
+}

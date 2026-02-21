@@ -5,13 +5,19 @@ from __future__ import annotations
 import os
 import logging
 from pathlib import Path
-from threading import Lock
+from threading import RLock
+from contextlib import contextmanager
+from django.db import connection
 import yaml
 
 logger = logging.getLogger(__name__)
 
 ENC_DATA_DIR = Path(os.environ.get("ENC_DATA_DIR", "/data"))
-_WRITE_LOCK = Lock()
+_WRITE_LOCK = RLock()
+
+
+class EncDataLockTimeout(Exception):
+    """Raised when ENC write lock cannot be acquired in time."""
 
 
 class _EncDumper(yaml.SafeDumper):
@@ -29,6 +35,49 @@ def _data_path(what: str) -> Path:
     if what not in ("hosts", "groups"):
         raise ValueError(f"Unsupported ENC dataset: {what}")
     return ENC_DATA_DIR / f"{what}.yaml"
+
+
+def _lock_name(what: str) -> str:
+    return f"encompass:enc:{what}"
+
+
+@contextmanager
+def data_lock(what: str, timeout: int = 5):
+    """
+    Acquire a cross-process lock for ENC writes using MySQL advisory locks.
+    Falls back to in-process lock only if DB lock operation fails.
+    """
+    lock_name = _lock_name(what)
+    using_db_lock = False
+    use_local_fallback = False
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT GET_LOCK(%s, %s)", [lock_name, timeout])
+            acquired = cursor.fetchone()
+        if acquired and acquired[0] == 1:
+            using_db_lock = True
+        else:
+            raise EncDataLockTimeout(f"Timed out acquiring lock for {what}")
+    except EncDataLockTimeout:
+        raise
+    except Exception as err:  # pylint: disable=broad-except
+        logger.warning("Falling back to local lock for '%s': %s", what, err)
+        use_local_fallback = True
+
+    if use_local_fallback:
+        with _WRITE_LOCK:
+            yield
+        return
+
+    try:
+        yield
+    finally:
+        if using_db_lock:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT RELEASE_LOCK(%s)", [lock_name])
+            except Exception as err:  # pylint: disable=broad-except
+                logger.warning("Failed to release DB lock '%s': %s", lock_name, err)
 
 
 def load_map(what: str) -> dict:

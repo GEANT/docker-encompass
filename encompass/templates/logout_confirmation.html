@@ -9,7 +9,6 @@
         <form class="form-horizontal" action="{% url 'logout' %}" method="post">
           <div class="form-group">
             {% csrf_token %}
-            <input type="hidden" name="tform_group" value="{{ tform_group }}" />
             <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
             <input type="hidden" name="disp_name" value="{{ disp_name }}" />
             <br />

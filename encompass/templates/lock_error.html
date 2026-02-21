@@ -8,7 +8,6 @@
         <form class="form-horizontal mx-auto" style="width: 700px;" action="/encompass/" method="post">
           {% csrf_token %}
           <br />
-          <input type="hidden" name="tform_folder" value="{{ tform_folder }}" />
           <input type="hidden" name="tform_group" value="{{ tform_group }}" />
           <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
           <input type="hidden" name="disp_name" value="{{ disp_name }}" />

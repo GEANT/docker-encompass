@@ -32,6 +32,8 @@ favicon_view = RedirectView.as_view(
 extra = {
     "watermark": settings.WATERMARK,
     "current_version": settings.CURRENT_VERSION,
+    "is_db_auth": settings.USE_AUTH_MYSQL,
+    "is_ldap_auth": settings.USE_AUTH_LDAP,
 }
 
 urlpatterns = [
@@ -51,7 +53,7 @@ urlpatterns = [
     re_path(r"^encompass/$", views.home_page),
     re_path(r"^encompass/help/$", views.help_page),
     re_path(r"^encompass/about/$", views.about_page),
-    re_path(r"^encompass/query/$", views.query),
+    re_path(r"^encompass/user_settings/$", views.user_settings),
     re_path(r"^encompass/query_host/$", views.query_host),
     re_path(r"^encompass/logout_confirmation/$", views.logout_confirmation),
     re_path(r"^encompass/hosts$", views.host_list),

@@ -22,30 +22,31 @@ ENV PREFIX="/enc" \
 # Instaall all dependencies and cleanup the image, if not in debug mode
 COPY requirements.txt /requirements.txt
 RUN apt update && \
-    apt install -y libsasl2-dev libldap2-dev sqlite3 nginx gettext-base supervisor netcat-openbsd && \
+    apt install -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc nginx gettext-base supervisor netcat-openbsd && \
     pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
-    pip3 install --root-user-action=ignore --no-compile --requirement /requirements.txt
+    pip3 install --root-user-action=ignore --no-compile --requirement /requirements.txt && \
+    install -d -o root -g root -m 755 /data
 RUN if [ "$APP_DEBUG" = "true" ]; then \
         apt install -y vim telnet lsof curl; \
     else \
         apt full-upgrade -y; \
-        apt-get --purge remove -y libsasl2-dev libldap2-dev; \
+        apt-get --purge remove -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc; \
         apt clean && \
         rm -rf /root/.cache/pip/* /var/lib/apt/lists/*; \
     fi
 
 COPY files/supervisord /etc/supervisor/conf.d
+COPY files/root /root
 COPY --chmod=755 files/scripts /usr/local/bin
-COPY --chmod=644 files/nginx.conf.template /root/nginx.conf.template
-COPY --chmod=644 files/watermark /local/watermark
-COPY --chmod=644 files/version /local/version
-COPY --chmod=644 files/bashrc /root/.bashrc
-COPY --chmod=644 files/vimrc /root/.vimrc
+COPY --chmod=644 README.md code/encompass/templates/help.md
 COPY static code/static/static
 COPY encompass code/encompass
+COPY --chmod=644 watermark code
+COPY --chmod=644 version code
+RUN chmod 700 /root/.ssh
 
 # port explanations: check docker-compose.yml for details
-EXPOSE 8080 8081 8082 8443 8444 8445
+EXPOSE 8080 8081 8443 8444
 
 # runs the development server in debug mode
 WORKDIR /code/encompass

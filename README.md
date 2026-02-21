@@ -1,4 +1,275 @@
-# ToDo
+# enCompass
 
-1. add variable interpolation to extras/version
-2. CI must ensure that APP_DEBUG is set to false: `grep APP_DEBUG docker-compose.yml  | grep -qw true`
+enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for Docker.
+It provides a web UI to manage hosts and groups, plus read-only ENC endpoints for external consumers.
+
+## Index
+
+- [Features](#features)
+- [Repository Layout](#repository-layout)
+- [Requirements](#requirements)
+- [Quick Start (Docker)](#quick-start-docker)
+- [Endpoints](#endpoints)
+- [Puppet ENC Integration](#puppet-enc-integration)
+- [Configuration](#configuration)
+  - [Core settings](#core-settings)
+  - [Puppet environments](#puppet-environments)
+  - [Authentication](#authentication)
+  - [ENC Viewer Basic Auth](#enc-viewer-basic-auth)
+  - [SSL](#ssl)
+- [Data Persistence](#data-persistence)
+- [Development Notes](#development-notes)
+- [Local Python Run (Optional)](#local-python-run-optional)
+- [Troubleshooting](#troubleshooting)
+- [Security Checklist](#security-checklist)
+- [ToDo](#todo)
+- [License](#license)
+
+## Features
+
+- Host and group management UI
+- ENC host query view for classification checks
+- Autoscale is possible. The container is stateless
+- LDAP and local Django authentication modes
+- Optional read-only basic auth for ENC endpoints
+- Optional SSL listeners through Nginx
+- Persistent YAML data via Git repository
+
+## Repository Layout
+
+```text
+.
+├── docker-compose.yml
+├── Dockerfile
+├── vars.example
+├── data/
+│   └── enc/
+│       ├── groups.yaml
+│       └── hosts.yaml
+└── encompass/
+     ├── manage.py
+     ├── encompass/
+     └── templates/
+```
+
+## Requirements
+
+- Docker + Docker Compose
+- Open local ports: `8080`, `8081`, `8443`, `8444`
+
+## Quick Start (Docker)
+
+1. Copy environment variables file:
+
+    ```bash
+    cp vars.example vars
+    ```
+
+2. Review and update `vars` for your environment (LDAP host, secrets, allowed hosts, SSL paths, etc.).
+
+3. Build and start:
+
+    ```bash
+    docker compose up --build -d
+    ```
+
+4. Open UI:
+
+    - `http://localhost:8080/encompass/`
+
+5. Check logs:
+
+    ```bash
+    docker compose logs -f encompass
+    ```
+
+6. Stop stack:
+
+    ```bash
+    docker compose down
+    ```
+
+## Endpoints
+
+- `8080`: enCompass web UI (HTTP)
+- `8081`: ENC read-only endpoint (HTTP)
+- `8443`: enCompass web UI (HTTPS, when `USE_SSL=true`)
+- `8444`: ENC read-only endpoint (HTTPS, when `USE_SSL=true`)
+
+> Note: write operations to `/hosts` and `/groups` are blocked when requests are routed through the external ENC proxy paths.
+> Note: write operations to `/hosts` and `/groups` are serialized with a database advisory lock. If another write is in progress, the API returns `409 Conflict` with an explanatory JSON error.
+
+## Puppet ENC Integration
+
+Place `puppet-enc.sh` on the Puppet Server host (not inside Puppet agent nodes), for example:
+
+```bash
+sudo install -m 0755 puppet-enc.sh /etc/puppetlabs/puppet/enc/puppet-enc.sh
+```
+
+Required tools on Puppet Server:
+
+- `bash`
+- `curl`
+- `dig` (usually from `bind-utils` or `dnsutils`)
+- `getopt`
+
+Create a small wrapper so Puppet can pass the node certname (`$1`) to the script:
+
+```bash
+sudo tee /etc/puppetlabs/puppet/enc/enc-wrapper.sh >/dev/null <<'EOF'
+#!/usr/bin/env bash
+exec /etc/puppetlabs/puppet/enc/puppet-enc.sh \
+  --node "$1" \
+  --server encompass.example.org \
+  --srv
+EOF
+sudo chmod 0755 /etc/puppetlabs/puppet/enc/enc-wrapper.sh
+```
+
+Example alternatives for the wrapper:
+
+- Static host + static port:
+
+  ```bash
+  exec /etc/puppetlabs/puppet/enc/puppet-enc.sh --node "$1" --server encompass.example.org --port 8081
+  ```
+
+- Round-robin DNS (multiple A/AAAA) + static port:
+
+  ```bash
+  exec /etc/puppetlabs/puppet/enc/puppet-enc.sh --node "$1" --server encompass.example.org --rrdns --port 8081
+  ```
+
+- Basic auth (if ENC endpoint is protected):
+
+  ```bash
+  exec /etc/puppetlabs/puppet/enc/puppet-enc.sh --node "$1" --server encompass.example.org --port 8081 --user encompass --password '<password>'
+  ```
+
+Configure Puppet Server in `/etc/puppetlabs/puppet/puppet.conf`:
+
+```ini
+[master]
+node_terminus = exec
+external_nodes = /etc/puppetlabs/puppet/enc/enc-wrapper.sh
+```
+
+Apply and verify:
+
+```bash
+sudo systemctl restart puppetserver
+sudo puppet config print node_terminus external_nodes --section master
+```
+
+The ENC command must return valid YAML for the requested node and exit with code `0`.
+
+## Configuration
+
+Main runtime configuration is in `vars` (copied from `vars.example`).
+
+### Core settings
+
+- `DEBUG`: Django debug mode
+- `SECRET_KEY`: Django secret key (generate a unique value)
+- `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
+- `TIME_ZONE`, `LANGUAGE_CODE`
+
+### Puppet environments
+
+- `FEATURE_BRANCH=true|false`
+- `PUPPET_ENVIRONMENTS='["test", "uat", "production"]'`
+
+UI behavior:
+
+- When `FEATURE_BRANCH=true`, users can type any environment name in the host/group edit forms (free-text input).
+- When `FEATURE_BRANCH=false`, the environment field is a drop-down populated from `PUPPET_ENVIRONMENTS`.
+
+### Authentication
+
+- `AUTH_LDAP_ENABLED=true|false`
+- `AUTH_MYSQL_ENABLED=true|false`
+
+LDAP mode requires the `LDAP_*` variables.
+
+Local Django auth mode (`AUTH_MYSQL_ENABLED=true`) supports bootstrap users via:
+
+- `ENC_BOOTSTRAP_ADMIN_PASSWORD`
+- `ENC_BOOTSTRAP_VIEWER_PASSWORD`
+
+If omitted, defaults (`admin` / `viewer`) are used for first bootstrap; change these immediately in non-development environments.
+
+### ENC Viewer Basic Auth
+
+Set `ENC_VIEWER_PASSWORD` to protect read-only ENC endpoints with basic auth.
+
+- Username: `encompass`
+- Password: value of `ENC_VIEWER_PASSWORD`
+
+Leave empty to disable endpoint basic auth.
+
+### SSL
+
+Enable HTTPS listeners by setting:
+
+- `USE_SSL=true`
+- `SSL_CERT_PATH`
+- `SSL_KEY_PATH`
+
+## Data Persistence
+
+Host/group YAML data is stored in the configured Git repository.
+
+For database persistence and backup, use your external MySQL/MariaDB platform backup procedures.
+
+## Development Notes
+
+- In debug mode, Django dev server is used internally.
+- In non-debug mode, Gunicorn serves Django behind Nginx.
+- Static files are collected automatically on container startup.
+- Database migrations are applied automatically when pending.
+
+## Local Python Run (Optional)
+
+Use this only if you are developing outside Docker:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd encompass
+python manage.py migrate
+python manage.py runserver
+```
+
+## Troubleshooting
+
+- `403` on `/hosts` or `/groups` via ENC endpoint:
+  expected behavior for external proxy paths.
+- `409 Conflict` on `/hosts` or `/groups` writes:
+  another write operation currently holds the lock; retry the request.
+- Login issues with LDAP:
+  verify `LDAP_*` values and directory reachability from the container.
+- SSL startup failure:
+  confirm certificate/key files exist and are readable in container paths.
+
+## Security Checklist
+
+- Set a strong `SECRET_KEY`
+- Disable `DEBUG` in production
+- Restrict `ALLOWED_HOSTS` and `ALLOWED_CIDR_NETS`
+- Set non-default bootstrap passwords for local auth mode
+- Enable `USE_SSL` for production exposure
+
+## ToDo
+
+- git commit on save and git pull before rendering the tables
+- regex for hosts in groups.yaml
+- create CI to build the container
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
+See [LICENSE](LICENSE) for details.
+
+SPDX-License-Identifier: GPL-3.0-or-later

@@ -1,0 +1,18 @@
+stages:
+  - build_and_push
+
+build:
+  stage: build_and_push
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    # - docker build --no-cache -t encompass:$CI_COMMIT_TAG .
+    - bash ./build.sh
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --pull --no-cache --build-arg CACHEBUST=$(date +%s) -t encompass:$CI_COMMIT_TAG .
+    - docker tag encompass:$CI_COMMIT_TAG $CI_REGISTRY/docker/docker-encompass/encompass:$CI_COMMIT_TAG
+    - docker image push $CI_REGISTRY/docker/docker-encompass/encompass:$CI_COMMIT_TAG
+  only:
+    - tags
+  tags:
+    - shared-global-shell-runner

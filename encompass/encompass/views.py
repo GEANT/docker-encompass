@@ -6,6 +6,7 @@ views definition
 import os
 import json
 import logging
+from functools import wraps
 import yaml
 import markdown
 # import requests
@@ -25,6 +26,87 @@ MY_ENV = os.environ.copy()
 MY_ENV["PYTHONUNBUFFERED"] = "TRUE"
 MY_ENV["PATH"] = f"{settings.HOME_DIR}/bin:{os.environ['PATH']}"
 
+READ_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP, settings.ENC_VIEWER_GROUP]
+ADMIN_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP]
+
+
+def get_user_groups(user):
+    """Return user groups compatible with LDAP and MySQL auth modes."""
+    if getattr(settings, "USE_AUTH_MYSQL", False):
+        return list(user.groups.values_list("name", flat=True))
+
+    if hasattr(user, "ldap_user"):
+        return user.ldap_user.attrs.get("memberOf", [])
+
+    return []
+
+
+def get_user_identity(user):
+    """Return display-friendly user identity fields for templates."""
+    if getattr(settings, "USE_AUTH_MYSQL", False):
+        return {
+            "username": user.get_username(),
+            "display_name": user.get_full_name() or user.get_username() or settings.UNLOGGED,
+            "email": user.email or None,
+            "groups": get_user_groups(user),
+        }
+
+    if hasattr(user, "ldap_user"):
+        attrs = user.ldap_user.attrs
+        return {
+            "username": attrs.get("sAMAccountName", [user.get_username()])[0],
+            "display_name": attrs.get("displayName", [settings.UNLOGGED])[0],
+            "email": attrs.get("mail", [None])[0],
+            "groups": attrs.get("memberOf", []),
+        }
+
+    return {
+        "username": user.get_username(),
+        "display_name": user.get_username() or settings.UNLOGGED,
+        "email": user.email or None,
+        "groups": [],
+    }
+
+
+def group_required_ldap(group_dn: str | list):
+    """group(s) required"""
+    group_dn_list = group_dn if isinstance(group_dn, list) else [group_dn]
+
+    def in_group_ldap(user):
+        groups = get_user_groups(user)
+        if any(group in groups for group in group_dn_list):
+            return True
+        return False
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if in_group_ldap(request.user):
+                return view_func(request, *args, **kwargs)
+
+            identity = get_user_identity(request.user)
+            group_name = tools.get_groups_info(identity["groups"])
+            return render(
+                request,
+                settings.ERROR_HTML,
+                {
+                    "results": [
+                        f"Username {identity['username']} is not authorized to access this feature",
+                        "Try with a different user",
+                    ],
+                    "card_header": "Authorization Error",
+                    "disp_name": identity["display_name"],
+                    "encompass_email": identity["email"],
+                    "group_name": group_name,
+                    "watermark": settings.WATERMARK,
+                    "current_version": settings.CURRENT_VERSION,
+                },
+            )
+
+        return wrapper
+
+    return decorator
+
 
 def healthz(_):
     """
@@ -35,8 +117,54 @@ def healthz(_):
     return JsonResponse(data, status=200, content_type="application/json")
 
 
+@login_required(login_url="/encompass/login/")
+def user_settings(request):
+    """Allow MySQL users to change their own password."""
+    if not getattr(settings, "USE_AUTH_MYSQL", False):
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": ["User settings are managed externally (LDAP mode)", settings.TRY_AGAIN],
+                "current_version": settings.CURRENT_VERSION,
+                "watermark": settings.WATERMARK,
+            },
+        )
+
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
+    group_name = tools.get_groups_info(groups)
+
+    if request.method == "POST":
+        current_password = request.POST.get("current_password", "")
+        new_password = request.POST.get("new_password", "")
+        confirm_password = request.POST.get("confirm_password", "")
+
+        if not request.user.check_password(current_password):
+            messages.error(request, "Current password is incorrect")
+        elif not new_password:
+            messages.error(request, "New password cannot be empty")
+        elif new_password != confirm_password:
+            messages.error(request, "New password and confirmation do not match")
+        else:
+            request.user.set_password(new_password)
+            request.user.save(update_fields=["password"])
+            messages.success(request, "Password updated successfully. Please log in again.")
+            return redirect("/encompass/logout_confirmation/")
+
+    context = {
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
+        "group_name": group_name,
+        "watermark": settings.WATERMARK,
+        "current_version": settings.CURRENT_VERSION,
+    }
+    return render(request, "user_settings.html", context)
+
+
 @require_GET
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(READ_ONLY_GROUPS)
 def host_details(_request, hostname):
     """
     Retrieve details for a specific host from the enc.sock API and return as JSON response.
@@ -54,6 +182,7 @@ def host_details(_request, hostname):
 
 @require_GET
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(READ_ONLY_GROUPS)
 def group_details(_request, groupname):
     """
     Retrieve details for a specific group from the enc.sock API and return as JSON response.
@@ -77,6 +206,7 @@ def group_details(_request, groupname):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def host_purge_confirmation(request):
     """Show delete confirmation for a host."""
     if request.method != "POST":
@@ -100,15 +230,13 @@ def host_purge_confirmation(request):
             },
         )
 
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
 
     context = {
         "hostname": hostname,
-        "encompass_email": encompass_email,
-        "disp_name": disp_name,
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
         "group_name": group_name,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
@@ -118,6 +246,7 @@ def host_purge_confirmation(request):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def host_purge_execute(request):
     """Delete a host from ENC and return to hosts list."""
     if request.method != "POST":
@@ -144,6 +273,18 @@ def host_purge_execute(request):
     try:
         tools.delete_host(hostname)
         messages.success(request, f"Host '{hostname}' deleted successfully!")
+    except tools.enc_data.EncDataLockTimeout:
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": [
+                    "Another host update is in progress. Please retry.",
+                    settings.TRY_AGAIN,
+                ],
+                "current_version": settings.CURRENT_VERSION,
+            },
+        )
     except Exception as e:  # pylint: disable=broad-except
         return render(
             request,
@@ -158,6 +299,7 @@ def host_purge_execute(request):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def host_save(request):
     """Save a host definition via ENC."""
     if request.method != "POST":
@@ -180,6 +322,11 @@ def host_save(request):
 
     try:
         tools.update_host(hostname, host_payload)
+    except tools.enc_data.EncDataLockTimeout:
+        return JsonResponse(
+            {"error": "Conflict", "message": "Another host update is in progress"},
+            status=409,
+        )
     except Exception as e:  # pylint: disable=broad-except
         logger.exception("host_save failed for host '%s'", hostname)
         return JsonResponse({"error": str(e)}, status=500)
@@ -188,21 +335,22 @@ def host_save(request):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def host_add(request):
     """Add a new host to ENC."""
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
 
     if request.method == "GET":
         # Show the form
         context = {
-            "encompass_email": encompass_email,
-            "disp_name": disp_name,
+            "encompass_email": identity["email"],
+            "disp_name": identity["display_name"],
             "group_name": group_name,
             "watermark": settings.WATERMARK,
             "current_version": settings.CURRENT_VERSION,
+            "feature_branch": settings.FEATURE_BRANCH,
+            "puppet_environments": settings.PUPPET_ENVIRONMENTS,
         }
         return render(request, "host_add.html", context)
 
@@ -250,6 +398,18 @@ def host_add(request):
     try:
         tools.create_host(hostname, host_payload)
         messages.success(request, f"Host '{hostname}' created successfully!")
+    except tools.enc_data.EncDataLockTimeout:
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": [
+                    "Another host update is in progress. Please retry.",
+                    settings.TRY_AGAIN,
+                ],
+                "current_version": settings.CURRENT_VERSION,
+            },
+        )
     except Exception as e:  # pylint: disable=broad-except
         return render(
             request,
@@ -265,6 +425,7 @@ def host_add(request):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_purge_confirmation(request):
     """Show confirmation page for deleting a group."""
     groupname = request.GET.get("name", "").strip()
@@ -290,16 +451,14 @@ def group_purge_confirmation(request):
             },
         )
 
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
 
     context = {
         "groupname": groupname,
         "group_details": group_info,
-        "encompass_email": encompass_email,
-        "disp_name": disp_name,
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
         "group_name": group_name,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
@@ -308,6 +467,7 @@ def group_purge_confirmation(request):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_purge_execute(request):
     """Execute deletion of a group."""
     if request.method != "POST":
@@ -327,6 +487,18 @@ def group_purge_execute(request):
     try:
         tools.delete_group(groupname)
         messages.success(request, f"Group '{groupname}' deleted successfully!")
+    except tools.enc_data.EncDataLockTimeout:
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": [
+                    "Another group update is in progress. Please retry.",
+                    settings.TRY_AGAIN,
+                ],
+                "current_version": settings.CURRENT_VERSION,
+            },
+        )
     except Exception as e:  # pylint: disable=broad-except
         return render(
             request,
@@ -341,6 +513,7 @@ def group_purge_execute(request):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_save(request):
     """Save a group definition via ENC."""
     if request.method != "POST":
@@ -369,6 +542,11 @@ def group_save(request):
         logger.info("Calling update_group for '%s' with payload: %s", groupname, group_payload)
         tools.update_group(groupname, group_payload)
         logger.info("Successfully updated group '%s'", groupname)
+    except tools.enc_data.EncDataLockTimeout:
+        return JsonResponse(
+            {"error": "Conflict", "message": "Another group update is in progress"},
+            status=409,
+        )
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error updating group '%s': %s", groupname, e, exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
@@ -377,21 +555,22 @@ def group_save(request):
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_add(request):
     """Add a new group to ENC."""
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
 
     if request.method == "GET":
         # Show the form
         context = {
-            "encompass_email": encompass_email,
-            "disp_name": disp_name,
+            "encompass_email": identity["email"],
+            "disp_name": identity["display_name"],
             "group_name": group_name,
             "watermark": settings.WATERMARK,
             "current_version": settings.CURRENT_VERSION,
+            "feature_branch": settings.FEATURE_BRANCH,
+            "puppet_environments": settings.PUPPET_ENVIRONMENTS,
         }
         return render(request, "group_add.html", context)
 
@@ -452,58 +631,33 @@ def group_add(request):
     try:
         tools.create_group(groupname, group_payload)
         messages.success(request, f"Group '{groupname}' created successfully!")
+    except tools.enc_data.EncDataLockTimeout:
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": [
+                    "Another group update is in progress. Please retry.",
+                     settings.TRY_AGAIN,
+                ],
+                "current_version": settings.CURRENT_VERSION,
+            },
+        )
     except Exception as e:  # pylint: disable=broad-except
         return render(
             request,
             settings.ERROR_HTML,
             {
-                "results": [f"Failed to create group: {str(e)}", settings.TRY_AGAIN],
+                "results": [
+                    f"Failed to create group: {str(e)}",
+                    settings.TRY_AGAIN,
+                ],
                 "current_version": settings.CURRENT_VERSION,
             },
         )
 
     # Success - redirect to groups list with a success message
     return redirect("/encompass/groups")
-
-
-def group_required_ldap(group_dn: str | list):
-    """group(s) required"""
-    group_dn_list = group_dn if isinstance(group_dn, list) else [group_dn]
-
-    def in_group_ldap(user):
-        ldap_groups = user.ldap_user.attrs.get("memberOf", [])
-        if any(group in ldap_groups for group in group_dn_list):
-            return True
-        return False
-
-    def decorator(view_func):
-        def wrapper(request, *args, **kwargs):
-            if in_group_ldap(request.user):
-                return view_func(request, *args, **kwargs)
-
-            uid = request.user.ldap_user.attrs.get("sAMAccountName", [])[0]
-            display_name = request.user.ldap_user.attrs.get("displayName", [])[0]
-            encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-            groups = request.user.ldap_user.attrs.get("memberOf", [])
-            group_name = tools.get_groups_info(groups)
-            return render(
-                request,
-                settings.ERROR_HTML,
-                {
-                    "results": [
-                        f"Username {uid} is not authorized to access this feature",
-                        "Try with a different user",
-                    ],
-                    "card_header": "Authorization Error",
-                    "disp_name": display_name,
-                    "encompass_email": encompass_email,
-                    "group_name": group_name,
-                },
-            )
-
-        return wrapper
-
-    return decorator
 
 
 def help_page(request):
@@ -513,27 +667,17 @@ def help_page(request):
     :param request: Django HttpRequest object
     :return: Rendered help page with content from help.md
     """
-    try:
-        encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-        disp_name = request.user.ldap_user.attrs.get(
-            "displayName", [settings.UNLOGGED]
-        )[0]
-        groups = request.user.ldap_user.attrs.get("memberOf", [])
-    except AttributeError:
-        encompass_email = None
-        disp_name = settings.UNLOGGED
-        groups = []
-
-    group_name = tools.get_groups_info(groups)
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
 
     with open("templates/help.md", encoding="utf-8") as f:
         content = f.read()
 
     html = markdown.markdown(content, extensions=["fenced_code", "tables"])
     context = {
-        "encompass_email": encompass_email,
+        "encompass_email": identity["email"],
         "group_name": group_name,
-        "disp_name": disp_name,
+        "disp_name": identity["display_name"],
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "content": html,
@@ -580,22 +724,12 @@ def help_page(request):
 
 def about_page(request):
     """About page"""
-    try:
-        encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-        disp_name = request.user.ldap_user.attrs.get(
-            "displayName", [settings.UNLOGGED]
-        )[0]
-        groups = request.user.ldap_user.attrs.get("memberOf", [])
-    except AttributeError:
-        encompass_email = None
-        disp_name = settings.UNLOGGED
-        groups = []
-
-    group_name = tools.get_groups_info(groups)
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
     context = {
-        "encompass_email": encompass_email,
+        "encompass_email": identity["email"],
         "group_name": group_name,
-        "disp_name": disp_name,
+        "disp_name": identity["display_name"],
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }
@@ -603,85 +737,90 @@ def about_page(request):
 
 
 @login_required(login_url="login/")
-@group_required_ldap(
-    [settings.ENC_ADMIN_GROUP, settings.ENC_USER_GROUP, settings.ENC_VIEWER_GROUP]
-)
+@group_required_ldap(READ_ONLY_GROUPS)
 def home_page(request):
     """list available groups"""
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
+    is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
+    is_admin = settings.ENC_ADMIN_GROUP in groups
     context = {
         "groups": groups,
-        "encompass_email": encompass_email,
-        "disp_name": disp_name,
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
         "group_name": group_name,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
+        "is_db_auth": is_db_auth,
+        "is_admin": is_admin,
     }
 
     return render(request, "home.html", context)
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(READ_ONLY_GROUPS)
 def host_list(request):
     """list hosts for health check"""
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
     host_names = tools.list_hosts()
-
     context = {
         "groups": groups,
-        "encompass_email": encompass_email,
-        "disp_name": disp_name,
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
         "group_name": group_name,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "hosts": host_names,
+        "feature_branch": settings.FEATURE_BRANCH,
+        "puppet_environments": settings.PUPPET_ENVIRONMENTS,
     }
+
     return render(request, "hosts.html", context)
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(READ_ONLY_GROUPS)
 def group_list(request):
     """list groups for health check"""
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
     groups_list = tools.list_groups()
-
     context = {
         "groups": groups,
-        "encompass_email": encompass_email,
-        "disp_name": disp_name,
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
         "group_name": group_name,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "groups_list": groups_list,
+        "feature_branch": settings.FEATURE_BRANCH,
+        "puppet_environments": settings.PUPPET_ENVIRONMENTS,
     }
+
     return render(request, "groups.html", context)
 
 
 @login_required(login_url="/encompass/login/")
+@group_required_ldap(READ_ONLY_GROUPS)
 def query_host(request):
     """
     Query a specific host to see its ENC classification.
     GET: Show the query form
     POST: Query the host and display results
     """
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
 
     context = {
-        "encompass_email": encompass_email,
+        "encompass_email": identity["email"],
         "group_name": group_name,
-        "disp_name": disp_name,
+        "disp_name": identity["display_name"],
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }
@@ -716,52 +855,14 @@ def query_host(request):
 
 
 @login_required(login_url="/encompass/login/")
-def query(request):
-    """
-    query VMs from vCenter
-    """
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    group_name = tools.get_groups_info(groups)
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    groups = request.user.ldap_user.attrs.get("memberOf", [])
-    groups_info = tools.get_groups_info(groups)
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    try:
-        encompass_folder = groups_info[group_name]["encompass_folder"]
-    except KeyError:
-        return render(
-            request,
-            settings.ERROR_HTML,
-            {
-                "results": [
-                    "You must select a group and click 'Confirm Group'",
-                    settings.TRY_AGAIN,
-                ],
-                "current_version": settings.CURRENT_VERSION,
-            },
-        )
-    context = {
-        "encompass_folder": encompass_folder,
-        "encompass_email": encompass_email,
-        "group_name": group_name,
-        "disp_name": disp_name,
-        "watermark": settings.WATERMARK,
-        "current_version": settings.CURRENT_VERSION,
-    }
-
-    return render(request, "query.html", context)
-
-
-@login_required(login_url="/encompass/login/")
 def logout_confirmation(request):
     """show update confirmation"""
-    encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-    disp_name = request.user.ldap_user.attrs.get("displayName", [settings.UNLOGGED])[0]
-    group_name = request.POST.get("group_name", "")
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
     context = {
-        "encompass_email": encompass_email,
+        "encompass_email": identity["email"],
         "group_name": group_name,
-        "disp_name": disp_name,
+        "disp_name": identity["display_name"],
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }

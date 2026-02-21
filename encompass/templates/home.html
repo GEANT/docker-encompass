@@ -55,6 +55,40 @@
               </div>
             </a>
           </div>
+
+          {% if is_db_auth and is_admin %}
+          <div class="col-md-4">
+            <a href="/admin/auth/user/" class="text-decoration-none" target="_blank" rel="noopener noreferrer">
+              <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-people fs-1 mb-3"></i>
+                  <h5 class="card-title">Users</h5>
+                  <p class="card-text text-muted">
+                    Manage local DB users and group assignments
+                    <br>
+                    <small>Opens in a new tab</small>
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {% if is_db_auth %}
+          <div class="col-md-4">
+            <a href="/encompass/user_settings/" class="text-decoration-none">
+              <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-person-gear fs-1 mb-3"></i>
+                  <h5 class="card-title">My Settings</h5>
+                  <p class="card-text text-muted">
+                    Change your local account password
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>

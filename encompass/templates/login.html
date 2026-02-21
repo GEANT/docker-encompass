@@ -29,7 +29,11 @@ Login
         {% csrf_token %}
         <!--  <table class="table center-table mx-auto table-sm table_custom" style="width: 500px"> -->
         <table class="table center-table mx-auto" style="width: 500px">
-          <caption>AD credentials (name.surname without domain)</caption>
+          {% if is_db_auth %}          
+          <caption>DB authentication enabled</caption>
+          {% else %}
+          <caption>LDAP/AD authentication enabled (username without domain)</caption>
+          {% endif %}
           <tr>
             <th scope="col">
               <label for="id_username">Username</label>

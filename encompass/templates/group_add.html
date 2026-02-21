@@ -21,7 +21,15 @@
 
               <div class="mb-3">
                 <label class="form-label"><strong>Environment</strong></label>
+                {% if feature_branch %}
                 <input type="text" class="form-control" name="environment" placeholder="production">
+                {% else %}
+                <select class="form-select" name="environment">
+                  {% for env in puppet_environments %}
+                  <option value="{{ env }}">{{ env }}</option>
+                  {% endfor %}
+                </select>
+                {% endif %}
               </div>
 
               <div class="mb-3">

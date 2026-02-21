@@ -30,8 +30,6 @@
         <div class="table-responsive" style="margin: 0 auto; max-width: 1200px;">
           <form class="form-horizontal" action="/encompass/host_purge_confirmation/" method="post">
             {% csrf_token %}
-            <input type="hidden" name="tform_folder" value="{{ tform_folder }}" />
-            <input type="hidden" name="tform_group" value="{{ tform_group }}" />
             <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
             <input type="hidden" name="disp_name" value="{{ disp_name }}" />
             <table id="hostsTable" class="table table-hover table-light" style="text-align: left;">
@@ -64,7 +62,11 @@
         </div>
       </div>
 
+      {{ puppet_environments|json_script:"host-puppet-environments" }}
       <script>
+        const featureBranchesEnabled = {{ feature_branch|yesno:"true,false" }};
+        const puppetEnvironments = JSON.parse(document.getElementById('host-puppet-environments').textContent);
+
         let hostsDataTable = null;
 
         function escapeHtml(value) {
@@ -112,6 +114,21 @@
           `;
         }
 
+        function environmentFieldHtml(cssClass, currentValue) {
+          const value = currentValue || '';
+          if (featureBranchesEnabled || !Array.isArray(puppetEnvironments) || puppetEnvironments.length === 0) {
+            return `<input type="text" class="form-control ${cssClass}" value="${escapeHtml(value)}" placeholder="production">`;
+          }
+
+          const normalized = String(value);
+          const options = puppetEnvironments.map((env) => {
+            const selected = env === normalized ? ' selected' : '';
+            return `<option value="${escapeHtml(env)}"${selected}>${escapeHtml(env)}</option>`;
+          }).join('');
+
+          return `<select class="form-select ${cssClass}">${options}</select>`;
+        }
+
         function renderEditor(hostname, hostData) {
           const classes = Array.isArray(hostData.classes)
             ? hostData.classes
@@ -128,7 +145,7 @@
                   <div class="row mb-3">
                     <div class="col-md-12">
                       <label class="form-label"><strong>Environment</strong></label>
-                      <input type="text" class="form-control host-environment" value="${escapeHtml(hostData.environment || '')}" placeholder="production">
+                      ${environmentFieldHtml('host-environment', hostData.environment || '')}
                     </div>
                   </div>
 

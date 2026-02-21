@@ -61,7 +61,11 @@
         </div>
       </div>
 
+      {{ puppet_environments|json_script:"group-puppet-environments" }}
       <script>
+        const featureBranchesEnabled = {{ feature_branch|yesno:"true,false" }};
+        const puppetEnvironments = JSON.parse(document.getElementById('group-puppet-environments').textContent);
+
         let groupsDataTable = null;
 
         function escapeHtml(value) {
@@ -118,6 +122,21 @@
           `;
         }
 
+        function environmentFieldHtml(cssClass, currentValue) {
+          const value = currentValue || '';
+          if (featureBranchesEnabled || !Array.isArray(puppetEnvironments) || puppetEnvironments.length === 0) {
+            return `<input type="text" class="form-control ${cssClass}" value="${escapeHtml(value)}" placeholder="production">`;
+          }
+
+          const normalized = String(value);
+          const options = puppetEnvironments.map((env) => {
+            const selected = env === normalized ? ' selected' : '';
+            return `<option value="${escapeHtml(env)}"${selected}>${escapeHtml(env)}</option>`;
+          }).join('');
+
+          return `<select class="form-select ${cssClass}">${options}</select>`;
+        }
+
         function renderEditor(groupname, groupData) {
           const classes = Array.isArray(groupData.classes)
             ? groupData.classes
@@ -136,7 +155,7 @@
                   <div class="row mb-3">
                     <div class="col-md-6">
                       <label class="form-label"><strong>Environment</strong></label>
-                      <input type="text" class="form-control group-environment" value="${escapeHtml(groupData.environment || '')}" placeholder="production">
+                      ${environmentFieldHtml('group-environment', groupData.environment || '')}
                     </div>
                   </div>
 
