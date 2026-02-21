@@ -265,6 +265,7 @@ python manage.py runserver
 
 - git commit on save and git pull before rendering the tables
 - regex for hosts in groups.yaml
+- forbid certain actions, ensure that a class exists for every entry
 
 ## License
 

@@ -24,7 +24,6 @@ SSL_CERT_PATH="/etc/ssl/private/server.crt"
 SSL_KEY_PATH="/etc/ssl/private/server.key"
 
 # MySQL variables
-DB_ENGINE="mysql"
 MYSQL_HOST="mysql.example.org"
 MYSQL_PORT=3306
 MYSQL_DB="encompass"
