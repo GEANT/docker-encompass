@@ -265,7 +265,6 @@ python manage.py runserver
 
 - git commit on save and git pull before rendering the tables
 - regex for hosts in groups.yaml
-- create CI to build the container
 
 ## License
 
