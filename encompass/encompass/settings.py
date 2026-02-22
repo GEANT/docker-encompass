@@ -49,6 +49,7 @@ def env_choice(name, default, allowed):
 USE_AUTH_LDAP = env_json("AUTH_LDAP_ENABLED", False)
 USE_AUTH_MYSQL = env_json("AUTH_MYSQL_ENABLED", False)
 FEATURE_BRANCH = env_json("FEATURE_BRANCH", False)
+DEMO_MODE = env_json("DEMO_MODE", False)
 PUPPET_ENVIRONMENTS = env_json("PUPPET_ENVIRONMENTS", ["production"])
 if USE_AUTH_LDAP not in [True, False] or USE_AUTH_MYSQL not in [True, False]:
     print("Either AUTH_LDAP_ENABLED or AUTH_MYSQL_ENABLED must be True or False")
@@ -58,6 +59,9 @@ if USE_AUTH_LDAP == USE_AUTH_MYSQL:
     raise SystemExit(1)
 if FEATURE_BRANCH not in [True, False]:
     print("FEATURE_BRANCH must be True or False")
+    raise SystemExit(1)
+if DEMO_MODE not in [True, False]:
+    print("DEMO_MODE must be True or False")
     raise SystemExit(1)
 if not isinstance(PUPPET_ENVIRONMENTS, list):
     print("PUPPET_ENVIRONMENTS must be a JSON list")

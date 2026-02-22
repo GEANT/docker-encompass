@@ -745,6 +745,8 @@ def home_page(request):
     group_name = tools.get_groups_info(groups)
     is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
     is_admin = settings.ENC_ADMIN_GROUP in groups
+    if is_db_auth:
+        is_admin = is_admin and request.user.get_username() == "admin"
     context = {
         "groups": groups,
         "encompass_email": identity["email"],

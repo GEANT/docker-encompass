@@ -25,6 +25,19 @@ from django.contrib import admin
 from . import views
 from . import enc_views
 
+
+def _encompass_admin_has_permission(request):
+    if not request.user.is_active:
+        return False
+    if not request.user.is_staff or not request.user.is_superuser:
+        return False
+    if settings.USE_AUTH_MYSQL:
+        return request.user.get_username() == "admin"
+    return True
+
+
+admin.site.has_permission = _encompass_admin_has_permission
+
 favicon_view = RedirectView.as_view(
     url="/static/images/favicon.ico", permanent=True
 )
@@ -34,6 +47,7 @@ extra = {
     "current_version": settings.CURRENT_VERSION,
     "is_db_auth": settings.USE_AUTH_MYSQL,
     "is_ldap_auth": settings.USE_AUTH_LDAP,
+    "demo_mode": settings.DEMO_MODE,
 }
 
 urlpatterns = [
