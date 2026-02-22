@@ -216,6 +216,15 @@ Enable HTTPS listeners by setting:
 - `SSL_CERT_PATH`
 - `SSL_KEY_PATH`
 
+### Git settings
+
+The application accepts the Git SSH private key in either of these forms:
+
+- `GIT_REPO_PRIVATE_SSH_KEY`: inline key content (works well in `docker-compose` env files)
+- `GIT_REPO_PRIVATE_SSH_KEY_FILE`: path to a file containing the key (recommended for Kubernetes/Nomad secrets)
+
+If both are set, `GIT_REPO_PRIVATE_SSH_KEY` is used.
+
 ## Data Persistence
 
 Host/group YAML data is stored in the configured Git repository.

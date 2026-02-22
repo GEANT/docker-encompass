@@ -5,6 +5,7 @@
 # - GIT_REPO_BRANCH: branch of the Git repository
 # - SSH_KEY_TYPE: type of the SSH key (rsa, ed25519, ecdsa)
 # - GIT_REPO_PRIVATE_SSH_KEY: SSH key for accessing the Git repository
+# - GIT_REPO_PRIVATE_SSH_KEY_FILE: path to a file containing the SSH key
 # - GIT_REPO_USERNAME: username for accessing the Git repository
 #
 set -e
@@ -19,12 +20,20 @@ fi
 
 KEY_FILE="${KEY_FILE:-/root/.ssh/id_${SSH_KEY_TYPE:-}}"
 
+if [ -z "${GIT_REPO_PRIVATE_SSH_KEY:-}" ] && [ -n "${GIT_REPO_PRIVATE_SSH_KEY_FILE:-}" ]; then
+    if [ ! -r "$GIT_REPO_PRIVATE_SSH_KEY_FILE" ]; then
+        echo "==> Git-setup: [ERROR] GIT_REPO_PRIVATE_SSH_KEY_FILE is set but not readable: $GIT_REPO_PRIVATE_SSH_KEY_FILE"
+        exit 1
+    fi
+    GIT_REPO_PRIVATE_SSH_KEY="$(cat "$GIT_REPO_PRIVATE_SSH_KEY_FILE")"
+fi
+
 # check that all required variables are set and valid
 if [ -n "$GIT_REPO" ] && [ -n "${GIT_REPO_BRANCH:-}" ] && [ -n "${SSH_KEY_TYPE:-}" ] && [ -n "${GIT_REPO_PRIVATE_SSH_KEY:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ] && [ -n "${GIT_HOST:-}" ]; then
     echo "==> Git-setup: Setting up Git authentication variables..."
 else
     echo "==> Git-setup: [ERROR] Missing required Git authentication variables"
-    echo "==> Git-setup: [ERROR] Please set GIT_REPO_BRANCH, SSH_KEY_TYPE, GIT_REPO_PRIVATE_SSH_KEY, GIT_REPO_USERNAME, GIT_HOST and either GIT_REPO or GIT_REPO_URL (or GIT_REPO_PATH with GIT_HOST and GIT_REPO_USERNAME)"
+    echo "==> Git-setup: [ERROR] Please set GIT_REPO_BRANCH, SSH_KEY_TYPE, GIT_REPO_USERNAME, GIT_HOST, and either GIT_REPO_PRIVATE_SSH_KEY or GIT_REPO_PRIVATE_SSH_KEY_FILE, plus either GIT_REPO or GIT_REPO_URL (or GIT_REPO_PATH with GIT_HOST and GIT_REPO_USERNAME)"
     exit 1
 fi
 case "$SSH_KEY_TYPE" in
