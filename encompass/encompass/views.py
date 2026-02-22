@@ -32,6 +32,9 @@ ADMIN_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP]
 
 def get_user_groups(user):
     """Return user groups compatible with LDAP and MySQL auth modes."""
+    if not getattr(user, "is_authenticated", False):
+        return []
+
     if getattr(settings, "USE_AUTH_MYSQL", False):
         return list(user.groups.values_list("name", flat=True))
 
@@ -43,10 +46,18 @@ def get_user_groups(user):
 
 def get_user_identity(user):
     """Return display-friendly user identity fields for templates."""
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "username": settings.UNLOGGED,
+            "display_name": settings.UNLOGGED,
+            "email": None,
+            "groups": [],
+        }
+
     if getattr(settings, "USE_AUTH_MYSQL", False):
         return {
             "username": user.get_username(),
-            "display_name": user.get_full_name() or user.get_username() or settings.UNLOGGED,
+            "display_name": user.get_username() or settings.UNLOGGED,
             "email": user.email or None,
             "groups": get_user_groups(user),
         }
