@@ -6,7 +6,7 @@ build:
   variables:
     GIT_STRATEGY: clone
   script:
-    - bash ./pre-build.sh
+    - bash ./files/deployment-stuff/pre-build.sh
     - printf '%s' "$AFACTORY_TOKEN" | docker login -u "$AFACTORY_USER" --password-stdin "$AFACTORY_HOST"
     - docker build --no-cache --build-arg CACHEBUST="$(date +%s)" -t "encompass:$CI_COMMIT_TAG" .
     # Push the image using the tag number from the git tag

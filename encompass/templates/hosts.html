@@ -65,6 +65,7 @@
       {{ puppet_environments|json_script:"host-puppet-environments" }}
       <script>
         const featureBranchesEnabled = {{ feature_branch|yesno:"true,false" }};
+        const canSaveHosts = {{ can_save_hosts|yesno:"true,false" }};
         const puppetEnvironments = JSON.parse(document.getElementById('host-puppet-environments').textContent);
 
         let hostsDataTable = null;
@@ -173,7 +174,7 @@
 
                   <div class="d-flex justify-content-between mt-4">
                     <button type="button" class="btn btn-outline-secondary" data-cancel-edit>Cancel</button>
-                    <button type="submit" class="btn btn-success">Save Host</button>
+                    <button type="submit" class="btn ${canSaveHosts ? 'btn-success' : 'btn-secondary disabled'}" ${canSaveHosts ? '' : 'disabled aria-disabled="true" title="Only admins can save hosts"'}>Save Host</button>
                   </div>
                 </form>
               </div>
@@ -290,6 +291,11 @@
           if (form) {
             form.addEventListener('submit', async (event) => {
               event.preventDefault();
+
+              if (!canSaveHosts) {
+                alert('Only admins can save hosts.');
+                return;
+              }
 
               const payload = collectPayloadFromEditor(editorRoot, hostname);
 

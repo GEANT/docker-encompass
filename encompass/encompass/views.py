@@ -167,6 +167,7 @@ def user_settings(request):
         "encompass_email": identity["email"],
         "disp_name": identity["display_name"],
         "group_name": group_name,
+        "demo_mode": settings.DEMO_MODE,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }
@@ -779,6 +780,10 @@ def host_list(request):
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
+    is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
+    can_save_hosts = request.user.is_superuser or settings.ENC_ADMIN_GROUP in groups
+    if is_db_auth and not request.user.is_superuser:
+        can_save_hosts = can_save_hosts and request.user.get_username() == "admin"
     host_names = tools.list_hosts()
     context = {
         "groups": groups,
@@ -790,6 +795,7 @@ def host_list(request):
         "hosts": host_names,
         "feature_branch": settings.FEATURE_BRANCH,
         "puppet_environments": settings.PUPPET_ENVIRONMENTS,
+        "can_save_hosts": can_save_hosts,
     }
 
     return render(request, "hosts.html", context)

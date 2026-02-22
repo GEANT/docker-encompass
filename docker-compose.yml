@@ -2,8 +2,6 @@ services:
   encompass:
     env_file:
       - vars
-    environment:
-      - name=value
     dns:
       - 83.97.93.200
       - 8.8.8.8

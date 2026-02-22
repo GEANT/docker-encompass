@@ -8,9 +8,11 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 ## Index
 
 - [Features](#features)
-- [Repository Layout](#repository-layout)
-- [Requirements](#requirements)
-- [Quick Start (Docker)](#quick-start-docker)
+- [Deployment](#deployment)
+  - [Nomad Deployment](#nomad-deployment)
+  - [Kubernetes Deployment](#kubernetes-deployment)
+  - [Docker Compose](#docker-compose)
+    - [Quick Start (Docker)](#quick-start-docker)
 - [Endpoints](#endpoints)
 - [Puppet ENC Integration](#puppet-enc-integration)
 - [Configuration](#configuration)
@@ -20,9 +22,6 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
   - [ENC Viewer Basic Auth](#enc-viewer-basic-auth)
   - [SSL](#ssl)
 - [Data Persistence](#data-persistence)
-- [Development Notes](#development-notes)
-- [Local Python Run (Optional)](#local-python-run-optional)
-- [Troubleshooting](#troubleshooting)
 - [Security Checklist](#security-checklist)
 - [ToDo](#todo)
 - [License](#license)
@@ -37,29 +36,26 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 - Optional SSL listeners through Nginx
 - Persistent YAML data via Git repository
 
-## Repository Layout
+## Deployment
 
-```text
-.
-├── docker-compose.yml
-├── Dockerfile
-├── vars.example
-├── data/
-│   └── enc/
-│       ├── groups.yaml
-│       └── hosts.yaml
-└── encompass/
-     ├── manage.py
-     ├── encompass/
-     └── templates/
-```
+### Nomad Deployment
 
-## Requirements
+You can use [encompass-demo.nomad](examples/encompass-demo.nomad) and adjust it to your needs.
+
+The job contains service registration against Consul, and secrets templates fetched from Vault.
+
+### Kubernetes Deployment
+
+Help needed!
+
+### Docker Compose
 
 - Docker + Docker Compose
 - Open local ports: `8080`, `8081`, `8443`, `8444`
 
-## Quick Start (Docker)
+#### Quick Start (Docker)
+
+**The following instruction are not intended for a production grade deployment.**
 
 1. Copy environment variables file:
 
@@ -72,24 +68,12 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 3. Build and start:
 
     ```bash
-    docker compose up --build -d
+    docker compose up --build
     ```
 
 4. Open UI:
 
     - `http://localhost:8080/encompass/`
-
-5. Check logs:
-
-    ```bash
-    docker compose logs -f encompass
-    ```
-
-6. Stop stack:
-
-    ```bash
-    docker compose down
-    ```
 
 ## Endpoints
 
@@ -98,12 +82,15 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 - `8443`: enCompass web UI (HTTPS, when `USE_SSL=true`)
 - `8444`: ENC read-only endpoint (HTTPS, when `USE_SSL=true`)
 
-> Note: write operations to `/hosts` and `/groups` are blocked when requests are routed through the external ENC proxy paths.
-> Note: write operations to `/hosts` and `/groups` are serialized with a database advisory lock. If another write is in progress, the API returns `409 Conflict` with an explanatory JSON error.
-
 ## Puppet ENC Integration
 
-Place `puppet-enc.sh` on the Puppet Server host (not inside Puppet agent nodes), for example:
+In principle you can simply use curl against the ENC endpoint as follows:
+
+```bash
+curl -s http://localhost:8081/hosts/\$1
+```
+
+If you have round-robin DNS, or SRV records, you can place [puppet-enc.sh](examples/puppet-enc.sh) on the Puppet Server host (not inside Puppet agent nodes), for example:
 
 ```bash
 sudo install -m 0755 puppet-enc.sh /etc/puppetlabs/puppet/enc/puppet-enc.sh
@@ -111,10 +98,7 @@ sudo install -m 0755 puppet-enc.sh /etc/puppetlabs/puppet/enc/puppet-enc.sh
 
 Required tools on Puppet Server:
 
-- `bash`
-- `curl`
-- `dig` (usually from `bind-utils` or `dnsutils`)
-- `getopt`
+`bash`, `curl`, `dig`, `getopt`
 
 Create a small wrapper so Puppet can pass the node certname (`$1`) to the script:
 
@@ -129,30 +113,27 @@ EOF
 sudo chmod 0755 /etc/puppetlabs/puppet/enc/enc-wrapper.sh
 ```
 
-Example alternatives for the wrapper:
+puppet-enc.sh help:
 
-- Static host + static port:
+```bash
+bash ./examples/puppet-enc.sh --help
 
-  ```bash
-  exec /etc/puppetlabs/puppet/enc/puppet-enc.sh --node "$1" --server encompass.example.org --port 8081
-  ```
+Usage: puppet-enc.sh --node <node> --server <hostname> [--srv | --rrdns --port <port> | --port <port>] [--user <username> --password <password>]
+       puppet-enc.sh -h | --help
 
-- Round-robin DNS (multiple A/AAAA) + static port:
-
-  ```bash
-  exec /etc/puppetlabs/puppet/enc/puppet-enc.sh --node "$1" --server encompass.example.org --rrdns --port 8081
-  ```
-
-- Basic auth (if ENC endpoint is protected):
-
-  ```bash
-  exec /etc/puppetlabs/puppet/enc/puppet-enc.sh --node "$1" --server encompass.example.org --port 8081 --user encompass --password '<password>'
-  ```
+  -n | --node      Node to query
+  -s | --server    Server hostname/IP to connect
+  -u | --user      Username (jointly required with --password)
+  -p | --password  Password (jointly required with --user)
+  --srv            Resolve endpoint via SRV record _puppet8._tcp.<server>
+  --rrdns          Resolve <server> to multiple A/AAAA records and try each with --port
+  --port           Static port (required for non-SRV mode)
+```
 
 Configure Puppet Server in `/etc/puppetlabs/puppet/puppet.conf`:
 
 ```ini
-[master]
+[server]
 node_terminus = exec
 external_nodes = /etc/puppetlabs/puppet/enc/enc-wrapper.sh
 ```
@@ -233,39 +214,6 @@ Host/group YAML data is stored in the configured Git repository.
 
 For database persistence and backup, use your external MySQL/MariaDB platform backup procedures.
 
-## Development Notes
-
-- In debug mode, Django dev server is used internally.
-- In non-debug mode, Gunicorn serves Django behind Nginx.
-- Static files are collected automatically on container startup.
-- Database migrations are applied automatically when pending.
-
-## Local Python Run (Optional)
-
-Use this only if you are developing outside Docker:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd encompass
-python manage.py migrate
-python manage.py runserver
-```
-
-## Troubleshooting
-
-- `403` on `/hosts` or `/groups` via ENC endpoint:
-  expected behavior for external proxy paths.
-- `409 Conflict` on `/hosts` or `/groups` writes:
-  another write operation currently holds the lock; retry the request.
-- Login issues with LDAP:
-  verify `LDAP_*` values and directory reachability from the container.
-- SSL startup failure:
-  confirm certificate/key files exist and are readable in container paths.
-- Nginx error `stat() ... /code/static/static/... failed (13: Permission denied)` and broken CSS:
-  static permissions were too restrictive; startup now normalizes `/code/static/static` with `a+rX` after `collectstatic` (common with strict Nomad/Kubernetes `umask`).
-
 ## Security Checklist
 
 - Set a strong `SECRET_KEY`
@@ -278,7 +226,6 @@ python manage.py runserver
 
 - git commit on save and git pull before rendering the tables
 - regex for hosts in groups.yaml
-- forbid certain actions, ensure that a class exists for every entry
 
 ## License
 
