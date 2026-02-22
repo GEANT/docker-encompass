@@ -58,15 +58,14 @@ if ! ssh-keygen -F "$GIT_HOST" -f /root/.ssh/known_hosts >/dev/null 2>&1; then
 fi
 
 # create a basic SSH config
-if ! grep -q "^Host $GIT_HOST$" /root/.ssh/config 2>/dev/null; then
-cat <<EOF >>/root/.ssh/config
+install -d -m 700 /root/.ssh/conf.d
+cat <<EOF >/root/.ssh/conf.d/git.conf
 Host $GIT_HOST
     HostName $GIT_HOST
     User $GIT_REPO_USERNAME
     IdentityFile $KEY_FILE
 EOF
-fi
-chmod 600 /root/.ssh/config
+chmod 600 /root/.ssh/conf.d/git.conf
 
 # clone and test the Git repository
 if [ -d /data/.git ]; then
@@ -82,22 +81,11 @@ else
     fi
 fi
 
-# inject the initial hosts.yaml and groups.yaml if they don't exist
+# inject the hosts.yaml and groups.yaml if they don't exist
 cd /data
 [ -f hosts.yaml ] || echo "---" >hosts.yaml
 [ -f groups.yaml ] || cp /root/.groups.yaml groups.yaml
-cat <<EOF >/data/README.md
-# ENC data
-
-This repo contains only 3 files:
-
-- hosts.yaml
-- groups.yaml
-- README.md
-
-Any other file will be deleted.
-Changes to README.md will be lost.
-EOF
+cmp -s /root/.README.md README.md || cp -f /root/.README.md README.md
 
 # clean up alien files and directories
 find . -maxdepth 1 -mindepth 1 -type d -not -path ./.git -exec rm -rf {} +
@@ -105,14 +93,14 @@ find . -type f ! -name hosts.yaml ! -name groups.yaml \
     ! -name README.md -not -path "./.git/*" ! -name .git -exec rm -f {} +
 
 # add and commit the initial files if there are changes
-git add hosts.yaml groups.yaml
+git add hosts.yaml groups.yaml README.md
 git config user.name "${GIT_COMMIT_NAME:-encompass-bot}"
 git config user.email "${GIT_COMMIT_EMAIL:-encompass@local}"
 
 if [ -z "$(git status -s)" ]; then
     echo "==> Git-setup: No changes to commit, skipping commit and push"
 else
-    git commit -m "Initial commit of hosts.yaml and groups.yaml"
+    git commit -m "Initial commit of hosts.yaml, groups.yaml, and README.md"
     if git push origin "$GIT_REPO_BRANCH"; then
         echo "==> Git-setup: Successfully pushed initial commit to Git repository"
     else
