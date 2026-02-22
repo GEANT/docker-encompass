@@ -1,6 +1,7 @@
 # enCompass
 
 enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for Docker.
+
 It provides a web UI to manage hosts and groups, plus read-only ENC endpoints for external consumers.
 
 Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
@@ -21,7 +22,7 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
   - [Authentication](#authentication)
   - [ENC Viewer Basic Auth](#enc-viewer-basic-auth)
   - [SSL](#ssl)
-- [Data Persistence](#data-persistence)
+- [Data Backup](#data-backup)
 - [Security Checklist](#security-checklist)
 - [ToDo](#todo)
 - [License](#license)
@@ -59,7 +60,7 @@ Help needed!
 
 #### Quick Start (Docker)
 
-**The following instruction are not intended for a production grade deployment.**
+_The following instructions are not intended for a production grade deployment._
 
 1. Copy environment variables file:
 
@@ -212,11 +213,15 @@ The application accepts the Git SSH private key in either of these forms:
 
 If both are set, `GIT_REPO_PRIVATE_SSH_KEY` is used.
 
-## Data Persistence
+## Data Backup
 
 Host/group YAML data is stored in the configured Git repository.
 
-For database persistence and backup, use your external MySQL/MariaDB platform backup procedures.
+When using LDAP authentication, the data stored in the database is not critical. It can be rebuilt from scratch without causing problems. Only session cookies will be lost.
+
+When the authentication backend is MySQL, the database stores user information.
+
+It’s recommended to back up your MySQL database when Database authentication is in use.
 
 ## Security Checklist
 
@@ -228,7 +233,7 @@ For database persistence and backup, use your external MySQL/MariaDB platform ba
 
 ## ToDo
 
-- add var GIT_COMMIT=true/false, to commit on save and pull before rendering the tables
+- add a variable GIT_COMMIT=true/false, to commit on save and pull before rendering the tables
 - regex for hosts in groups.yaml
 
 ## License
