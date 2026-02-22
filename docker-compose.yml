@@ -2,9 +2,6 @@ services:
   encompass:
     env_file:
       - vars
-    dns:
-      - 83.97.93.200
-      - 8.8.8.8
     restart: unless-stopped
     container_name: encompass
     build:
