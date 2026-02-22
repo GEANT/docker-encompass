@@ -47,5 +47,5 @@ python manage.py runserver
 
 ## ToDo
 
-- git commit on save and git pull before rendering the tables
+- add var GIT_COMMIT=true/false, to commit on save and pull before rendering the tables
 - regex for hosts in groups.yaml

@@ -42,7 +42,11 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 
 You can use [encompass-demo.nomad](examples/encompass-demo.nomad) and adjust it to your needs.
 
-The job contains service registration against Consul, and secrets templates fetched from Vault.
+The job contains:
+
+- service registration for Consul
+- secrets templates fetched from Vault
+- tags declarations for Traefik
 
 ### Kubernetes Deployment
 
@@ -224,7 +228,7 @@ For database persistence and backup, use your external MySQL/MariaDB platform ba
 
 ## ToDo
 
-- git commit on save and git pull before rendering the tables
+- add var GIT_COMMIT=true/false, to commit on save and pull before rendering the tables
 - regex for hosts in groups.yaml
 
 ## License

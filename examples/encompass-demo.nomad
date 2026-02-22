@@ -6,7 +6,6 @@ job "encompass-demo" {
   datacenters = ["example"]
   type        = "service"
 
-
   group "encompass-demo" {
     vault {
       policies    = ["nomad-server"]
