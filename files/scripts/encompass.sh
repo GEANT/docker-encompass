@@ -65,6 +65,8 @@ fi
 
 echo "==> enCompass: Collecting static files..."
 python manage.py collectstatic --noinput
+chmod a+rx /code /code/static /code/static/static
+chmod -R a+rX /code/static/static
 echo "==> enCompass: Static files collected"
 
 if [ "$DEBUG" = "true" ]; then

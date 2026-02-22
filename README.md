@@ -261,6 +261,8 @@ python manage.py runserver
   verify `LDAP_*` values and directory reachability from the container.
 - SSL startup failure:
   confirm certificate/key files exist and are readable in container paths.
+- Nginx error `stat() ... /code/static/static/... failed (13: Permission denied)` and broken CSS:
+  static permissions were too restrictive; startup now normalizes `/code/static/static` with `a+rX` after `collectstatic` (common with strict Nomad/Kubernetes `umask`).
 
 ## Security Checklist
 
