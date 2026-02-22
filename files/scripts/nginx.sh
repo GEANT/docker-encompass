@@ -1,5 +1,9 @@
 #!/usr/bin/bash
 #
+# This script is the entrypoint for the Nginx container.
+# It waits for the enCompass server to ensure that when NGINX starts
+# serving requests, it does not return 503 Service Unavailable.
+#
 set -e
 
 if [ "$DEBUG" = "true" ]; then
@@ -11,7 +15,7 @@ if [ "$DEBUG" = "true" ]; then
 else
     until test -S /run/encompass.sock; do
         echo "==> Nginx: Waiting for enCompass server..."
-        sleep 1
+        sleep .3
     done
     echo "==> Nginx: enCompass server is available"
 fi

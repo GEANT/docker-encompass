@@ -23,6 +23,7 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
   - [ENC Viewer Basic Auth](#enc-viewer-basic-auth)
   - [SSL](#ssl)
 - [Data Backup](#data-backup)
+- [HA considerations](#ha-considerations)
 - [Security Checklist](#security-checklist)
 - [ToDo](#todo)
 - [License](#license)
@@ -32,7 +33,7 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 - Host and group management UI
 - ENC host query view for classification checks
 - Autoscale is possible. The container is stateless
-- LDAP and local Django authentication modes
+- LDAP and Database authentication modes
 - Optional read-only basic auth for ENC endpoints
 - Optional SSL listeners through Nginx
 - Persistent YAML data via Git repository
@@ -92,7 +93,7 @@ _The following instructions are not intended for a production grade deployment._
 In principle you can simply use curl against the ENC endpoint as follows:
 
 ```bash
-curl -s http://localhost:8081/hosts/\$1
+curl -s http://enc.example.org:8081/hosts/\$1
 ```
 
 If you have round-robin DNS, or SRV records, you can place [puppet-enc.sh](examples/puppet-enc.sh) on the Puppet Server host (not inside Puppet agent nodes), for example:
@@ -212,6 +213,14 @@ The application accepts the Git SSH private key in either of these forms:
 - `GIT_REPO_PRIVATE_SSH_KEY_FILE`: path to a file containing the key (recommended for Kubernetes/Nomad secrets)
 
 If both are set, `GIT_REPO_PRIVATE_SSH_KEY` is used.
+
+## HA considerations
+
+Once configured on the Vox/Puppet server, ENC becomes essential for its operation and must be highly resilient.
+
+enCompass is stateless and supports autoscaling. It can be set up to run at least two instances for High Availability and inherently load balancing.
+
+The database is only crucial for the UI’s operation but is irrelevant for the ENC endpoint.
 
 ## Data Backup
 
