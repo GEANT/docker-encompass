@@ -808,6 +808,10 @@ def group_list(request):
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
+    is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
+    can_save_groups = request.user.is_superuser or settings.ENC_ADMIN_GROUP in groups
+    if is_db_auth and not request.user.is_superuser:
+        can_save_groups = can_save_groups and request.user.get_username() == "admin"
     groups_list = tools.list_groups()
     context = {
         "groups": groups,
@@ -819,6 +823,7 @@ def group_list(request):
         "groups_list": groups_list,
         "feature_branch": settings.FEATURE_BRANCH,
         "puppet_environments": settings.PUPPET_ENVIRONMENTS,
+        "can_save_groups": can_save_groups,
     }
 
     return render(request, "groups.html", context)

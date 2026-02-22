@@ -64,6 +64,7 @@
       {{ puppet_environments|json_script:"group-puppet-environments" }}
       <script>
         const featureBranchesEnabled = {{ feature_branch|yesno:"true,false" }};
+        const canSaveGroups = {{ can_save_groups|yesno:"true,false" }};
         const puppetEnvironments = JSON.parse(document.getElementById('group-puppet-environments').textContent);
 
         let groupsDataTable = null;
@@ -191,7 +192,7 @@
 
                   <div class="d-flex justify-content-between mt-4">
                     <button type="button" class="btn btn-outline-secondary" data-cancel-edit>Cancel</button>
-                    <button type="submit" class="btn btn-success">Save Group</button>
+                    <button type="submit" class="btn ${canSaveGroups ? 'btn-success' : 'btn-secondary disabled'}" ${canSaveGroups ? '' : 'disabled aria-disabled="true" title="Only admins can save groups"'}>Save Group</button>
                   </div>
                 </form>
               </div>
@@ -345,6 +346,11 @@
             form.addEventListener('submit', async (event) => {
               event.preventDefault();
 
+              if (!canSaveGroups) {
+                alert('Only admins can save groups.');
+                return;
+              }
+
               const payload = collectPayloadFromEditor(editorRoot, groupname);
 
               try {
@@ -357,19 +363,23 @@
                   body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) {
-                  const text = await response.text();
-                  let errorMessage = `Server error (${response.status}): ${text}`;
-                  try {
-                    const data = JSON.parse(text);
-                    errorMessage = data.error || errorMessage;
-                  } catch (_error) {
-                    // Keep text fallback
+                const text = await response.text();
+                let data = null;
+                try {
+                  data = JSON.parse(text);
+                } catch (_error) {
+                  if (!response.ok) {
+                    throw new Error(`Server error (${response.status}): ${text}`);
                   }
+                  throw new Error('Save failed: unexpected non-JSON response from server');
+                }
+
+                if (!response.ok) {
+                  let errorMessage = `Server error (${response.status})`;
+                  errorMessage = data.error || data.message || errorMessage;
                   throw new Error(errorMessage);
                 }
 
-                const data = await response.json();
                 if (data.status === 'ok') {
                   alert('Group saved successfully!');
                   location.reload();
