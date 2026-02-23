@@ -16,13 +16,25 @@ DEMO_MODE=false
 AUTH_LDAP_ENABLED=false
 AUTH_MYSQL_ENABLED=true
 DEBUG=false
-AUTH_DEBUG=false  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+ENCOMPASS_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+ENCAPSULE_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LDAP_LOGGING=ERROR  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # NGINX variables
 ENC_VIEWER_PASSWORD=""  # leave empty to disable authentication for encompass read-only user.
 USE_SSL=false
 SSL_CERT_PATH="/etc/ssl/private/server.crt"
 SSL_KEY_PATH="/etc/ssl/private/server.key"
+
+# enCapsule sync fan-out variables (used by /usr/local/bin/encapsule-sync.sh)
+USE_ENCAPSULE=true  # true|false. If false, sync fan-out is skipped.
+ENCAPSULE_SYNC_TOKEN=""  # required to authenticate against enCapsule /sync endpoints
+ENCAPSULE_SYNC_SCHEME=http
+ENCAPSULE_SYNC_PATH=/sync
+ENCAPSULE_SYNC_TIMEOUT=5
+ENCAPSULE_SYNC_PORT=8081
+ENCAPSULE_SYNC_HOST="encapsule.example.org"  # comma-separated: host, host:port, full URL, or SRV record (_service._tcp.domain)
+
 
 # MySQL variables
 MYSQL_HOST="mysql.example.org"
@@ -50,6 +62,10 @@ LDAP_USER_ATTR_MAP='{"first_name": "givenName", "last_name": "sn", "email": "mai
 
 # git settings (only SSH key-based authentication is supported)
 # ssh key must NOT be password-protected
+GIT_SYNC_MODE=sync  # sync | async
+GIT_SYNC_TIMEOUT=30  # seconds for each git/sync command
+GIT_SYNC_RETRIES=2
+GIT_SYNC_RETRY_DELAY=2  # seconds
 GIT_HOST="prod-git01.example.net"
 GIT_REPO_PATH="puppet/enc-data.git"
 GIT_REPO_USERNAME="gitlab"

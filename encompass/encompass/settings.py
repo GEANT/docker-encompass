@@ -37,6 +37,13 @@ def env_log_level(name, default="ERROR"):
     return level if level in valid_levels else default
 
 
+def env_log_level_preferred(preferred_name, fallback_name, default="ERROR"):
+    """Return preferred log level env var, with fallback for backward compatibility."""
+    if os.environ.get(preferred_name):
+        return env_log_level(preferred_name, default)
+    return env_log_level(fallback_name, default)
+
+
 def env_choice(name, default, allowed):
     """Return a validated lowercase choice from environment."""
     value = str(os.environ.get(name, default)).strip().lower()
@@ -188,10 +195,10 @@ DATABASES = {
 }
 
 # Logging section
-if DEBUG:
-    LOG_LEVEL = "DEBUG"
-else:
-    LOG_LEVEL = "INFO"
+ENCOMPASS_LOG_LEVEL = env_log_level(
+    "ENCOMPASS_LOGGING",
+    "DEBUG" if DEBUG else "INFO",
+)
 
 LOGGING = {
     "version": 1,
@@ -203,7 +210,7 @@ LOGGING = {
     },
     "handlers": {
         "stream_to_console": {
-            "level": LOG_LEVEL,
+            "level": ENCOMPASS_LOG_LEVEL,
             "class": "logging.StreamHandler",
             "filters": ["ignore_healthz"],
         },
@@ -211,12 +218,12 @@ LOGGING = {
     "loggers": {
         "django.server": {
             "handlers": ["stream_to_console"],
-            "level": LOG_LEVEL,
+            "level": ENCOMPASS_LOG_LEVEL,
             "propagate": False,
         },
         "django.request": {
             "handlers": ["stream_to_console"],
-            "level": LOG_LEVEL,
+            "level": ENCOMPASS_LOG_LEVEL,
             "propagate": False,
         },
     },
@@ -305,7 +312,11 @@ if USE_AUTH_LDAP:
     AUTH_LDAP_FIND_GROUP_PERMS = True
     LOGGING['loggers']['django_auth_ldap'] = {
         "handlers": ["stream_to_console"],
-        "level": env_log_level("AUTH_DEBUG", "ERROR"),
+            "level": env_log_level_preferred(
+                "LDAP_AUTH_DEBUG",
+                "LDAP_LOGGING",
+                env_log_level("AUTH_DEBUG", "ERROR"),
+            ),
         "propagate": False,
     }
 elif USE_AUTH_MYSQL:

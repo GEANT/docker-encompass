@@ -1,5 +1,7 @@
 services:
   encompass:
+    profiles:
+      - encompass
     env_file:
       - vars
     restart: unless-stopped
@@ -14,3 +16,21 @@ services:
       - "8081:8081"  # ENC
       - "8443:8443"  # enCompass UI SSL
       - "8444:8444"  # ENC SSL
+
+  encapsule:
+    profiles:
+      - encapsule
+    env_file:
+      - vars
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_DEBUG: "true"
+    environment:
+      RUNTIME_MODE: encapsule
+      DJANGO_SETTINGS_MODULE: encompass.agent_settings
+      ENCAPSULE_PORT: 8081
+    ports:
+      - "9081:8081"  # enCapsule ENC API

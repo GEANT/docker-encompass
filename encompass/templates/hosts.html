@@ -30,8 +30,6 @@
         <div class="table-responsive" style="margin: 0 auto; max-width: 1200px;">
           <form class="form-horizontal" action="/encompass/host_purge_confirmation/" method="post">
             {% csrf_token %}
-            <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
-            <input type="hidden" name="disp_name" value="{{ disp_name }}" />
             <table id="hostsTable" class="table table-hover table-light" style="text-align: left;">
               <caption>Hosts dashboard</caption>
               <thead>

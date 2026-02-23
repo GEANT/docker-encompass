@@ -9,7 +9,6 @@ import logging
 from functools import wraps
 import yaml
 import markdown
-# import requests
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
@@ -17,6 +16,7 @@ from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from . import tools
+from . import user_helpers
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 MY_ENV = os.environ.copy()
 MY_ENV["PYTHONUNBUFFERED"] = "TRUE"
 MY_ENV["PATH"] = f"{settings.HOME_DIR}/bin:{os.environ['PATH']}"
-
 READ_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP, settings.ENC_VIEWER_GROUP]
 ADMIN_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP]
 
@@ -119,7 +118,7 @@ def group_required_ldap(group_dn: str | list):
     return decorator
 
 
-def healthz(_):
+def healthz(_request):
     """
     Ping page
     Using underscore as function argument as we don't use the request object
@@ -227,6 +226,7 @@ def host_purge_confirmation(request):
             settings.ERROR_HTML,
             {
                 "results": ["Invalid request method", settings.TRY_AGAIN],
+                "back_url": "/encompass/hosts",
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -238,6 +238,7 @@ def host_purge_confirmation(request):
             settings.ERROR_HTML,
             {
                 "results": ["No host selected", settings.TRY_AGAIN],
+                "back_url": "/encompass/hosts",
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -283,7 +284,8 @@ def host_purge_execute(request):
         )
 
     try:
-        tools.delete_host(hostname)
+        commit_actor = user_helpers.get_user_commit_info(request.user)
+        tools.delete_host(hostname, actor=commit_actor)
         messages.success(request, f"Host '{hostname}' deleted successfully!")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -294,6 +296,7 @@ def host_purge_execute(request):
                     "Another host update is in progress. Please retry.",
                     settings.TRY_AGAIN,
                 ],
+                "back_url": "/encompass/hosts",
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -303,6 +306,7 @@ def host_purge_execute(request):
             settings.ERROR_HTML,
             {
                 "results": [str(e), settings.TRY_AGAIN],
+                "back_url": "/encompass/hosts",
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -333,7 +337,8 @@ def host_save(request):
     }
 
     try:
-        tools.update_host(hostname, host_payload)
+        commit_actor = user_helpers.get_user_commit_info(request.user)
+        tools.update_host(hostname, host_payload, actor=commit_actor)
     except tools.enc_data.EncDataLockTimeout:
         return JsonResponse(
             {"error": "Conflict", "message": "Another host update is in progress"},
@@ -349,7 +354,9 @@ def host_save(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(ADMIN_ONLY_GROUPS)
 def host_add(request):
-    """Add a new host to ENC."""
+    """
+    Add a new host to ENC.
+    """
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
 
@@ -408,7 +415,8 @@ def host_add(request):
     }
 
     try:
-        tools.create_host(hostname, host_payload)
+        commit_actor = user_helpers.get_user_commit_info(request.user)
+        tools.create_host(hostname, host_payload, actor=commit_actor)
         messages.success(request, f"Host '{hostname}' created successfully!")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -439,7 +447,9 @@ def host_add(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_purge_confirmation(request):
-    """Show confirmation page for deleting a group."""
+    """
+    Show confirmation page for deleting a group.
+    """
     groupname = request.GET.get("name", "").strip()
     if not groupname:
         return render(
@@ -447,6 +457,7 @@ def group_purge_confirmation(request):
             settings.ERROR_HTML,
             {
                 "results": ["No group specified", settings.TRY_AGAIN],
+                "back_url": "/encompass/groups",
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -481,7 +492,9 @@ def group_purge_confirmation(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_purge_execute(request):
-    """Execute deletion of a group."""
+    """
+    Execute deletion of a group.
+    """
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -497,7 +510,8 @@ def group_purge_execute(request):
         )
 
     try:
-        tools.delete_group(groupname)
+        commit_actor = user_helpers.get_user_commit_info(request.user)
+        tools.delete_group(groupname, actor=commit_actor)
         messages.success(request, f"Group '{groupname}' deleted successfully!")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -508,6 +522,7 @@ def group_purge_execute(request):
                     "Another group update is in progress. Please retry.",
                     settings.TRY_AGAIN,
                 ],
+                "back_url": "/encompass/groups",
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -517,6 +532,7 @@ def group_purge_execute(request):
             settings.ERROR_HTML,
             {
                 "results": [f"Failed to delete group: {str(e)}", settings.TRY_AGAIN],
+                "back_url": "/encompass/groups",
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -527,7 +543,9 @@ def group_purge_execute(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_save(request):
-    """Save a group definition via ENC."""
+    """
+    Save a group definition via ENC.
+    """
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -552,7 +570,8 @@ def group_save(request):
 
     try:
         logger.info("Calling update_group for '%s' with payload: %s", groupname, group_payload)
-        tools.update_group(groupname, group_payload)
+        commit_actor = user_helpers.get_user_commit_info(request.user)
+        tools.update_group(groupname, group_payload, actor=commit_actor)
         logger.info("Successfully updated group '%s'", groupname)
     except tools.enc_data.EncDataLockTimeout:
         return JsonResponse(
@@ -569,7 +588,9 @@ def group_save(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(ADMIN_ONLY_GROUPS)
 def group_add(request):
-    """Add a new group to ENC."""
+    """
+    Add a new group to ENC.
+    """
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
 
@@ -641,7 +662,8 @@ def group_add(request):
     }
 
     try:
-        tools.create_group(groupname, group_payload)
+        commit_actor = user_helpers.get_user_commit_info(request.user)
+        tools.create_group(groupname, group_payload, actor=commit_actor)
         messages.success(request, f"Group '{groupname}' created successfully!")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -698,44 +720,10 @@ def help_page(request):
     return render(request, "help.html", context)
 
 
-# def help_page(request):
-#    """Dynamic Help page (fetches remote HTML content)"""
-#    try:
-#        encompass_email = request.user.ldap_user.attrs.get("mail", [None])[0]
-#        disp_name = request.user.ldap_user.attrs.get(
-#            "displayName", [settings.UNLOGGED]
-#        )[0]
-#        groups = request.user.ldap_user.attrs.get("memberOf", [])
-#    except AttributeError:
-#        encompass_email = None
-#        disp_name = settings.UNLOGGED
-#        groups = []
-#
-#    group_name = tools.get_groups_info(groups)
-#    url = "https://cds.geant.org/tformator/help.html"
-#    try:
-#        response = requests.get(url, timeout=5)
-#        if response.status_code == 200:
-#            remote_html = markdown.markdown(response.text)
-#        else:
-#            remote_html = "<p>Help page temporarily unavailable.</p>"
-#    except Exception:  # pylint: disable=broad-except
-#        remote_html = "<p>Help page could not be loaded.</p>"
-#
-#    context = {
-#        "encompass_email": encompass_email,
-#        "group_name": group_name,
-#        "disp_name": disp_name,
-#        "watermark": settings.WATERMARK,
-#        "current_version": settings.CURRENT_VERSION,
-#        "remote_html": remote_html,
-#    }
-#
-#    return render(request, "help.html", context)
-
-
 def about_page(request):
-    """About page"""
+    """
+    About page
+    """
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
     context = {
@@ -751,7 +739,9 @@ def about_page(request):
 @login_required(login_url="login/")
 @group_required_ldap(READ_ONLY_GROUPS)
 def home_page(request):
-    """list available groups"""
+    """
+    list available groups
+    """
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -776,7 +766,9 @@ def home_page(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(READ_ONLY_GROUPS)
 def host_list(request):
-    """list hosts for health check"""
+    """
+    List hosts for health check.
+    """
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -804,7 +796,9 @@ def host_list(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(READ_ONLY_GROUPS)
 def group_list(request):
-    """list groups for health check"""
+    """
+    List groups for health check.
+    """
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -880,7 +874,9 @@ def query_host(request):
 
 @login_required(login_url="/encompass/login/")
 def logout_confirmation(request):
-    """show update confirmation"""
+    """
+    Show update confirmation.
+    """
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
     context = {

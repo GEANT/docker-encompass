@@ -6,6 +6,7 @@ It provides a web UI to manage hosts and groups, plus read-only ENC endpoints fo
 
 **Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 
+<!-- markdownlint-disable-next-line MD033 -->
 <img src="./docs/enCompass.png" alt="drawing" width="800"/>
 
 ## Index
@@ -26,6 +27,7 @@ It provides a web UI to manage hosts and groups, plus read-only ENC endpoints fo
   - [SSL](#ssl)
 - [Data Backup](#data-backup)
 - [HA considerations](#ha-considerations)
+- [enCapsule Agent Runtime](#encapsule-agent-runtime)
 - [Security Checklist](#security-checklist)
 - [ToDo](#todo)
 - [License](#license)
@@ -166,6 +168,14 @@ Main runtime configuration is in `vars` (copied from `vars.example`).
 - `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
 - `TIME_ZONE`, `LANGUAGE_CODE`
 
+### Logging
+
+- `ENCOMPASS_LOGGING`: Django/UI runtime log level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
+- `ENCAPSULE_LOGGING`: enCapsule agent log level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
+- `LDAP_AUTH_DEBUG`: LDAP auth logger level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
+
+Backward compatibility: `AUTH_DEBUG` is still accepted as a fallback for LDAP logging, but `LDAP_AUTH_DEBUG` is preferred.
+
 ### Puppet environments
 
 - `FEATURE_BRANCH=true|false`
@@ -224,6 +234,101 @@ enCompass is stateless and supports autoscaling. It can be set up to run at leas
 
 The database is only crucial for the UI’s operation but is irrelevant for the ENC endpoint.
 
+## enCapsule Agent Runtime
+
+The repository now includes an agent runtime named **enCapsule**.
+
+- It serves only read-only ENC endpoints (`/hosts`, `/groups`) and `/healthz`.
+- It does not run Django migrations and does not require MySQL to start.
+- It uses the same shared ENC core logic as enCompass.
+
+### Run enCapsule with Docker Compose
+
+```bash
+docker compose --profile encapsule up --build encapsule
+```
+
+Default exposed port in compose profile:
+
+- `9081` -> enCapsule read-only ENC API
+
+### Optional Git sync trigger
+
+You can configure a token and trigger a pull/update of ENC data:
+
+- `ENCAPSULE_SYNC_TOKEN=<your-token>`
+- `POST /sync` with header `X-Encapsule-Token: <your-token>`
+
+Example:
+
+```bash
+curl -X POST \
+  -H "X-Encapsule-Token: ${ENCAPSULE_SYNC_TOKEN}" \
+  http://localhost:9081/sync
+```
+
+### Fan-out sync to multiple enCapsule agents
+
+Use `/usr/local/bin/encapsule-sync.sh` from the enCompass runtime after a successful Git push.
+
+When host/group data is changed from enCompass, the application automatically:
+
+1. commits changed ENC YAML files (if any),
+2. pushes to the configured Git branch,
+3. triggers enCapsule sync fan-out.
+
+Git sync execution mode is configurable:
+
+- `GIT_SYNC_MODE=sync` (default): request waits for commit/push/sync result
+- `GIT_SYNC_MODE=async`: request returns quickly and sync runs in a background worker
+
+Reliability and latency controls:
+
+- `GIT_SYNC_TIMEOUT` (seconds, default `30`)
+- `GIT_SYNC_RETRIES` (default `2`)
+- `GIT_SYNC_RETRY_DELAY` (seconds, default `2`)
+
+Common variables:
+
+- `USE_ENCAPSULE`: `true|false` (when `false`, sync fan-out is skipped)
+- `ENCAPSULE_SYNC_TOKEN`: shared token expected by each enCapsule `/sync`
+- `ENCAPSULE_SYNC_SCHEME`: `http` or `https` (default `http`)
+- `ENCAPSULE_SYNC_PATH`: endpoint path (default `/sync`)
+- `ENCAPSULE_SYNC_TIMEOUT`: curl timeout in seconds (default `5`)
+- `ENCAPSULE_SYNC_HOST`: one or more comma-separated entries
+
+Accepted `ENCAPSULE_SYNC_HOST` entries:
+
+- `enc-a.internal` (uses default port `8081`)
+- `enc-a.internal:9081` (explicit port)
+- `http://enc-a.internal:9081/sync` (full URL)
+- `_encapsule-sync._tcp.enc.example.org` (SRV record, auto-discovered)
+
+Example:
+
+```bash
+ENCAPSULE_SYNC_HOST="encapsule-a.internal,encapsule-b.internal"
+ENCAPSULE_SYNC_TOKEN="<shared-token>"
+```
+
+Example:
+
+```bash
+ENCAPSULE_SYNC_HOST="_encapsule-sync._tcp.enc.example.org"
+ENCAPSULE_SYNC_TOKEN="<shared-token>"
+```
+
+Run manually:
+
+```bash
+/usr/local/bin/encapsule-sync.sh
+```
+
+The script sends requests in parallel and fails if any target fails.
+If `ENCAPSULE_SYNC_HOST` is empty, the script exits successfully without sending requests.
+
+In Nomad, SRV entries are typically easiest. In non-SRV environments, use explicit hostnames/IPs.
+
 ## Data Backup
 
 Host/group YAML data is stored in the configured Git repository.
@@ -244,9 +349,8 @@ It’s recommended to back up your MySQL database when Database authentication i
 
 ## ToDo
 
-- add a variable GIT_COMMIT=true/false, to commit on save and pull before rendering the tables
 - regex for hosts in groups.yaml
-- investigate if it's possible to start the container if the DB is unavailable (the DB is not necessary for ENC operations).
+- UI issue: clicking the buttons multiple times, the first action is hidden, and an error goes unnoticed.
 
 ## License
 

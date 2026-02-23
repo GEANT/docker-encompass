@@ -9,14 +9,9 @@
         <form class="form-horizontal" action="{% url 'logout' %}" method="post">
           <div class="form-group">
             {% csrf_token %}
-            <input type="hidden" name="encompass_email" value="{{ encompass_email }}" />
-            <input type="hidden" name="disp_name" value="{{ disp_name }}" />
             <br />
-            <form action="{% url 'logout' %}" method="post">
-              {% csrf_token %}
-              <a type="button" class="btn btn-outline-primary btn-sm" href="/encompass">Cancel</a>
-              &nbsp;<button type="submit" class="btn btn-danger">Logout</button>
-            </form>           
+            <a type="button" class="btn btn-outline-primary btn-sm" href="/encompass">Cancel</a>
+            &nbsp;<button type="submit" class="btn btn-danger">Logout</button>
           </div>
         </form>
       </div>
