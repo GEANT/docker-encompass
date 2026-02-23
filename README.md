@@ -4,7 +4,9 @@ enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for D
 
 It provides a web UI to manage hosts and groups, plus read-only ENC endpoints for external consumers.
 
-Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
+**Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
+
+<img src="./docs/enCompass.png" alt="drawing" width="800"/>
 
 ## Index
 
@@ -244,6 +246,7 @@ It’s recommended to back up your MySQL database when Database authentication i
 
 - add a variable GIT_COMMIT=true/false, to commit on save and pull before rendering the tables
 - regex for hosts in groups.yaml
+- investigate if it's possible to start the container if the DB is unavailable (the DB is not necessary for ENC operations).
 
 ## License
 
