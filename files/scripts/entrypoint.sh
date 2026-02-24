@@ -128,6 +128,6 @@ else
 fi
 
 # shellcheck disable=SC2016 # variables are like a docstring for envsubst
-envsubst '${DJANGO_BACKEND} ${ENC_VIEWER_AUTH} ${ENCOMPASS_HTTP_REDIRECT} ${ENC_HTTP_REDIRECT} ${ENCOMPASS_SSL_SERVER} ${ENC_SSL_SERVER}' </root/.nginx.conf.template >/etc/nginx/nginx.conf
+envsubst '${DJANGO_BACKEND} ${ENC_VIEWER_AUTH} ${ENCOMPASS_HTTP_REDIRECT} ${ENC_HTTP_REDIRECT} ${ENCOMPASS_SSL_SERVER} ${ENC_SSL_SERVER}' </root/.do-not-delete/nginx.conf.template >/etc/nginx/nginx.conf
 
 exec /usr/bin/supervisord --configuration /etc/supervisor/supervisord.conf

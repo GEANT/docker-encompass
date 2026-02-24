@@ -1,8 +1,0 @@
----
-default:
-  classes:
-  - profile::base
-  environment: production
-  hosts: []
-  parameters:
-    project: default_project

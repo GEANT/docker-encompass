@@ -84,8 +84,8 @@ fi
 # inject the hosts.yaml and groups.yaml if they don't exist
 cd /data
 [ -f hosts.yaml ] || echo "---" >hosts.yaml
-[ -f groups.yaml ] || cp /root/.groups.yaml groups.yaml
-cmp -s /root/.README.md README.md || cp -f /root/.README.md README.md
+[ -f groups.yaml ] || cp /root/.do-not-delete/groups.yaml groups.yaml
+cmp -s /root/.do-not-delete/README.md README.md || cp -f /root/.do-not-delete/README.md README.md
 
 # clean up alien files and directories
 find . -maxdepth 1 -mindepth 1 -type d -not -path ./.git -exec rm -rf {} +
