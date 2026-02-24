@@ -6,6 +6,7 @@ views definition
 import os
 import json
 import logging
+import re
 from functools import wraps
 import yaml
 import markdown
@@ -15,6 +16,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.templatetags.static import static
 from . import tools
 from . import user_helpers
 
@@ -27,6 +29,23 @@ MY_ENV["PYTHONUNBUFFERED"] = "TRUE"
 MY_ENV["PATH"] = f"{settings.HOME_DIR}/bin:{os.environ['PATH']}"
 READ_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP, settings.ENC_VIEWER_GROUP]
 ADMIN_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP]
+
+_IMG_SRC_PATTERN = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE)
+
+
+def _rewrite_relative_markdown_image_src(html: str) -> str:
+    """Convert relative markdown image sources to Django static URLs."""
+
+    def _replace(match):
+        prefix, src, suffix = match.groups()
+        lowered = src.lower()
+        if lowered.startswith(("http://", "https://", "data:", "/", "#")):
+            return match.group(0)
+
+        static_path = src[7:] if src.startswith("static/") else src
+        return f"{prefix}{static(static_path)}{suffix}"
+
+    return _IMG_SRC_PATTERN.sub(_replace, html)
 
 
 def get_user_groups(user):
@@ -708,6 +727,7 @@ def help_page(request):
         content = f.read()
 
     html = markdown.markdown(content, extensions=["fenced_code", "tables", "toc"])
+    html = _rewrite_relative_markdown_image_src(html)
     context = {
         "encompass_email": identity["email"],
         "group_name": group_name,

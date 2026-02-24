@@ -8,8 +8,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
 
 **Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 
-<!-- markdownlint-disable-next-line MD033 -->
-<img src="/static/images/enCompass.png" alt="drawing" width="800"/>
+![enCompass screenshot](static/images/enCompass.png)
 
 ## Index
 
