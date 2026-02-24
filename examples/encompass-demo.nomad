@@ -25,6 +25,7 @@ job "encompass-demo" {
       driver = "docker"
       env {
         DEMO_MODE            = true
+        USE_ENCAPSULE        = false
         LANGUAGE_CODE        = "en-us"
         TIME_ZONE            = "UTC"
         ALLOWED_HOSTS        = "[\".example.org\", \"localhost\", \"127.0.0.1\"]"
@@ -54,7 +55,11 @@ job "encompass-demo" {
         GIT_REPO_PATH                 = "puppet/enc-data.git"
         GIT_REPO_USERNAME             = "gitlab"
         GIT_REPO_BRANCH               = "main"
-        SSH_KEY_TYPE                  = "ed25519" # rsa, ed25519, ecdsa, etc.
+        GIT_SYNC_MODE                 = sync
+        GIT_SYNC_TIMEOUT              = 30
+        GIT_SYNC_RETRIES              = 2
+        GIT_SYNC_RETRY_DELAY          = 2
+        SSH_KEY_TYPE                  = "ed25519"
         GIT_REPO                      = "ssh://gitlab@prod-git01.example.net/puppet/enc-data.git"
         GIT_REPO_PRIVATE_SSH_KEY_FILE = "/secrets/git_repo_private_ssh_key"
         KEY_FILE                      = "/root/.ssh/id_ed25519"

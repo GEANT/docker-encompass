@@ -1,6 +1,7 @@
 # enCapsule
 
-`enCapsule` is the stateless read-only ENC agent runtime for enCompass.
+`enCapsule` is the stateless read-only ENC agent runtime for enCompass.  
+It does not depend on database and boots up in just 1 second making it ideal for an autoscaling setup.
 
 - No UI
 - No migrations

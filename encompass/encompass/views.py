@@ -707,7 +707,7 @@ def help_page(request):
     with open("templates/help.md", encoding="utf-8") as f:
         content = f.read()
 
-    html = markdown.markdown(content, extensions=["fenced_code", "tables"])
+    html = markdown.markdown(content, extensions=["fenced_code", "tables", "toc"])
     context = {
         "encompass_email": identity["email"],
         "group_name": group_name,
