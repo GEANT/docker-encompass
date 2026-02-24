@@ -128,5 +128,39 @@
 
       {% block content %}{% endblock %}
 
+    <script>
+      (function() {
+        document.addEventListener('submit', function(event) {
+          const form = event.target;
+          if (!(form instanceof HTMLFormElement)) {
+            return;
+          }
+
+          if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post') {
+            return;
+          }
+
+          if (event.defaultPrevented) {
+            return;
+          }
+
+          if (form.dataset.submitting === 'true') {
+            event.preventDefault();
+            return;
+          }
+
+          form.dataset.submitting = 'true';
+          const activeSubmitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+          const submitControls = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+          submitControls.forEach(function(control) {
+            if (activeSubmitter && control === activeSubmitter) {
+              return;
+            }
+            control.disabled = true;
+          });
+        }, true);
+      })();
+    </script>
+
   </body>
 </html>

@@ -303,9 +303,9 @@ def delete_host(hostname: str, actor: dict | None = None) -> dict:
     with enc_data.data_lock("hosts"):
         hosts = enc_data.load_map("hosts")
         if hostname not in hosts:
-            raise Exception(
-                f"ENC error for {hostname}: 404"
-            )  # pylint: disable=broad-exception-raised
+            # pylint: disable=broad-exception-raised
+            raise Exception(f"ENC error for {hostname}: 404")
+            # pylint: enable=broad-exception-raised
         deleted = hosts[hostname]
         del hosts[hostname]
         enc_data.save_map("hosts", hosts)
@@ -320,9 +320,9 @@ def update_host(hostname: str, payload: dict, actor: dict | None = None) -> dict
     with enc_data.data_lock("hosts"):
         hosts = enc_data.load_map("hosts")
         if hostname not in hosts:
-            raise Exception(
-                f"ENC error for {hostname}: 404"
-            )  # pylint: disable=broad-exception-raised
+            # pylint: disable=broad-exception-raised
+            raise Exception(f"ENC error for {hostname}: 404")
+            # pylint: enable=broad-exception-raised
         normalized = enc_data.normalize_host_payload(payload)
         hosts[hostname] = normalized
         enc_data.save_map("hosts", hosts)
@@ -384,9 +384,9 @@ def get_group_details(groupname: str) -> dict:
     """Get group details from ENC."""
     groups = enc_data.load_map("groups")
     if groupname not in groups:
-        raise Exception(
-            f"ENC error for {groupname}: 404"
-        )  # pylint: disable=broad-exception-raised
+        # pylint: disable=broad-exception-raised
+        raise Exception(f"ENC error for {groupname}: 404")
+    # pylint: enable=broad-exception-raised
     return groups[groupname]
 
 
@@ -395,13 +395,13 @@ def delete_group(groupname: str, actor: dict | None = None) -> dict:
     with enc_data.data_lock("groups"):
         groups = enc_data.load_map("groups")
         if groupname not in groups:
-            raise Exception(
-                f"ENC error for {groupname}: 404"
-            )  # pylint: disable=broad-exception-raised
+            # pylint: disable=broad-exception-raised
+            raise Exception(f"ENC error for {groupname}: 404")
+            # pylint: enable=broad-exception-raised
         if groupname == "default":
-            raise Exception(
-                f"ENC error for {groupname}: 403"
-            )  # pylint: disable=broad-exception-raised
+            # pylint: disable=broad-exception-raised
+            raise Exception(f"ENC error for {groupname}: 403")
+            # pylint: enable=broad-exception-raised
         deleted = groups[groupname]
         del groups[groupname]
         enc_data.save_map("groups", groups)
@@ -416,9 +416,9 @@ def update_group(groupname: str, payload: dict, actor: dict | None = None) -> di
     with enc_data.data_lock("groups"):
         groups = enc_data.load_map("groups")
         if groupname not in groups:
-            raise Exception(
-                f"ENC error for {groupname}: 404"
-            )  # pylint: disable=broad-exception-raised
+            # pylint: disable=broad-exception-raised
+            raise Exception(f"ENC error for {groupname}: 404")
+            # pylint: enable=broad-exception-raised
         normalized = enc_data.normalize_group_payload(payload)
         groups[groupname] = normalized
         enc_data.save_map("groups", groups)
