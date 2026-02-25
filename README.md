@@ -6,7 +6,8 @@ It provides a web UI to manage hosts and groups, plus read-only ENC endpoints fo
 enCapsule is an optional agent for enCompass that can be used to provide high availability for the ENC API.  
 It does not depend on database and boots up in just 1 second making it ideal for an autoscaling setup.
 
-**Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
+**Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)  
+**Repository URL**: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass)  
 
 ![enCompass screenshot](static/images/enCompass.png)
 
@@ -351,6 +352,7 @@ It’s recommended to back up your MySQL database when Database authentication i
 ## ToDo
 
 - regex for hosts in groups.yaml
+- add a list of unclassified nodes (all nodes in PuppetDB - nodes matching in ENC)
 
 ## License
 
