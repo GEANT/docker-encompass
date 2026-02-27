@@ -198,6 +198,11 @@ Resolution order:
 - Then first matching selector in `groups.yaml` order (and `hosts` list order inside each group)
 - Then `default` group
 
+Validation guardrails:
+
+- Group host selectors are validated on create/update to prevent ambiguous overlaps across groups.
+- Overlapping selectors (for example plain prefixes like `test-` and `test-app-`) are rejected with a validation error.
+
 ### PuppetDB unclassified hosts
 
 The UI page `/encompass/unclassified_hosts/` lists nodes considered unclassified.

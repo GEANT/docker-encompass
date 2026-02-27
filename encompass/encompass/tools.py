@@ -493,6 +493,9 @@ def update_group(groupname: str, payload: dict, actor: dict | None = None) -> di
             raise Exception(f"ENC error for {groupname}: 404")
             # pylint: enable=broad-exception-raised
         normalized = enc_data.normalize_group_payload(payload)
+        validate_group_selector_overlaps(
+            groups, groupname, normalized.get("hosts", [])
+        )
         groups[groupname] = normalized
         enc_data.save_map("groups", groups)
     _sync_after_write(actor=actor, action=f"update group {groupname}")
@@ -506,6 +509,9 @@ def create_group(groupname: str, payload: dict, actor: dict | None = None) -> di
     with enc_data.data_lock("groups"):
         groups = enc_data.load_map("groups")
         normalized = enc_data.normalize_group_payload(payload)
+        validate_group_selector_overlaps(
+            groups, groupname, normalized.get("hosts", [])
+        )
         groups[groupname] = normalized
         enc_data.save_map("groups", groups)
     _sync_after_write(actor=actor, action=f"create group {groupname}")
@@ -605,6 +611,184 @@ def _canonical_profile(profile: dict | None) -> str:
         sort_keys=True,
         separators=(",", ":"),
         default=str,
+    )
+
+
+def _is_regex_selector(selector: str) -> bool:
+    """
+    Return True when a selector uses /regex/ notation.
+    """
+    return len(selector) >= 2 and selector.startswith("/") and selector.endswith("/")
+
+
+def _regex_literal_prefix(regex_selector: str) -> str:
+    """
+    Extract a leading literal prefix from /regex/ selectors when possible.
+    """
+    if not _is_regex_selector(regex_selector):
+        return ""
+
+    pattern = regex_selector[1:-1]
+    if pattern.startswith("^"):
+        pattern = pattern[1:]
+
+    prefix_chars = []
+    index = 0
+    metas = set(".^$*+?{}[]|()")
+    non_literal_escapes = set("dDsSwWbBAZzG")
+
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "\\":
+            if index + 1 >= len(pattern):
+                break
+            escaped = pattern[index + 1]
+            if escaped in non_literal_escapes:
+                break
+            prefix_chars.append(escaped)
+            index += 2
+            continue
+
+        if char in metas:
+            break
+
+        prefix_chars.append(char)
+        index += 1
+
+    return "".join(prefix_chars)
+
+
+def _selector_patterns_overlap(selector_a: str, selector_b: str) -> bool:
+    """
+    Return True when two selectors can overlap on at least one hostname.
+    """
+    if selector_a == selector_b:
+        return True
+
+    a_regex = _is_regex_selector(selector_a)
+    b_regex = _is_regex_selector(selector_b)
+
+    if not a_regex and not b_regex:
+        return selector_a.startswith(selector_b) or selector_b.startswith(selector_a)
+
+    if a_regex and not b_regex:
+        regex_selector, prefix_selector = selector_a, selector_b
+    elif b_regex and not a_regex:
+        regex_selector, prefix_selector = selector_b, selector_a
+    else:
+        prefix_a = _regex_literal_prefix(selector_a)
+        prefix_b = _regex_literal_prefix(selector_b)
+        if prefix_a and prefix_b:
+            return prefix_a.startswith(prefix_b) or prefix_b.startswith(prefix_a)
+        return False
+
+    literal_prefix = _regex_literal_prefix(regex_selector)
+    if literal_prefix and (
+        literal_prefix.startswith(prefix_selector)
+        or prefix_selector.startswith(literal_prefix)
+    ):
+        return True
+
+    pattern = regex_selector[1:-1]
+    try:
+        compiled = re.compile(pattern)
+    except re.error as err:
+        raise ValueError(f"Invalid host regex '{regex_selector}': {err}") from err
+
+    probe_values = [
+        prefix_selector,
+        f"{prefix_selector}x",
+        f"{prefix_selector}example.com",
+    ]
+    return any(compiled.fullmatch(value) for value in probe_values)
+
+
+def validate_group_selector_overlaps(
+    groups: dict, groupname: str, candidate_hosts: list[str]
+) -> None:
+    """
+    Reject ambiguous selector overlaps between candidate and other groups.
+    """
+    candidate_selectors = []
+    for raw_selector in candidate_hosts or []:
+        selector = str(raw_selector).strip()
+        if not selector:
+            continue
+        if _is_regex_selector(selector):
+            try:
+                re.compile(selector[1:-1])
+            except re.error as err:
+                raise ValueError(f"Invalid host regex '{selector}': {err}") from err
+        candidate_selectors.append(selector)
+
+    if not candidate_selectors:
+        return
+
+    conflicts = []
+    for other_group, group_data in (groups or {}).items():
+        if other_group in {"default", groupname}:
+            continue
+        if not isinstance(group_data, dict):
+            continue
+
+        for raw_selector in group_data.get("hosts", []) or []:
+            other_selector = str(raw_selector).strip()
+            if not other_selector:
+                continue
+            if _is_regex_selector(other_selector):
+                try:
+                    re.compile(other_selector[1:-1])
+                except re.error as err:
+                    raise ValueError(
+                        f"Invalid host regex '{other_selector}' in group '{other_group}': {err}"
+                    ) from err
+
+            for candidate_selector in candidate_selectors:
+                if _selector_patterns_overlap(candidate_selector, other_selector):
+                    conflicts.append((candidate_selector, other_group, other_selector))
+
+    if not conflicts:
+        return
+
+    known_hosts = sorted(enc_data.load_map("hosts").keys())
+    details = []
+    seen = set()
+    for candidate_selector, other_group, other_selector in conflicts:
+        key = (candidate_selector, other_group, other_selector)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        example_host = None
+        candidate_regex = _is_regex_selector(candidate_selector)
+        other_regex = _is_regex_selector(other_selector)
+
+        if not candidate_regex and not other_regex:
+            example_host = next(
+                (
+                    hostname
+                    for hostname in known_hosts
+                    if hostname.startswith(candidate_selector)
+                    and hostname.startswith(other_selector)
+                ),
+                None,
+            )
+
+        detail = (
+            f"'{candidate_selector}' overlaps with group '{other_group}' selector "
+            f"'{other_selector}'"
+        )
+        if example_host:
+            detail += f" (example host: {example_host})"
+
+        details.append(detail)
+        if len(details) >= 5:
+            break
+
+    raise ValueError(
+        "Selector overlap detected. "
+        "Adjust group host selectors to avoid ambiguous matches: "
+        + "; ".join(details)
     )
 
 

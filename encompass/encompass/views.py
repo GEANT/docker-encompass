@@ -669,6 +669,9 @@ def group_save(request):
             {"error": "Conflict", "message": "Another group update is in progress"},
             status=409,
         )
+    except ValueError as e:
+        logger.warning("Group validation failed for '%s': %s", groupname, e)
+        return JsonResponse({"error": str(e)}, status=400)
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error updating group '%s': %s", groupname, e, exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
