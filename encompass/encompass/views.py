@@ -818,16 +818,17 @@ def group_add(request):
     return redirect("/encompass/groups")
 
 
-def help_page(request):
+def markdown_page(request, markdown_file, markdown_variant="default"):
     """
     Render the help page by reading content from help.md, converting it to HTML.
     :param request: Django HttpRequest object
-    :return: Rendered help page with content from help.md
+    :param markdown_file: Name of the markdown file to render
+    :return: Rendered help page with content from the specified markdown file
     """
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
 
-    with open("templates/help.md", encoding="utf-8") as f:
+    with open(f"templates/{markdown_file}", encoding="utf-8") as f:
         content = f.read()
 
     html = markdown.markdown(content, extensions=["fenced_code", "tables", "toc"])
@@ -839,9 +840,10 @@ def help_page(request):
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "content": html,
+        "markdown_variant": markdown_variant,
     }
 
-    return render(request, "help.html", context)
+    return render(request, "markdown.html", context)
 
 
 def about_page(request):

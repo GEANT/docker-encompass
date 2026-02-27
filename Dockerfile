@@ -39,6 +39,7 @@ COPY files/supervisord /etc/supervisor/conf.d
 COPY files/root /root
 COPY --chmod=755 files/scripts /usr/local/bin
 COPY --chmod=644 README.md code/encompass/templates/help.md
+COPY --chmod=644 CHANGELOG.md code/encompass/templates/changelog.md
 COPY static code/static/static
 COPY encompass code/encompass
 COPY --chmod=644 files/deployment-stuff/watermark code

@@ -3,6 +3,11 @@
 ### 💼 Other
 
 - Add validation guardrails for group host selectors to prevent overlaps
+
+### 📚 Documentation
+
+- Doc: added CHANGELOG.md and git-cliff configuration
+- Doc: added changelog page to navbar
 ## [0.7.1] - 2026-02-27
 
 ### 💼 Other

@@ -90,5 +90,3 @@ class ManualEncapsuleSyncTests(SimpleTestCase):
         """
         tools.trigger_encapsule_sync_now()
         sync_with_retries_mock.assert_not_called()
-
-

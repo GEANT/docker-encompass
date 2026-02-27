@@ -65,7 +65,16 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     re_path(r"^$", lambda req: redirect(views.home_page)),
     re_path(r"^encompass/$", views.home_page),
-    re_path(r"^encompass/help/$", views.help_page),
+    re_path(
+        r"^encompass/help/$",
+        views.markdown_page,
+        {"markdown_file": "help.md", "markdown_variant": "default"},
+    ),
+    re_path(
+        r"^encompass/changelog/$",
+        views.markdown_page,
+        {"markdown_file": "changelog.md", "markdown_variant": "compact"},
+    ),
     re_path(r"^encompass/about/$", views.about_page),
     re_path(r"^encompass/encapsule_sync/$", views.encapsule_sync_now),
     re_path(r"^encompass/unclassified_hosts/$", views.unclassified_hosts_page),

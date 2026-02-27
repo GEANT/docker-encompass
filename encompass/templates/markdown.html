@@ -27,6 +27,26 @@
       padding: 0.1rem 0.35rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
+
+    {% if markdown_variant == "compact" %}
+    .markdown-content h1 {
+      font-size: 2.1rem;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .markdown-content h2 {
+      font-size: 1.65rem;
+      margin-top: 0.85rem;
+      margin-bottom: 0.45rem;
+    }
+
+    .markdown-content h3 {
+      font-size: 1.3rem;
+      margin-top: 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+    {% endif %}
   </style>
   <div class="markdown-content">
     {{ content|safe }}
