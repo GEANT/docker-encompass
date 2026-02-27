@@ -1,6 +1,7 @@
 """
 views definition
 """
+# pylint: disable=too-many-lines
 
 # -*- coding: utf-8 -*-
 import os
@@ -24,27 +25,10 @@ from . import user_helpers
 # Configure logging
 logger = logging.getLogger(__name__)
 
-ENCAPSULE_SYNC_WARNING_MESSAGE = (
-    "Data was saved, committed, and pushed to Git, but synchronization to enCapsule failed. "
-    "enCapsule will pull the latest data when it becomes available."
-)
-
-ENCAPSULE_ASYNC_INFO_MESSAGE = (
-    "Data was saved, committed, and pushed to Git. Synchronization to enCapsule runs "
-    "asynchronously; check logs for final sync status."
-)
-
-NO_CHANGES_INFO_MESSAGE = (
-    "No YAML changes were detected, so no Git push/synchronization was required."
-)
-
 # Contstants
 MY_ENV = os.environ.copy()
 MY_ENV["PYTHONUNBUFFERED"] = "TRUE"
 MY_ENV["PATH"] = f"{settings.HOME_DIR}/bin:{os.environ['PATH']}"
-READ_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP, settings.ENC_VIEWER_GROUP]
-ADMIN_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP]
-
 _IMG_SRC_PATTERN = re.compile(
     r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE
 )
@@ -155,10 +139,7 @@ def group_required_ldap(group_dn: str | list):
 
 
 def healthz(_request):
-    """
-    Ping page
-    Using underscore as function argument as we don't use the request object
-    """
+    """Ping page for Nomad/Kubernetes health checks."""
     data = {"ping": "pong!", "status": "enCompass success"}
     return JsonResponse(data, status=200, content_type="application/json")
 
@@ -216,11 +197,10 @@ def user_settings(request):
 
 @require_GET
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def host_details(_request, hostname):
     """
     Retrieve details for a specific host from the enc.sock API and return as JSON response.
-
     :param _request: Django HttpRequest object (not used in this function, hence the underscore)
     :param hostname: Hostname for which to retrieve details
     """
@@ -234,11 +214,10 @@ def host_details(_request, hostname):
 
 @require_GET
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def group_details(_request, groupname):
     """
     Retrieve details for a specific group from the enc.sock API and return as JSON response.
-
     :param _request: Django HttpRequest object (not used in this function, hence the underscore)
     :param groupname: Group name for which to retrieve details
     """
@@ -258,7 +237,7 @@ def group_details(_request, groupname):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_purge_confirmation(request):
     """Show delete confirmation for a host."""
     if request.method != "POST":
@@ -300,7 +279,7 @@ def host_purge_confirmation(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_purge_execute(request):
     """Delete a host from ENC and return to hosts list."""
     if request.method != "POST":
@@ -334,7 +313,7 @@ def host_purge_execute(request):
             hostname,
             sync_error,
         )
-        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        messages.warning(request, settings.ENCAPSULE_SYNC_WARNING_MESSAGE)
         return redirect("/encompass/hosts")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -364,7 +343,7 @@ def host_purge_execute(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_save(request):
     """Save a host definition via ENC."""
     if request.method != "POST":
@@ -397,7 +376,7 @@ def host_save(request):
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": f"{ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
+                "warning": f"{settings.ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
             }
         )
     except tools.enc_data.EncDataLockTimeout:
@@ -414,14 +393,14 @@ def host_save(request):
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+                "warning": settings.ENCAPSULE_ASYNC_INFO_MESSAGE,
             }
         )
     if sync_result.get("state") == "no_changes":
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": NO_CHANGES_INFO_MESSAGE,
+                "warning": settings.NO_CHANGES_INFO_MESSAGE,
             }
         )
 
@@ -429,7 +408,7 @@ def host_save(request):
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+                "warning": settings.ENCAPSULE_ASYNC_INFO_MESSAGE,
             }
         )
 
@@ -437,11 +416,9 @@ def host_save(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_add(request):
-    """
-    Add a new host to ENC.
-    """
+    """Add a new host to ENC."""
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
 
@@ -509,7 +486,7 @@ def host_add(request):
             hostname,
             sync_error,
         )
-        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        messages.warning(request, settings.ENCAPSULE_SYNC_WARNING_MESSAGE)
         return redirect("/encompass/hosts")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -538,11 +515,9 @@ def host_add(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def group_purge_confirmation(request):
-    """
-    Show confirmation page for deleting a group.
-    """
+    """Show confirmation page for deleting a group."""
     groupname = request.GET.get("name", "").strip()
     if not groupname:
         return render(
@@ -586,11 +561,9 @@ def group_purge_confirmation(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def group_purge_execute(request):
-    """
-    Execute deletion of a group.
-    """
+    """Execute deletion of a group."""
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -615,7 +588,7 @@ def group_purge_execute(request):
             groupname,
             sync_error,
         )
-        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        messages.warning(request, settings.ENCAPSULE_SYNC_WARNING_MESSAGE)
         return redirect("/encompass/groups")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -645,7 +618,7 @@ def group_purge_execute(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def group_save(request):
     """
     Save a group definition via ENC.
@@ -688,7 +661,7 @@ def group_save(request):
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": f"{ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
+                "warning": f"{settings.ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
             }
         )
     except tools.enc_data.EncDataLockTimeout:
@@ -705,14 +678,14 @@ def group_save(request):
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+                "warning": settings.ENCAPSULE_ASYNC_INFO_MESSAGE,
             }
         )
     if sync_result.get("state") == "no_changes":
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": NO_CHANGES_INFO_MESSAGE,
+                "warning": settings.NO_CHANGES_INFO_MESSAGE,
             }
         )
 
@@ -720,7 +693,7 @@ def group_save(request):
         return JsonResponse(
             {
                 "status": "ok",
-                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+                "warning": settings.ENCAPSULE_ASYNC_INFO_MESSAGE,
             }
         )
 
@@ -728,11 +701,9 @@ def group_save(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def group_add(request):
-    """
-    Add a new group to ENC.
-    """
+    """Add a new group to ENC."""
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
 
@@ -813,7 +784,7 @@ def group_add(request):
             groupname,
             sync_error,
         )
-        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        messages.warning(request, settings.ENCAPSULE_SYNC_WARNING_MESSAGE)
         return redirect("/encompass/groups")
     except tools.enc_data.EncDataLockTimeout:
         return render(
@@ -846,8 +817,7 @@ def group_add(request):
 
 def help_page(request):
     """
-    Docstring for help_page
-
+    Render the help page by reading content from help.md, converting it to HTML.
     :param request: Django HttpRequest object
     :return: Rendered help page with content from help.md
     """
@@ -872,9 +842,7 @@ def help_page(request):
 
 
 def about_page(request):
-    """
-    About page
-    """
+    """About page"""
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
     context = {
@@ -888,11 +856,9 @@ def about_page(request):
 
 
 @login_required(login_url="login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def home_page(request):
-    """
-    list available groups
-    """
+    """List available groups."""
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -916,11 +882,9 @@ def home_page(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(ADMIN_ONLY_GROUPS)
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def encapsule_sync_now(request):
-    """
-    Manually trigger enCapsule synchronization from the UI.
-    """
+    """Manually trigger enCapsule synchronization from the UI."""
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -939,11 +903,9 @@ def encapsule_sync_now(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def host_list(request):
-    """
-    List hosts for health check.
-    """
+    """List hosts for health check."""
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -969,11 +931,9 @@ def host_list(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def group_list(request):
-    """
-    List groups for health check.
-    """
+    """List groups for health check."""
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -999,7 +959,7 @@ def group_list(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def query_host(request):
     """
     Query a specific host to see its ENC classification.
@@ -1050,11 +1010,9 @@ def query_host(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def unclassified_hosts_page(request):
-    """
-    Show PuppetDB nodes classified with the ENC default profile.
-    """
+    """Show PuppetDB nodes classified with the ENC default profile."""
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -1112,11 +1070,9 @@ def unclassified_hosts_page(request):
 
 
 @login_required(login_url="/encompass/login/")
-@group_required_ldap(READ_ONLY_GROUPS)
+@group_required_ldap(settings.READ_ONLY_GROUPS)
 def git_log_page(request):
-    """
-    Show paginated `git log -p` output from the ENC repository.
-    """
+    """Show paginated `git log -p` output from the ENC repository."""
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -1162,9 +1118,7 @@ def git_log_page(request):
 
 @login_required(login_url="/encompass/login/")
 def logout_confirmation(request):
-    """
-    Show update confirmation.
-    """
+    """Show update confirmation."""
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
     context = {

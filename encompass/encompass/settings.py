@@ -84,6 +84,8 @@ PUPPET_ENVIRONMENTS = [str(item).strip() for item in PUPPET_ENVIRONMENTS if str(
 # In LDAP mode they are overridden below with full DNs.
 ENC_ADMIN_GROUP = os.environ.get("ENC_ADMIN_GROUP", "enc_admin")
 ENC_VIEWER_GROUP = os.environ.get("ENC_VIEWER_GROUP", "enc_viewer")
+READ_ONLY_GROUPS = [ENC_ADMIN_GROUP, ENC_VIEWER_GROUP]
+ADMIN_ONLY_GROUPS = [ENC_ADMIN_GROUP]
 
 WATERMARK = tools.get_file_content("/code/watermark")
 CURRENT_VERSION = tools.get_file_content("/code/version")
@@ -97,6 +99,17 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 TRY_AGAIN = "Please try again"
 ERROR_HTML = "error.html"
 UNLOGGED = "Not logged in"
+ENCAPSULE_SYNC_WARNING_MESSAGE = (
+    "Data was saved, committed, and pushed to Git, but synchronization to enCapsule failed. "
+    "enCapsule will pull the latest data when it becomes available."
+)
+ENCAPSULE_ASYNC_INFO_MESSAGE = (
+    "Data was saved, committed, and pushed to Git. Synchronization to enCapsule runs "
+    "asynchronously; check logs for final sync status."
+)
+NO_CHANGES_INFO_MESSAGE = (
+    "No YAML changes were detected, so no Git push/synchronization was required."
+)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # The key can be a secret in Nomad:
