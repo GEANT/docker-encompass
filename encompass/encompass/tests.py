@@ -3,7 +3,9 @@ Tests for encompass.urls._encompass_admin_has_permission.
 """
 
 from types import SimpleNamespace
+from unittest.mock import patch
 from django.test import SimpleTestCase, override_settings
+from . import tools
 from .urls import _encompass_admin_has_permission
 
 
@@ -15,7 +17,9 @@ class _FakeUser:
         self.is_superuser = is_superuser
 
     def get_username(self):
-        """Return the username for this User."""
+        """
+        Return the username for this User.
+        """
         return self._username
 
 
@@ -58,3 +62,31 @@ class AdminAccessPermissionTests(SimpleTestCase):
         self.assertFalse(_encompass_admin_has_permission(inactive_request))
         self.assertFalse(_encompass_admin_has_permission(non_staff_request))
         self.assertFalse(_encompass_admin_has_permission(non_superuser_request))
+
+
+class ManualEncapsuleSyncTests(SimpleTestCase):
+    """
+    Tests for manual enCapsule sync trigger helper.
+    """
+
+    @patch("encompass.tests.tools._sync_with_retries")
+    @patch("encompass.tests.tools.encapsule_sync_enabled", return_value=True)
+    def test_manual_sync_triggers_retries_when_enabled(
+        self, _enabled_mock, sync_with_retries_mock
+    ):
+        """
+        When enCapsule sync is enabled, the manual trigger should call the retry logic.
+        """
+        tools.trigger_encapsule_sync_now()
+        sync_with_retries_mock.assert_called_once_with(force_trigger_start=True)
+
+    @patch("encompass.tests.tools._sync_with_retries")
+    @patch("encompass.tests.tools.encapsule_sync_enabled", return_value=False)
+    def test_manual_sync_skips_retries_when_disabled(
+        self, _enabled_mock, sync_with_retries_mock
+    ):
+        """
+        When enCapsule sync is disabled, the manual trigger should not call the retry logic.
+        """
+        tools.trigger_encapsule_sync_now()
+        sync_with_retries_mock.assert_not_called()
