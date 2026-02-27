@@ -1,0 +1,48 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+  <div class="container mt-4">
+    <div class="page-header text-center mb-4">
+      <h2 class="text-primary">Git Log</h2>
+      <p class="text-muted mb-1">Output of <code>git log -p</code> from ENC repository</p>
+      {% if total_commits is not None %}
+        <p class="text-muted">Page {{ page|default:1 }} of {{ total_pages|default:1 }} ({{ total_commits }} commits)</p>
+        <p class="text-muted mb-0">Branch: <code>{{ git_branch|default:"main" }}</code></p>
+      {% endif %}
+    </div>
+
+    {% if error %}
+      <div class="alert alert-danger" role="alert">
+        {{ error }}
+      </div>
+    {% endif %}
+
+    {% if git_log_output %}
+      <div class="card shadow-sm">
+        <div class="card-body p-0">
+          <pre class="mb-0 p-3" style="max-height: 70vh; overflow: auto; white-space: pre-wrap;"><code>{{ git_log_output }}</code></pre>
+        </div>
+      </div>
+    {% elif not error %}
+      <div class="alert alert-info" role="alert">
+        No git history available.
+      </div>
+    {% endif %}
+
+    {% if total_pages and total_pages > 1 %}
+      <nav aria-label="Git log pages" class="mt-3">
+        <ul class="pagination justify-content-center">
+          <li class="page-item {% if not has_previous %}disabled{% endif %}">
+            <a class="page-link" href="{% if has_previous %}/encompass/git_log/?page={{ previous_page }}{% else %}#{% endif %}">Previous</a>
+          </li>
+          <li class="page-item disabled">
+            <a class="page-link" href="#">{{ page }} / {{ total_pages }}</a>
+          </li>
+          <li class="page-item {% if not has_next %}disabled{% endif %}">
+            <a class="page-link" href="{% if has_next %}/encompass/git_log/?page={{ next_page }}{% else %}#{% endif %}">Next</a>
+          </li>
+        </ul>
+      </nav>
+    {% endif %}
+  </div>
+{% endblock %}

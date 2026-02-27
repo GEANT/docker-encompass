@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # variables:
+# - GIT_BRANCH: branch of the Git repository to use (default: main)
 # - GIT_REPO_URL: URL of the Git repository
-# - GIT_REPO_BRANCH: branch of the Git repository
 # - SSH_KEY_TYPE: type of the SSH key (rsa, ed25519, ecdsa)
 # - GIT_REPO_PRIVATE_SSH_KEY: SSH key for accessing the Git repository
 # - GIT_REPO_PRIVATE_SSH_KEY_FILE: path to a file containing the SSH key
@@ -10,6 +10,7 @@
 #
 set -e
 
+GIT_BRANCH="${GIT_BRANCH:-main}"
 GIT_REPO="${GIT_REPO:-}"
 if [ -z "$GIT_REPO" ] && [ -n "${GIT_REPO_URL:-}" ]; then
     GIT_REPO="$GIT_REPO_URL"
@@ -29,11 +30,11 @@ if [ -z "${GIT_REPO_PRIVATE_SSH_KEY:-}" ] && [ -n "${GIT_REPO_PRIVATE_SSH_KEY_FI
 fi
 
 # check that all required variables are set and valid
-if [ -n "$GIT_REPO" ] && [ -n "${GIT_REPO_BRANCH:-}" ] && [ -n "${SSH_KEY_TYPE:-}" ] && [ -n "${GIT_REPO_PRIVATE_SSH_KEY:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ] && [ -n "${GIT_HOST:-}" ]; then
+if [ -n "$GIT_REPO" ] && [ -n "${SSH_KEY_TYPE:-}" ] && [ -n "${GIT_REPO_PRIVATE_SSH_KEY:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ] && [ -n "${GIT_HOST:-}" ]; then
     echo "==> Git-setup: Setting up Git authentication variables..."
 else
     echo "==> Git-setup: [ERROR] Missing required Git authentication variables"
-    echo "==> Git-setup: [ERROR] Please set GIT_REPO_BRANCH, SSH_KEY_TYPE, GIT_REPO_USERNAME, GIT_HOST, and either GIT_REPO_PRIVATE_SSH_KEY or GIT_REPO_PRIVATE_SSH_KEY_FILE, plus either GIT_REPO or GIT_REPO_URL (or GIT_REPO_PATH with GIT_HOST and GIT_REPO_USERNAME)"
+    echo "==> Git-setup: [ERROR] Please set SSH_KEY_TYPE, GIT_REPO_USERNAME, GIT_HOST, and either GIT_REPO_PRIVATE_SSH_KEY or GIT_REPO_PRIVATE_SSH_KEY_FILE, plus either GIT_REPO or GIT_REPO_URL (or GIT_REPO_PATH with GIT_HOST and GIT_REPO_USERNAME)"
     exit 1
 fi
 case "$SSH_KEY_TYPE" in
@@ -71,18 +72,32 @@ chmod 600 /root/.ssh/conf.d/git.conf
 if [ -d /data/.git ]; then
     echo "==> Git-setup: Existing Git repository found in /data, updating..."
     git -C /data remote set-url origin "$GIT_REPO"
-    git -C /data fetch origin "$GIT_REPO_BRANCH"
-    git -C /data checkout "$GIT_REPO_BRANCH"
-    git -C /data reset --hard "origin/$GIT_REPO_BRANCH"
+    git -C /data fetch origin "$GIT_BRANCH"
+    if git -C /data show-ref --verify --quiet "refs/remotes/origin/$GIT_BRANCH"; then
+        git -C /data checkout "$GIT_BRANCH" || git -C /data checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
+        git -C /data reset --hard "origin/$GIT_BRANCH"
+    fi
 else
-    if ! git clone --branch "$GIT_REPO_BRANCH" "$GIT_REPO" /data; then
+    if ! git clone --branch "$GIT_BRANCH" "$GIT_REPO" /data; then
         echo "==> Git-setup: [ERROR] Failed to clone Git repository"
         exit 1
     fi
 fi
 
-# inject the hosts.yaml and groups.yaml if they don't exist
+# change directory to the Git repository
 cd /data
+
+# ensure the specified branch exists and is checked out
+if git show-ref --verify --quiet "refs/heads/$GIT_BRANCH"; then
+    git checkout "$GIT_BRANCH"
+elif git ls-remote --exit-code --heads origin "$GIT_BRANCH" >/dev/null 2>&1; then
+    git checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
+else
+    git checkout -b "$GIT_BRANCH"
+    git push -u origin "$GIT_BRANCH"
+fi
+
+# inject the hosts.yaml and groups.yaml if they don't exist
 [ -f hosts.yaml ] || echo "---" >hosts.yaml
 [ -f groups.yaml ] || cp /root/.do-not-delete/groups.yaml groups.yaml
 cmp -s /root/.do-not-delete/README.md README.md || cp -f /root/.do-not-delete/README.md README.md
@@ -101,10 +116,10 @@ if [ -z "$(git status -s)" ]; then
     echo "==> Git-setup: No changes to commit, skipping commit and push"
 else
     git commit -m "Initial commit of hosts.yaml, groups.yaml, and README.md"
-    if git push origin "$GIT_REPO_BRANCH"; then
-        echo "==> Git-setup: Successfully pushed initial commit to Git repository"
+    if git push origin "$GIT_BRANCH"; then
+        echo "==> Git-setup: Successfully pushed initial commit to branch '$GIT_BRANCH'"
     else
-        echo "==> Git-setup: [ERROR] Failed to push initial commit to Git repository"
+        echo "==> Git-setup: [ERROR] Failed to push initial commit to branch '$GIT_BRANCH'"
         exit 1
     fi
 fi

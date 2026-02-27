@@ -54,7 +54,7 @@ job "encompass-demo" {
         GIT_HOST                      = "prod-git01.example.net"
         GIT_REPO_PATH                 = "puppet/enc-data.git"
         GIT_REPO_USERNAME             = "gitlab"
-        GIT_REPO_BRANCH               = "main"
+        GIT_BRANCH                    = "main"
         GIT_SYNC_MODE                 = sync
         GIT_SYNC_TIMEOUT              = 30
         GIT_SYNC_RETRIES              = 2

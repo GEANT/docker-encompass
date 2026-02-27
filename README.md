@@ -188,6 +188,35 @@ UI behavior:
 - When `FEATURE_BRANCH=true`, users can type any environment name in the host/group edit forms (free-text input).
 - When `FEATURE_BRANCH=false`, the environment field is a drop-down populated from `PUPPET_ENVIRONMENTS`.
 
+Host selectors in `groups.yaml` (`hosts` list):
+
+- Plain value (for example `web-`) => prefix match (`hostname.startswith("web-")`)
+- Regex value wrapped in slashes (for example `/^web-[0-9]+\.example\.org$/`) => regex full match
+
+Resolution order:
+
+- Exact host entry in `hosts.yaml`
+- Then first matching selector in `groups.yaml` order (and `hosts` list order inside each group)
+- Then `default` group
+
+### PuppetDB unclassified hosts
+
+The UI page `/encompass/unclassified_hosts/` lists nodes considered unclassified.
+
+A node is marked unclassified when its resolved ENC payload (`environment`, `classes`, `parameters`) matches the ENC `default` group profile.
+
+Configuration:
+
+- `UNCLASSIFIED_HOSTS_ENABLED`: enable/disable the unclassified hosts page logic (`true`/`false`, default: `true`)
+- `PUPPETDB_SCHEMA`: PuppetDB scheme (default: `http`)
+- `PUPPETDB_HOST`: PuppetDB host (default: `puppetdb.service.ha.geant.net`)
+- `PUPPETDB_PORT`: PuppetDB port (default: `8080`)
+- `PUPPETDB_TIMEOUT`: HTTP timeout in seconds for the PuppetDB call (default: `20`)
+
+The nodes endpoint is built internally as:
+
+- ``${PUPPETDB_SCHEMA}://${PUPPETDB_HOST}:${PUPPETDB_PORT}/pdb/query/v4/nodes``
+
 ### Authentication
 
 - `AUTH_LDAP_ENABLED=true|false`
@@ -227,6 +256,14 @@ The application accepts the Git SSH private key in either of these forms:
 - `GIT_REPO_PRIVATE_SSH_KEY_FILE`: path to a file containing the key (recommended for Kubernetes/Nomad secrets)
 
 If both are set, `GIT_REPO_PRIVATE_SSH_KEY` is used.
+
+Branch behavior:
+
+- `GIT_BRANCH`: branch used by enCompass for clone/fetch/checkout/commits/pushes.
+
+Typical setup:
+
+- Set `GIT_BRANCH=main` (or your target branch, for example `dev` or a feature branch).
 
 ## HA considerations
 
@@ -348,11 +385,6 @@ It’s recommended to back up your MySQL database when Database authentication i
 - Restrict `ALLOWED_HOSTS` and `ALLOWED_CIDR_NETS`
 - Set non-default bootstrap passwords for local auth mode
 - Enable `USE_SSL` for production exposure
-
-## ToDo
-
-- regex for hosts in groups.yaml
-- add a list of unclassified nodes (all nodes in PuppetDB - nodes matching in ENC)
 
 ## License
 

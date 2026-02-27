@@ -23,6 +23,7 @@ if [ "$AUTH_MYSQL_ENABLED" = "true" ]; then
 
     echo "==> enCompass: Ensuring default local auth groups/users exist..."
 
+    # shellcheck disable=SC2140
     python manage.py shell -c "
 import os
 from django.contrib.auth.models import User, Group

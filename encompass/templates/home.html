@@ -12,6 +12,15 @@
         <p class="display-6">enCompass Node Classifier</p>
       </div>
 
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" style="margin: 15px auto; max-width: 900px;">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
       <div class="container mt-5">
         <div class="row g-4 justify-content-center">
           <div class="col-md-4">
@@ -55,6 +64,54 @@
               </div>
             </a>
           </div>
+
+          <div class="col-md-4">
+            <a href="/encompass/git_log/" class="text-decoration-none">
+              <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-journal-text fs-1 mb-3"></i>
+                  <h5 class="card-title">Git Log</h5>
+                  <p class="card-text text-muted">
+                    View paged output of git log with patches
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="col-md-4">
+            <a href="/encompass/unclassified_hosts/" class="text-decoration-none">
+              <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-diagram-3 fs-1 mb-3"></i>
+                  <h5 class="card-title">Unclassified Hosts</h5>
+                  <p class="card-text text-muted">
+                    Show PuppetDB nodes matching the default ENC profile
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          {% if is_admin %}
+          <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-arrow-repeat fs-1 mb-3"></i>
+                <h5 class="card-title">Sync with enCapsule</h5>
+                <p class="card-text text-muted">
+                  Trigger manual synchronization to enCapsule targets
+                </p>
+                <form method="post" action="/encompass/encapsule_sync/" class="d-grid gap-2">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-primary" {% if not encapsule_sync_enabled %}disabled aria-disabled="true" title="enCapsule synchronization is disabled"{% endif %}>
+                    Sync with enCapsule
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endif %}
 
           {% if is_db_auth and is_admin %}
           <div class="col-md-4">

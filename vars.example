@@ -62,6 +62,7 @@ LDAP_USER_ATTR_MAP='{"first_name": "givenName", "last_name": "sn", "email": "mai
 
 # git settings (only SSH key-based authentication is supported)
 # ssh key must NOT be password-protected
+GIT_BRANCH=main
 GIT_SYNC_MODE=sync  # sync | async
 GIT_SYNC_TIMEOUT=30  # seconds for each git/sync command
 GIT_SYNC_RETRIES=2
@@ -69,7 +70,6 @@ GIT_SYNC_RETRY_DELAY=2  # seconds
 GIT_HOST="prod-git01.example.net"
 GIT_REPO_PATH="puppet/enc-data.git"
 GIT_REPO_USERNAME="gitlab"
-GIT_REPO_BRANCH="main"
 SSH_KEY_TYPE="ed25519"  # rsa, ed25519, ecdsa, etc.
 GIT_REPO_PRIVATE_SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -87,3 +87,10 @@ KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
 # puppet environments
 FEATURE_BRANCH=false
 PUPPET_ENVIRONMENTS='["test", "uat", "production"]'  # with feature branches enabled this variable is ignored
+
+# PuppetDB settings (used by /encompass/unclassified_hosts/)
+UNCLASSIFIED_HOSTS_ENABLED=true
+PUPPETDB_SCHEMA="http"
+PUPPETDB_HOST="puppetdb.service.ha.geant.net"
+PUPPETDB_PORT=8080
+PUPPETDB_TIMEOUT=20

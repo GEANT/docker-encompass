@@ -231,8 +231,8 @@
 
           const parameters = {};
           editorRoot.querySelectorAll('.host-parameters .parameter-item').forEach(item => {
-            const keyInput = item.querySelector('.col-md-5:first-child input');
-            const valueInput = item.querySelector('.col-md-5:last-of-type input');
+            const keyInput = item.querySelector('.col-md-5:nth-of-type(1) input');
+            const valueInput = item.querySelector('.col-md-5:nth-of-type(2) input');
             if (!keyInput || !valueInput) return;
 
             const key = keyInput.value.trim();
@@ -321,7 +321,11 @@
 
                 const data = await response.json();
                 if (data.status === 'ok') {
-                  alert('Host saved successfully!');
+                  if (data.warning) {
+                    alert('Host saved successfully. ' + data.warning);
+                  } else {
+                    alert('Host saved successfully!');
+                  }
                   location.reload();
                   return;
                 }

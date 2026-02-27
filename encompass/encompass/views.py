@@ -11,6 +11,7 @@ from functools import wraps
 import yaml
 import markdown
 from django.conf import settings
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
@@ -23,6 +24,20 @@ from . import user_helpers
 # Configure logging
 logger = logging.getLogger(__name__)
 
+ENCAPSULE_SYNC_WARNING_MESSAGE = (
+    "Data was saved, committed, and pushed to Git, but synchronization to enCapsule failed. "
+    "enCapsule will pull the latest data when it becomes available."
+)
+
+ENCAPSULE_ASYNC_INFO_MESSAGE = (
+    "Data was saved, committed, and pushed to Git. Synchronization to enCapsule runs "
+    "asynchronously; check logs for final sync status."
+)
+
+NO_CHANGES_INFO_MESSAGE = (
+    "No YAML changes were detected, so no Git push/synchronization was required."
+)
+
 # Contstants
 MY_ENV = os.environ.copy()
 MY_ENV["PYTHONUNBUFFERED"] = "TRUE"
@@ -30,7 +45,9 @@ MY_ENV["PATH"] = f"{settings.HOME_DIR}/bin:{os.environ['PATH']}"
 READ_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP, settings.ENC_VIEWER_GROUP]
 ADMIN_ONLY_GROUPS = [settings.ENC_ADMIN_GROUP]
 
-_IMG_SRC_PATTERN = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE)
+_IMG_SRC_PATTERN = re.compile(
+    r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE
+)
 
 
 def _rewrite_relative_markdown_image_src(html: str) -> str:
@@ -154,7 +171,10 @@ def user_settings(request):
             request,
             settings.ERROR_HTML,
             {
-                "results": ["User settings are managed externally (LDAP mode)", settings.TRY_AGAIN],
+                "results": [
+                    "User settings are managed externally (LDAP mode)",
+                    settings.TRY_AGAIN,
+                ],
                 "current_version": settings.CURRENT_VERSION,
                 "watermark": settings.WATERMARK,
             },
@@ -178,7 +198,9 @@ def user_settings(request):
         else:
             request.user.set_password(new_password)
             request.user.save(update_fields=["password"])
-            messages.success(request, "Password updated successfully. Please log in again.")
+            messages.success(
+                request, "Password updated successfully. Please log in again."
+            )
             return redirect("/encompass/logout_confirmation/")
 
     context = {
@@ -198,7 +220,7 @@ def user_settings(request):
 def host_details(_request, hostname):
     """
     Retrieve details for a specific host from the enc.sock API and return as JSON response.
-    
+
     :param _request: Django HttpRequest object (not used in this function, hence the underscore)
     :param hostname: Hostname for which to retrieve details
     """
@@ -216,7 +238,7 @@ def host_details(_request, hostname):
 def group_details(_request, groupname):
     """
     Retrieve details for a specific group from the enc.sock API and return as JSON response.
-    
+
     :param _request: Django HttpRequest object (not used in this function, hence the underscore)
     :param groupname: Group name for which to retrieve details
     """
@@ -306,6 +328,14 @@ def host_purge_execute(request):
         commit_actor = user_helpers.get_user_commit_info(request.user)
         tools.delete_host(hostname, actor=commit_actor)
         messages.success(request, f"Host '{hostname}' deleted successfully!")
+    except tools.EncapsuleTriggerError as sync_error:
+        logger.warning(
+            "Host delete completed but enCapsule sync failed for '%s': %s",
+            hostname,
+            sync_error,
+        )
+        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        return redirect("/encompass/hosts")
     except tools.enc_data.EncDataLockTimeout:
         return render(
             request,
@@ -358,6 +388,18 @@ def host_save(request):
     try:
         commit_actor = user_helpers.get_user_commit_info(request.user)
         tools.update_host(hostname, host_payload, actor=commit_actor)
+    except tools.EncapsuleTriggerError as sync_error:
+        logger.warning(
+            "Host save completed but enCapsule sync failed for '%s': %s",
+            hostname,
+            sync_error,
+        )
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": f"{ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
+            }
+        )
     except tools.enc_data.EncDataLockTimeout:
         return JsonResponse(
             {"error": "Conflict", "message": "Another host update is in progress"},
@@ -366,6 +408,30 @@ def host_save(request):
     except Exception as e:  # pylint: disable=broad-except
         logger.exception("host_save failed for host '%s'", hostname)
         return JsonResponse({"error": str(e)}, status=500)
+
+    sync_result = tools.get_last_sync_result()
+    if sync_result.get("state") == "async" and tools.encapsule_sync_enabled():
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+            }
+        )
+    if sync_result.get("state") == "no_changes":
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": NO_CHANGES_INFO_MESSAGE,
+            }
+        )
+
+    if tools.sync_runs_async() and tools.encapsule_sync_enabled():
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+            }
+        )
 
     return JsonResponse({"status": "ok"})
 
@@ -437,6 +503,14 @@ def host_add(request):
         commit_actor = user_helpers.get_user_commit_info(request.user)
         tools.create_host(hostname, host_payload, actor=commit_actor)
         messages.success(request, f"Host '{hostname}' created successfully!")
+    except tools.EncapsuleTriggerError as sync_error:
+        logger.warning(
+            "Host create completed but enCapsule sync failed for '%s': %s",
+            hostname,
+            sync_error,
+        )
+        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        return redirect("/encompass/hosts")
     except tools.enc_data.EncDataLockTimeout:
         return render(
             request,
@@ -488,7 +562,10 @@ def group_purge_confirmation(request):
             request,
             settings.ERROR_HTML,
             {
-                "results": [f"Failed to retrieve group details: {str(e)}", settings.TRY_AGAIN],
+                "results": [
+                    f"Failed to retrieve group details: {str(e)}",
+                    settings.TRY_AGAIN,
+                ],
                 "current_version": settings.CURRENT_VERSION,
             },
         )
@@ -532,6 +609,14 @@ def group_purge_execute(request):
         commit_actor = user_helpers.get_user_commit_info(request.user)
         tools.delete_group(groupname, actor=commit_actor)
         messages.success(request, f"Group '{groupname}' deleted successfully!")
+    except tools.EncapsuleTriggerError as sync_error:
+        logger.warning(
+            "Group delete completed but enCapsule sync failed for '%s': %s",
+            groupname,
+            sync_error,
+        )
+        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        return redirect("/encompass/groups")
     except tools.enc_data.EncDataLockTimeout:
         return render(
             request,
@@ -588,10 +673,24 @@ def group_save(request):
     }
 
     try:
-        logger.info("Calling update_group for '%s' with payload: %s", groupname, group_payload)
+        logger.info(
+            "Calling update_group for '%s' with payload: %s", groupname, group_payload
+        )
         commit_actor = user_helpers.get_user_commit_info(request.user)
         tools.update_group(groupname, group_payload, actor=commit_actor)
         logger.info("Successfully updated group '%s'", groupname)
+    except tools.EncapsuleTriggerError as sync_error:
+        logger.warning(
+            "Group save completed but enCapsule sync failed for '%s': %s",
+            groupname,
+            sync_error,
+        )
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": f"{ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
+            }
+        )
     except tools.enc_data.EncDataLockTimeout:
         return JsonResponse(
             {"error": "Conflict", "message": "Another group update is in progress"},
@@ -600,6 +699,30 @@ def group_save(request):
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error updating group '%s': %s", groupname, e, exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
+
+    sync_result = tools.get_last_sync_result()
+    if sync_result.get("state") == "async" and tools.encapsule_sync_enabled():
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+            }
+        )
+    if sync_result.get("state") == "no_changes":
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": NO_CHANGES_INFO_MESSAGE,
+            }
+        )
+
+    if tools.sync_runs_async() and tools.encapsule_sync_enabled():
+        return JsonResponse(
+            {
+                "status": "ok",
+                "warning": ENCAPSULE_ASYNC_INFO_MESSAGE,
+            }
+        )
 
     return JsonResponse({"status": "ok"})
 
@@ -684,6 +807,14 @@ def group_add(request):
         commit_actor = user_helpers.get_user_commit_info(request.user)
         tools.create_group(groupname, group_payload, actor=commit_actor)
         messages.success(request, f"Group '{groupname}' created successfully!")
+    except tools.EncapsuleTriggerError as sync_error:
+        logger.warning(
+            "Group create completed but enCapsule sync failed for '%s': %s",
+            groupname,
+            sync_error,
+        )
+        messages.warning(request, ENCAPSULE_SYNC_WARNING_MESSAGE)
+        return redirect("/encompass/groups")
     except tools.enc_data.EncDataLockTimeout:
         return render(
             request,
@@ -691,7 +822,7 @@ def group_add(request):
             {
                 "results": [
                     "Another group update is in progress. Please retry.",
-                     settings.TRY_AGAIN,
+                    settings.TRY_AGAIN,
                 ],
                 "current_version": settings.CURRENT_VERSION,
             },
@@ -778,9 +909,33 @@ def home_page(request):
         "current_version": settings.CURRENT_VERSION,
         "is_db_auth": is_db_auth,
         "is_admin": is_admin,
+        "encapsule_sync_enabled": tools.encapsule_sync_enabled(),
     }
 
     return render(request, "home.html", context)
+
+
+@login_required(login_url="/encompass/login/")
+@group_required_ldap(ADMIN_ONLY_GROUPS)
+def encapsule_sync_now(request):
+    """
+    Manually trigger enCapsule synchronization from the UI.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    if not tools.encapsule_sync_enabled():
+        messages.info(request, "enCapsule synchronization is disabled by configuration.")
+        return redirect("/encompass/")
+
+    try:
+        tools.trigger_encapsule_sync_now()
+        messages.success(request, "Sync with enCapsule completed successfully.")
+    except tools.EncSyncError as err:
+        logger.warning("Manual enCapsule sync failed: %s", err)
+        messages.warning(request, f"Sync with enCapsule failed: {str(err)}")
+
+    return redirect("/encompass/")
 
 
 @login_required(login_url="/encompass/login/")
@@ -878,7 +1033,9 @@ def query_host(request):
                 return render(request, "query_host.html", context)
 
             # Convert back to YAML for display (pretty printed)
-            yaml_output = yaml.dump(host_data, default_flow_style=False, sort_keys=False)
+            yaml_output = yaml.dump(
+                host_data, default_flow_style=False, sort_keys=False
+            )
 
             context["hostname"] = hostname
             context["yaml_output"] = yaml_output
@@ -890,6 +1047,117 @@ def query_host(request):
             context["hostname"] = hostname
 
     return render(request, "query_host.html", context)
+
+
+@login_required(login_url="/encompass/login/")
+@group_required_ldap(READ_ONLY_GROUPS)
+def unclassified_hosts_page(request):
+    """
+    Show PuppetDB nodes classified with the ENC default profile.
+    """
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
+    group_name = tools.get_groups_info(groups)
+
+    page_str = request.GET.get("page", "1")
+    try:
+        page_number = int(page_str)
+    except ValueError:
+        page_number = 1
+
+    context = {
+        "encompass_email": identity["email"],
+        "group_name": group_name,
+        "disp_name": identity["display_name"],
+        "watermark": settings.WATERMARK,
+        "current_version": settings.CURRENT_VERSION,
+        "unclassified_hosts_enabled": settings.UNCLASSIFIED_HOSTS_ENABLED,
+    }
+
+    if not settings.UNCLASSIFIED_HOSTS_ENABLED:
+        return render(request, "unclassified_hosts.html", context)
+
+    try:
+        result = tools.list_unclassified_hosts()
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception("Failed to list unclassified hosts")
+        context["error"] = f"Failed to load unclassified hosts: {str(e)}"
+        return render(request, "unclassified_hosts.html", context)
+
+    per_page = 50
+    paginator = Paginator(result["unclassified"], per_page)
+    page_obj = paginator.get_page(page_number)
+
+    context.update(
+        {
+            "puppetdb_url": result["puppetdb_url"],
+            "total_nodes": len(result["nodes"]),
+            "unclassified_total": len(result["unclassified"]),
+            "unclassified_hosts": page_obj.object_list,
+            "page": page_obj.number,
+            "total_pages": paginator.num_pages or 1,
+            "has_previous": page_obj.has_previous(),
+            "has_next": page_obj.has_next(),
+            "previous_page": (
+                page_obj.previous_page_number() if page_obj.has_previous() else 1
+            ),
+            "next_page": (
+                page_obj.next_page_number()
+                if page_obj.has_next()
+                else paginator.num_pages
+            ),
+        }
+    )
+    return render(request, "unclassified_hosts.html", context)
+
+
+@login_required(login_url="/encompass/login/")
+@group_required_ldap(READ_ONLY_GROUPS)
+def git_log_page(request):
+    """
+    Show paginated `git log -p` output from the ENC repository.
+    """
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
+    group_name = tools.get_groups_info(groups)
+
+    try:
+        page = int(request.GET.get("page", "1"))
+    except ValueError:
+        page = 1
+
+    context = {
+        "encompass_email": identity["email"],
+        "group_name": group_name,
+        "disp_name": identity["display_name"],
+        "watermark": settings.WATERMARK,
+        "current_version": settings.CURRENT_VERSION,
+        "git_branch": os.environ.get("GIT_BRANCH", "main"),
+    }
+
+    try:
+        git_log = tools.get_git_log_patch_page(page=page, per_page=1)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception("Failed to load git log page")
+        context["error"] = f"Failed to load git log output: {str(e)}"
+        return render(request, "git_log.html", context)
+
+    current_page = git_log["page"]
+    total_pages = git_log["total_pages"]
+
+    context.update(
+        {
+            "git_log_output": git_log["output"],
+            "total_commits": git_log["total_commits"],
+            "page": current_page,
+            "total_pages": total_pages,
+            "has_previous": current_page > 1,
+            "has_next": current_page < total_pages,
+            "previous_page": current_page - 1,
+            "next_page": current_page + 1,
+        }
+    )
+    return render(request, "git_log.html", context)
 
 
 @login_required(login_url="/encompass/login/")

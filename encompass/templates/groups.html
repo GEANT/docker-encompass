@@ -273,8 +273,8 @@
 
           const parameters = {};
           editorRoot.querySelectorAll('.group-parameters .parameter-item').forEach(item => {
-            const keyInput = item.querySelector('.col-md-5:first-child input');
-            const valueInput = item.querySelector('.col-md-5:last-of-type input');
+            const keyInput = item.querySelector('.col-md-5:nth-of-type(1) input');
+            const valueInput = item.querySelector('.col-md-5:nth-of-type(2) input');
             if (!keyInput || !valueInput) return;
 
             const key = keyInput.value.trim();
@@ -381,7 +381,11 @@
                 }
 
                 if (data.status === 'ok') {
-                  alert('Group saved successfully!');
+                  if (data.warning) {
+                    alert('Group saved successfully. ' + data.warning);
+                  } else {
+                    alert('Group saved successfully!');
+                  }
                   location.reload();
                   return;
                 }

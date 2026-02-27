@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from contextlib import contextmanager
 from pathlib import Path
 from threading import RLock
@@ -149,8 +150,28 @@ def resolve_host(hosts: dict, groups: dict, fqdn: str):
     for group_name, group_data in groups.items():
         if group_name == "default":
             continue
-        for host_prefix in group_data.get("hosts", []):
-            if fqdn.startswith(host_prefix):
+        for host_selector in group_data.get("hosts", []):
+            selector = str(host_selector).strip()
+            if not selector:
+                continue
+
+            is_regex_selector = (
+                len(selector) >= 2
+                and selector.startswith("/")
+                and selector.endswith("/")
+            )
+            if is_regex_selector:
+                pattern = selector[1:-1]
+                try:
+                    is_match = re.fullmatch(pattern, fqdn) is not None
+                except re.error as err:
+                    raise ValueError(
+                        f"Invalid host regex '{selector}' in group '{group_name}': {err}"
+                    ) from err
+            else:
+                is_match = fqdn.startswith(selector)
+
+            if is_match:
                 result = group_data.copy()
                 result.pop("hosts", None)
                 return result

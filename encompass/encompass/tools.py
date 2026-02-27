@@ -4,9 +4,12 @@ analyzes data received
 
 import logging
 import os
+import json
+import re
 import subprocess
 import threading
 import time
+import requests
 from django.conf import settings
 from . import enc_data
 
@@ -20,6 +23,7 @@ _SYNC_STATE = {
     "actor": None,
     "action": None,
 }
+_SYNC_RESULT = threading.local()
 
 
 class EncSyncError(Exception):
@@ -62,6 +66,38 @@ def _git_sync_mode() -> str:
     if mode not in {"sync", "async"}:
         return "sync"
     return mode
+
+
+def sync_runs_async() -> bool:
+    """
+    Return True when sync is configured to run asynchronously.
+    """
+    return _git_sync_mode() == "async"
+
+
+def encapsule_sync_enabled() -> bool:
+    """
+    Return True when enCapsule sync fan-out is enabled.
+    """
+    value = str(os.environ.get("USE_ENCAPSULE", "true")).strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
+def get_last_sync_result() -> dict:
+    """
+    Return the latest sync outcome for the current request thread.
+    """
+    return getattr(_SYNC_RESULT, "value", {})
+
+
+def _set_last_sync_result(state: str, details: str | None = None) -> None:
+    """
+    Store sync outcome for the current request thread.
+    """
+    value = {"state": state}
+    if details:
+        value["details"] = details
+    _SYNC_RESULT.value = value
 
 
 def _commit_actor(actor: dict | None) -> tuple[str, str, str]:
@@ -138,7 +174,7 @@ def _sync_git_repo(actor: dict | None = None, action: str | None = None) -> bool
 
     commit_name, commit_email, commit_author = _commit_actor(actor)
     commit_message = _commit_message(action, commit_author)
-    branch = os.environ.get("GIT_REPO_BRANCH", "main")
+    branch = os.environ.get("GIT_BRANCH", "main")
 
     _run_checked(
         ["git", "config", "user.name", commit_name], cwd=ENC_REPO_DIR, timeout=timeout
@@ -168,6 +204,11 @@ def _trigger_encapsule_sync() -> None:
     try:
         _run_checked(["/usr/local/bin/encapsule-sync.sh"], timeout=timeout)
     except EncSyncError as err:
+        logger.warning(
+            "encapsule_sync_trigger_failed timeout=%s error=%s",
+            timeout,
+            err,
+        )
         raise EncapsuleTriggerError(str(err)) from err
 
 
@@ -175,40 +216,46 @@ def _sync_once(
     actor: dict | None = None,
     action: str | None = None,
     force_trigger: bool = False,
-) -> None:
+) -> bool:
     """
     Perform a single sync operation: commit/push ENC data and trigger enCapsule sync if needed.
     """
     if force_trigger:
         _trigger_encapsule_sync()
-        return
+        return True
 
     changed = _sync_git_repo(actor=actor, action=action)
     if changed:
         _trigger_encapsule_sync()
+    return changed
 
 
-def _sync_with_retries(actor: dict | None = None, action: str | None = None) -> None:
+def _sync_with_retries(
+    actor: dict | None = None,
+    action: str | None = None,
+    force_trigger_start: bool = False,
+) -> bool:
     """
     Perform sync with retries on failure, using environment-configured retry count and delay.
     """
     retries = _env_int("GIT_SYNC_RETRIES", 2)
     delay = _env_float("GIT_SYNC_RETRY_DELAY", 2.0)
     total_attempts = retries + 1
-    force_trigger = False
+    force_trigger = force_trigger_start
+    changed = False
 
     for attempt in range(total_attempts):
         attempt_num = attempt + 1
         logger.info("ENC sync attempt %s/%s started", attempt_num, total_attempts)
         try:
-            _sync_once(actor=actor, action=action, force_trigger=force_trigger)
+            changed = _sync_once(actor=actor, action=action, force_trigger=force_trigger)
             if attempt > 0:
                 logger.info(
                     "ENC sync attempt %s/%s succeeded after retry",
                     attempt_num,
                     total_attempts,
                 )
-            return
+            return changed
         except EncSyncError as err:
             if isinstance(err, EncapsuleTriggerError):
                 force_trigger = True
@@ -274,9 +321,35 @@ def _sync_after_write(actor: dict | None = None, action: str | None = None) -> N
     Commit/push YAML changes and trigger enCapsule sync when needed.
     """
     if _git_sync_mode() == "async":
+        _set_last_sync_result("async")
         _enqueue_async_sync(actor=actor, action=action)
         return
-    _sync_with_retries(actor=actor, action=action)
+
+    try:
+        changed = _sync_with_retries(actor=actor, action=action)
+    except EncapsuleTriggerError as err:
+        _set_last_sync_result("sync_failed", str(err))
+        raise
+    except EncSyncError as err:
+        _set_last_sync_result("sync_failed", str(err))
+        raise
+
+    if changed:
+        _set_last_sync_result("synced")
+    else:
+        _set_last_sync_result("no_changes")
+        logger.info("ENC write completed with no YAML changes; sync trigger skipped")
+
+
+def trigger_encapsule_sync_now() -> None:
+    """
+    Trigger enCapsule fan-out immediately, with retries.
+    """
+    if not encapsule_sync_enabled():
+        logger.info("Manual enCapsule sync requested but USE_ENCAPSULE is disabled")
+        return
+
+    _sync_with_retries(force_trigger_start=True)
 
 
 def get_host_details(hostname: str) -> dict:
@@ -458,3 +531,255 @@ def list_groups() -> list[str]:
     Return sorted group names.
     """
     return sorted(enc_data.load_map("groups").keys())
+
+
+def get_git_log_patch_page(page: int = 1, per_page: int = 1) -> dict:
+    """
+    Return paginated output of `git log -p` from the ENC repository.
+    Pagination is commit-based (one or more commits per page).
+    """
+    if page < 1:
+        page = 1
+    if per_page < 1:
+        per_page = 1
+
+    timeout = _env_int("GIT_SYNC_TIMEOUT", 30)
+    count_result = _run_checked(
+        ["git", "rev-list", "--count", "HEAD"], cwd=ENC_REPO_DIR, timeout=timeout
+    )
+
+    total_commits = int((count_result.stdout or "0").strip() or "0")
+    if total_commits <= 0:
+        return {
+            "page": 1,
+            "per_page": per_page,
+            "total_pages": 1,
+            "total_commits": 0,
+            "output": "",
+        }
+
+    total_pages = (total_commits + per_page - 1) // per_page
+    if page > total_pages:
+        page = total_pages
+
+    skip = (page - 1) * per_page
+    log_result = _run_checked(
+        ["git", "log", "-p", "--max-count", str(per_page), "--skip", str(skip)],
+        cwd=ENC_REPO_DIR,
+        timeout=timeout,
+    )
+
+    return {
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+        "total_commits": total_commits,
+        "output": log_result.stdout,
+    }
+
+
+def _canonical_profile(profile: dict | None) -> str:
+    """
+    Canonicalize an ENC profile for reliable equality checks.
+    """
+    data = profile if isinstance(profile, dict) else {}
+
+    environment = str(data.get("environment", "")).strip()
+    classes = sorted(
+        {
+            str(class_name).strip()
+            for class_name in (data.get("classes", []) or [])
+            if str(class_name).strip()
+        }
+    )
+    parameters = data.get("parameters", {}) or {}
+    if not isinstance(parameters, dict):
+        parameters = {}
+
+    return json.dumps(
+        {
+            "environment": environment,
+            "classes": classes,
+            "parameters": parameters,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+
+
+def _puppetdb_nodes_url() -> str:
+    """
+    Build PuppetDB nodes URL from split env variables.
+    """
+    schema = str(os.environ.get("PUPPETDB_SCHEMA", "http")).strip()
+    host = str(os.environ.get("PUPPETDB_HOST", "puppetdb.service.ha.geant.net")).strip()
+    port = str(os.environ.get("PUPPETDB_PORT", "8080")).strip()
+    return f"{schema}://{host}:{port}/pdb/query/v4/nodes"
+
+
+def _build_group_matchers(
+    groups: dict,
+) -> tuple[dict, list[tuple[int, re.Pattern, dict]]]:
+    """
+    Build optimized group matchers preserving first-match order semantics.
+    Returns (prefix_trie, regex_matchers).
+    """
+    root = {"children": {}, "match": None}
+    regex_matchers = []
+    order = 0
+
+    for group_name, group_data in groups.items():
+        if group_name == "default" or not isinstance(group_data, dict):
+            continue
+
+        payload = group_data.copy()
+        payload.pop("hosts", None)
+
+        for raw_selector in group_data.get("hosts", []) or []:
+            selector = str(raw_selector).strip()
+            if not selector:
+                continue
+
+            is_regex_selector = (
+                len(selector) >= 2
+                and selector.startswith("/")
+                and selector.endswith("/")
+            )
+            if is_regex_selector:
+                pattern = selector[1:-1]
+                try:
+                    compiled = re.compile(pattern)
+                except re.error as err:
+                    raise EncSyncError(
+                        f"Invalid host regex '{selector}' in group '{group_name}': {err}"
+                    ) from err
+                regex_matchers.append((order, compiled, payload))
+                order += 1
+                continue
+
+            node = root
+            for char in selector:
+                node = node["children"].setdefault(
+                    char, {"children": {}, "match": None}
+                )
+
+            if node["match"] is None:
+                node["match"] = (order, payload)
+            order += 1
+
+    return root, regex_matchers
+
+
+def _resolve_group_match(
+    certname: str, trie: dict, regex_matchers: list[tuple[int, re.Pattern, dict]]
+) -> dict | None:
+    """
+    Resolve a certname against compiled group matchers using earliest configured match.
+    """
+    node = trie
+    best_order = None
+    best_payload = None
+
+    for char in certname:
+        current_match = node.get("match")
+        if current_match is not None:
+            current_order, current_payload = current_match
+            if best_order is None or current_order < best_order:
+                best_order = current_order
+                best_payload = current_payload
+
+        child = node.get("children", {}).get(char)
+        if child is None:
+            break
+        node = child
+
+    current_match = node.get("match")
+    if current_match is not None:
+        current_order, current_payload = current_match
+        if best_order is None or current_order < best_order:
+            best_order = current_order
+            best_payload = current_payload
+
+    for regex_order, regex_pattern, regex_payload in regex_matchers:
+        if best_order is not None and regex_order > best_order:
+            break
+        if regex_pattern.fullmatch(certname):
+            if best_order is None or regex_order < best_order:
+                best_order = regex_order
+                best_payload = regex_payload
+            break
+
+    if best_payload is None:
+        return None
+    return best_payload
+
+
+def get_puppetdb_nodes() -> list[str]:
+    """
+    Fetch and return sorted node certnames from PuppetDB.
+    """
+    url = _puppetdb_nodes_url()
+    timeout = _env_int("PUPPETDB_TIMEOUT", 20)
+
+    try:
+        response = requests.get(url, timeout=timeout)
+    except requests.RequestException as err:
+        raise EncSyncError(f"Failed to query PuppetDB nodes: {err}") from err
+
+    if response.status_code != 200:
+        raise EncSyncError(
+            f"PuppetDB query failed ({response.status_code}): {response.text[:200]}"
+        )
+
+    try:
+        payload = response.json()
+    except ValueError as err:
+        raise EncSyncError("PuppetDB returned invalid JSON payload") from err
+
+    if not isinstance(payload, list):
+        raise EncSyncError("PuppetDB nodes payload is not a list")
+
+    certnames = {
+        str(item.get("certname", "")).strip()
+        for item in payload
+        if isinstance(item, dict)
+    }
+    certnames.discard("")
+    return sorted(certnames)
+
+
+def list_unclassified_hosts() -> dict:
+    """
+    Return PuppetDB nodes whose ENC resolved profile matches the default profile.
+    """
+    nodes = get_puppetdb_nodes()
+    hosts = enc_data.load_map("hosts")
+    groups = enc_data.load_map("groups")
+    prefix_trie, regex_matchers = _build_group_matchers(groups)
+
+    default_profile = groups.get("default", {})
+    if not isinstance(default_profile, dict):
+        default_profile = {}
+    default_profile = default_profile.copy()
+    default_profile.pop("hosts", None)
+
+    default_canonical = _canonical_profile(default_profile)
+    unclassified = []
+
+    for certname in nodes:
+        resolved = hosts.get(certname)
+        if resolved is None:
+            resolved = _resolve_group_match(certname, prefix_trie, regex_matchers)
+        if resolved is None:
+            resolved = default_profile
+
+        if _canonical_profile(resolved) == default_canonical:
+            unclassified.append(certname)
+
+    return {
+        "nodes": nodes,
+        "unclassified": unclassified,
+        "default_profile": default_profile,
+        "puppetdb_url": _puppetdb_nodes_url(),
+    }
