@@ -14,7 +14,24 @@
               {% csrf_token %}
               
               <div class="mb-3">
-                <label for="hostname" class="form-label"><strong>Hostname (FQDN) *</strong></label>
+                <label for="hostname" class="form-label">
+                  <strong>Hostname (FQDN) *</strong>
+                  <span
+                    class="text-muted ms-1"
+                    data-hostname-popover
+                    data-bs-toggle="popover"
+                    data-bs-trigger="hover focus"
+                    data-bs-placement="top"
+                    data-bs-title="Host matching"
+                    data-bs-content="Host entries are exact FQDN matches only (for example bob.example.com). Prefix and /regex/ selectors are supported only in Groups → Hosts selectors."
+                    tabindex="0"
+                    role="button"
+                    aria-label="Host matching help"
+                    style="cursor: pointer;"
+                  >
+                    <i class="bi bi-question-circle"></i>
+                  </span>
+                </label>
                 <input type="text" class="form-control" id="hostname" name="hostname" required placeholder="server.example.com">
                 <div class="form-text">Fully qualified domain name for the host</div>
               </div>
@@ -72,6 +89,21 @@
 
       <script>
         (function() {
+          function initializeHelpPopovers(root = document) {
+            if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+
+            root.querySelectorAll('[data-hostname-popover]').forEach((element) => {
+              bootstrap.Popover.getOrCreateInstance(element, {
+                trigger: 'hover focus',
+                placement: 'top',
+                delay: { show: 0, hide: 80 },
+                container: 'body',
+              });
+            });
+          }
+
+          initializeHelpPopovers(document);
+
           function escapeHtml(value) {
             return String(value)
               .replace(/&/g, "&amp;")

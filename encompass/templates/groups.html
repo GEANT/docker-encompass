@@ -138,6 +138,19 @@
           return `<select class="form-select ${cssClass}">${options}</select>`;
         }
 
+        function initializeHostHelpPopovers(root = document) {
+          if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+
+          root.querySelectorAll('[data-enc-hosts-popover]').forEach((element) => {
+            bootstrap.Popover.getOrCreateInstance(element, {
+              trigger: 'hover focus',
+              placement: 'top',
+              delay: { show: 0, hide: 80 },
+              container: 'body',
+            });
+          });
+        }
+
         function renderEditor(groupname, groupData) {
           const classes = Array.isArray(groupData.classes)
             ? groupData.classes
@@ -170,7 +183,24 @@
                     </div>
 
                     <div class="col-md-6">
-                      <label class="form-label"><strong>Hosts</strong></label>
+                      <label class="form-label">
+                        <strong>Hosts</strong>
+                        <span
+                          class="text-muted ms-1"
+                          data-enc-hosts-popover
+                          data-bs-toggle="popover"
+                          data-bs-trigger="hover focus"
+                          data-bs-placement="top"
+                          data-bs-title="Hosts selector help"
+                          data-bs-content="Plain values do prefix match (for example web-). Regex values must be wrapped in /.../ and use full match, for example /^web-[0-9]+\\.example\\.com$/."
+                          tabindex="0"
+                          role="button"
+                          aria-label="Hosts selector help (popover)"
+                          style="cursor: pointer;"
+                        >
+                          <i class="bi bi-question-circle"></i>
+                        </span>
+                      </label>
                       <div class="group-hosts">
                         ${(hosts.length ? hosts : ['']).map(hostname => hostRowHtml(hostname)).join('')}
                       </div>
@@ -429,6 +459,7 @@
             if (childContainer && childContainer.length > 0) {
               const editorRoot = childContainer[0].querySelector('.group-details-content') || childContainer[0];
               bindEditorActions(editorRoot, groupname, rowNode);
+              initializeHostHelpPopovers(editorRoot);
             }
           } catch (error) {
             rowApi.child(`<div class="p-3 bg-white"><span class="text-danger">Failed to load group details: ${escapeHtml(error.message)}</span></div>`).show();

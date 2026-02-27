@@ -44,7 +44,24 @@
               </div>
 
               <div class="mb-3">
-                <label class="form-label"><strong>Hosts</strong></label>
+                <label class="form-label">
+                  <strong>Hosts</strong>
+                  <span
+                    class="text-muted ms-1"
+                    data-group-hosts-popover
+                    data-bs-toggle="popover"
+                    data-bs-trigger="hover focus"
+                    data-bs-placement="top"
+                    data-bs-title="Hosts selector help"
+                    data-bs-content="Plain values do prefix match (for example web-). Regex values must be wrapped in /.../ and use full match, for example /^web-[0-9]+\\.example\\.com$/."
+                    tabindex="0"
+                    role="button"
+                    aria-label="Hosts selector help"
+                    style="cursor: pointer;"
+                  >
+                    <i class="bi bi-question-circle"></i>
+                  </span>
+                </label>
                 <div id="hosts-list">
                   <div class="input-group mb-2 host-item">
                     <input type="text" class="form-control" name="hosts[]" placeholder="hostname.example.com">
@@ -83,6 +100,21 @@
 
       <script>
         (function() {
+          function initializeHelpPopovers(root = document) {
+            if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+
+            root.querySelectorAll('[data-group-hosts-popover]').forEach((element) => {
+              bootstrap.Popover.getOrCreateInstance(element, {
+                trigger: 'hover focus',
+                placement: 'top',
+                delay: { show: 0, hide: 80 },
+                container: 'body',
+              });
+            });
+          }
+
+          initializeHelpPopovers(document);
+
           function escapeHtml(value) {
             return String(value)
               .replace(/&/g, "&amp;")
