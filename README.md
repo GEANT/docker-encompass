@@ -35,6 +35,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
 - [HA considerations](#ha-considerations)
 - [enCapsule Agent Runtime](#encapsule-agent-runtime)
 - [Security Checklist](#security-checklist)
+- [ToDo](#todo)
 - [License](#license)
 
 ## Features
@@ -414,6 +415,10 @@ Current release highlights:
 - Improved save/commit/push UX so enCapsule fan-out failures are reported as warnings instead of blocking data writes.
 - Added manual “Sync with enCapsule” action from the Home page for admin users.
 - Standardized Git branch handling on `GIT_BRANCH` (legacy `GIT_REPO_BRANCH` removed).
+
+## ToDo
+
+- Add Kerberos/LDAP password change support
 
 ## License
 
