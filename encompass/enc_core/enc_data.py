@@ -14,7 +14,7 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-ENC_DATA_DIR = Path(os.environ.get("ENC_DATA_DIR", "/data"))
+ENC_DATA_DIR = Path("/data")
 _WRITE_LOCK = RLock()
 
 

@@ -21,6 +21,7 @@ from django.contrib import messages
 from django.templatetags.static import static
 from . import tools
 from . import user_helpers
+from . import spring_cleaning
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -1072,6 +1073,54 @@ def unclassified_hosts_page(request):
         }
     )
     return render(request, "unclassified_hosts.html", context)
+
+
+@login_required(login_url="/encompass/login/")
+@group_required_ldap(settings.READ_ONLY_GROUPS)
+def spring_cleaning_page(request):
+    """Show orphan hosts/groups report based on current PuppetDB nodes."""
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
+    group_name = tools.get_groups_info(groups)
+
+    context = {
+        "encompass_email": identity["email"],
+        "group_name": group_name,
+        "disp_name": identity["display_name"],
+        "watermark": settings.WATERMARK,
+        "current_version": settings.CURRENT_VERSION,
+    }
+
+    try:
+        puppetdb_nodes = spring_cleaning.get_puppetdb_nodes()
+        orphan_hosts = spring_cleaning.discover_orphan_hosts(puppetdb_nodes)
+        orphan_groups_data = spring_cleaning.discover_orphan_groups(puppetdb_nodes)
+    except spring_cleaning.EncSyncError as err:
+        logger.exception("Failed to build spring cleaning report")
+        context["error"] = f"Failed to load spring cleaning report: {str(err)}"
+        return render(request, "spring_cleaning.html", context)
+    except Exception as err:  # pylint: disable=broad-except
+        logger.exception("Unexpected spring cleaning failure")
+        context["error"] = f"Failed to load spring cleaning report: {str(err)}"
+        return render(request, "spring_cleaning.html", context)
+
+    context.update(
+        {
+            "puppetdb_nodes_total": len(puppetdb_nodes),
+            "orphan_hosts": orphan_hosts,
+            "orphan_hosts_total": len(orphan_hosts),
+            "orphan_groups": orphan_groups_data["orphan_groups"],
+            "orphan_groups_total": len(orphan_groups_data["orphan_groups"]),
+            "never_matching_groups": orphan_groups_data["never_matching_groups"],
+            "never_matching_groups_total": len(
+                orphan_groups_data["never_matching_groups"]
+            ),
+            "shadowed_groups": orphan_groups_data["shadowed_groups"],
+            "shadowed_groups_total": len(orphan_groups_data["shadowed_groups"]),
+        }
+    )
+
+    return render(request, "spring_cleaning.html", context)
 
 
 @login_required(login_url="/encompass/login/")

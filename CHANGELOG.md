@@ -1,5 +1,18 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- Feat(ui): add Spring Cleaning page and home card
+
+add /encompass/spring_cleaning/ route and view,
+render orphan hosts/groups report,
+add dashboard card linking to the new page
+
+### 📚 Documentation
+
+- Doc: add SEO message to index the repo in the search engines
+## [0.7.2] - 2026-02-27
+
 ### 💼 Other
 
 - Add validation guardrails for group host selectors to prevent overlaps

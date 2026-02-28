@@ -1,0 +1,133 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+  <div class="container mt-4">
+    <div class="page-header text-center mb-4">
+      <h2 class="text-primary">Spring Cleaning</h2>
+      <p class="text-muted mb-1">Orphaned ENC entries based on current PuppetDB nodes</p>
+      {% if puppetdb_nodes_total is not None %}
+        <p class="text-muted mb-0">PuppetDB nodes: {{ puppetdb_nodes_total }}</p>
+      {% endif %}
+    </div>
+
+    {% if error %}
+      <div class="alert alert-danger" role="alert">{{ error }}</div>
+    {% endif %}
+
+    {% if not error %}
+      <div class="row g-4">
+        <div class="col-12 col-lg-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body p-0">
+              <div class="px-3 py-2 border-bottom bg-light">
+                <strong>Orphan hosts ({{ orphan_hosts_total }})</strong>
+              </div>
+              {% if orphan_hosts %}
+                <table class="table table-striped table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th class="px-3">Hostname</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for host in orphan_hosts %}
+                      <tr>
+                        <td class="px-3"><code>{{ host }}</code></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <div class="p-3 text-muted">No orphan hosts found.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body p-0">
+              <div class="px-3 py-2 border-bottom bg-light">
+                <strong>Orphan groups ({{ orphan_groups_total }})</strong>
+              </div>
+              {% if orphan_groups %}
+                <table class="table table-striped table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th class="px-3">Group</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for group_name in orphan_groups %}
+                      <tr>
+                        <td class="px-3"><code>{{ group_name }}</code></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <div class="p-3 text-muted">No orphan groups found.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body p-0">
+              <div class="px-3 py-2 border-bottom bg-light">
+                <strong>Never-matching groups ({{ never_matching_groups_total }})</strong>
+              </div>
+              {% if never_matching_groups %}
+                <table class="table table-striped table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th class="px-3">Group</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for group_name in never_matching_groups %}
+                      <tr>
+                        <td class="px-3"><code>{{ group_name }}</code></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <div class="p-3 text-muted">No never-matching groups found.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body p-0">
+              <div class="px-3 py-2 border-bottom bg-light">
+                <strong>Shadowed groups ({{ shadowed_groups_total }})</strong>
+              </div>
+              {% if shadowed_groups %}
+                <table class="table table-striped table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th class="px-3">Group</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for group_name in shadowed_groups %}
+                      <tr>
+                        <td class="px-3"><code>{{ group_name }}</code></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <div class="p-3 text-muted">No shadowed groups found.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
