@@ -4,8 +4,8 @@
 
 - Feat(ui): add Spring Cleaning page and home card
 
-add /encompass/spring_cleaning/ route and view,
-render orphan hosts/groups report,
+add /encompass/spring_cleaning/ route and view
+render orphan hosts/groups report
 add dashboard card linking to the new page
 
 ### 📚 Documentation
