@@ -1,5 +1,10 @@
 ## [unreleased]
 
+### 📚 Documentation
+
+- Doc: update screenshot
+## [0.7.3] - 2026-02-28
+
 ### 🚀 Features
 
 - Feat(ui): add Spring Cleaning page and home card
@@ -11,6 +16,10 @@ add dashboard card linking to the new page
 ### 📚 Documentation
 
 - Doc: add SEO message to index the repo in the search engines
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(release): update changelog for 0.7.3
 ## [0.7.2] - 2026-02-27
 
 ### 💼 Other
