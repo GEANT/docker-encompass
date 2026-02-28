@@ -1,0 +1,53 @@
+# Dockerfile
+#
+# https://dockerize.io/guides/python-django-guide
+#
+# The first instruction is what image we want to base our container on
+# We Use an official Python runtime as a parent image
+FROM python:3.14-slim-trixie
+
+LABEL author="Massimiliano Adamo <massimiliano.adamo@geant.org>" \
+      description="enCompass is a tool to manage a Puppet ENC with a Django web interface." \
+      version="1.0.0"
+
+# Custom cache invalidation: check .gitlab-ci.yml for details
+ARG CACHEBUST=1
+ARG APP_DEBUG=false
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_ROOT_USER_ACTION=ignore \
+    APP_DEBUG=${APP_DEBUG}
+
+# Instaall all dependencies and cleanup the image, if not in debug mode
+COPY files/requirements-encompass.txt /requirements.txt
+RUN apt update && \
+    apt install -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc git nginx gettext-base supervisor netcat-openbsd && \
+    pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
+    pip3 install --root-user-action=ignore --no-compile --requirement /requirements.txt && \
+    install -d -o root -g root -m 755 /data
+RUN if [ "$APP_DEBUG" = "true" ]; then \
+        apt install -y vim telnet lsof curl; \
+    else \
+        apt full-upgrade -y; \
+        apt-get --purge remove -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc; \
+        apt clean && \
+        rm -rf /root/.cache/pip/* /var/lib/apt/lists/*; \
+    fi
+
+COPY files/supervisord /etc/supervisor/conf.d
+COPY files/root /root
+COPY --chmod=755 files/scripts /usr/local/bin
+COPY --chmod=644 README.md code/encompass/templates/help.md
+COPY --chmod=644 CHANGELOG.md code/encompass/templates/changelog.md
+COPY static code/static/static
+COPY encompass code/encompass
+COPY --chmod=644 files/deployment-stuff/watermark code
+COPY --chmod=644 files/deployment-stuff/version code
+RUN chmod 700 /root/.ssh
+
+# port explanations: check docker-compose.yml for details
+EXPOSE 8080 8081 8443 8444
+
+# runs the development server in debug mode
+WORKDIR /code/encompass
+CMD ["/usr/local/bin/entrypoint.sh"]
