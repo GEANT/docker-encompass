@@ -1,0 +1,48 @@
+# Dockerfile
+#
+# https://dockerize.io/guides/python-django-guide
+#
+# The first instruction is what image we want to base our container on
+# We Use an official Python runtime as a parent image
+FROM python:3.14-slim-trixie
+
+LABEL author="Massimiliano Adamo <massimiliano.adamo@geant.org>" \
+      description="enCapsule is an agent for enCompass, a tool to provide high availability for the ENC API." \
+      version="1.0.0"
+
+# Custom cache invalidation: check .gitlab-ci.yml for details
+ARG CACHEBUST=1
+ARG APP_DEBUG=false
+
+ENV PREFIX="/enc" \
+    PYTHONUNBUFFERED=1 \
+    PIP_ROOT_USER_ACTION=ignore \
+    APP_DEBUG=${APP_DEBUG}
+
+# Instaall all dependencies and cleanup the image, if not in debug mode
+COPY files/requirements-encapsule.txt /requirements.txt
+RUN apt update && \
+    apt install -y git && \
+    pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
+    pip3 install --root-user-action=ignore --no-compile --only-binary=:all: --requirement /requirements.txt && \
+    install -d -o root -g root -m 755 /data
+RUN if [ "$APP_DEBUG" = "true" ]; then \
+        apt install -y vim telnet lsof curl; \
+    else \
+        apt full-upgrade -y; \
+        apt clean && \
+        rm -rf /root/.cache/pip/* /var/lib/apt/lists/*; \
+    fi
+
+COPY files/root /root
+COPY --chmod=755 files/scripts/git-setup.sh /usr/local/bin/git-setup.sh
+COPY --chmod=755 files/encapsule-entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY encompass code/encompass
+RUN chmod 700 /root/.ssh
+
+# port explanations: check docker-compose.yml for details
+EXPOSE 8081
+
+# runs the development server in debug mode
+WORKDIR /code/encompass
+CMD ["/usr/local/bin/entrypoint.sh"]

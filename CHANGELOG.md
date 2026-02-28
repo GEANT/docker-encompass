@@ -2,6 +2,15 @@
 
 ### 📚 Documentation
 
+- Doc: add ToDo top implement Kerberos/LDAP password change support
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(docker): split Dockerfile to make encapsule much smaller
+## [0.7.4] - 2026-02-28
+
+### 📚 Documentation
+
 - Doc: update screenshot
 ## [0.7.3] - 2026-02-28
 

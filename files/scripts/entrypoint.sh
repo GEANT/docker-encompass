@@ -8,16 +8,6 @@
 #
 set -e
 
-RUNTIME_MODE="${RUNTIME_MODE:-encompass}"
-
-if [ "$RUNTIME_MODE" = "encapsule" ]; then
-    echo "==> Runtime mode: encapsule"
-    /usr/local/bin/git-setup.sh
-    exec /usr/local/bin/encapsule.sh
-fi
-
-echo "==> Runtime mode: encompass"
-
 # ========== #
 # set git up #
 # ========== #

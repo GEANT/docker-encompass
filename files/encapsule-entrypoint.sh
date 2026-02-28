@@ -1,6 +1,8 @@
 #!/usr/bin/bash
 set -e
 
+/usr/local/bin/git-setup.sh
+
 cd /code/encompass
 export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-encompass.agent_settings}"
 ENCAPSULE_PORT="${ENCAPSULE_PORT:-8081}"

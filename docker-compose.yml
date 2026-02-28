@@ -2,13 +2,14 @@ services:
   encompass:
     profiles:
       - encompass
+      - all
     env_file:
       - vars
     restart: unless-stopped
     container_name: encompass
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfiles/encompass
       args:
         APP_DEBUG: "true"
     ports:
@@ -20,16 +21,16 @@ services:
   encapsule:
     profiles:
       - encapsule
+      - all
     env_file:
       - vars
     restart: unless-stopped
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfiles/encapsule
       args:
         APP_DEBUG: "true"
     environment:
-      RUNTIME_MODE: encapsule
       DJANGO_SETTINGS_MODULE: encompass.agent_settings
       ENCAPSULE_PORT: 8081
     ports:

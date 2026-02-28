@@ -4,10 +4,10 @@
 #
 # The first instruction is what image we want to base our container on
 # We Use an official Python runtime as a parent image
-FROM python:3.14
+FROM python:3.14-slim-trixie
 
 LABEL author="Massimiliano Adamo <massimiliano.adamo@geant.org>" \
-      description="Encompass is a tool to manage a Puppet ENC with a Django web interface." \
+      description="enCompass is a tool to manage a Puppet ENC with a Django web interface." \
       version="1.0.0"
 
 # Custom cache invalidation: check .gitlab-ci.yml for details
@@ -20,9 +20,9 @@ ENV PREFIX="/enc" \
     APP_DEBUG=${APP_DEBUG}
 
 # Instaall all dependencies and cleanup the image, if not in debug mode
-COPY requirements.txt /requirements.txt
+COPY files/requirements-encompass.txt /requirements.txt
 RUN apt update && \
-    apt install -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc nginx gettext-base supervisor netcat-openbsd && \
+    apt install -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc git nginx gettext-base supervisor netcat-openbsd && \
     pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
     pip3 install --root-user-action=ignore --no-compile --requirement /requirements.txt && \
     install -d -o root -g root -m 755 /data
