@@ -42,6 +42,7 @@
                 <input type="text" class="form-control" name="environment" placeholder="production">
                 {% else %}
                 <select class="form-select" name="environment">
+                  <option value="" selected>(not set)</option>
                   {% for env in puppet_environments %}
                   <option value="{{ env }}">{{ env }}</option>
                   {% endfor %}

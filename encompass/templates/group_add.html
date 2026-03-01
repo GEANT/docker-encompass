@@ -25,6 +25,7 @@
                 <input type="text" class="form-control" name="environment" placeholder="production">
                 {% else %}
                 <select class="form-select" name="environment">
+                  <option value="" selected>(not set)</option>
                   {% for env in puppet_environments %}
                   <option value="{{ env }}">{{ env }}</option>
                   {% endfor %}
@@ -189,10 +190,20 @@
           document.getElementById('addGroupForm').addEventListener('submit', function(e) {
             const classInputs = document.querySelectorAll('#classes-list input[name="classes[]"]');
             const hasValidClass = Array.from(classInputs).some(input => input.value.trim() !== '');
+            const groupNameInput = document.getElementById('groupname');
+            const groupName = groupNameInput ? groupNameInput.value.trim() : '';
+            const hostInputs = document.querySelectorAll('#hosts-list input[name="hosts[]"]');
+            const hasValidHost = Array.from(hostInputs).some(input => input.value.trim() !== '');
             
             if (!hasValidClass) {
               e.preventDefault();
               alert('At least one class is required to create a group.');
+              return;
+            }
+
+            if (groupName !== 'default' && !hasValidHost) {
+              e.preventDefault();
+              alert('At least one host selector is required for non-default groups.');
             }
           });
         })();

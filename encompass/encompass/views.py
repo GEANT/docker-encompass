@@ -903,6 +903,20 @@ def group_add(request):
             },
         )
 
+    # Validate that at least one host selector is provided for non-default groups
+    if groupname != "default" and not hosts:
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": [
+                    "At least one host selector is required for non-default groups",
+                    settings.TRY_AGAIN,
+                ],
+                "current_version": settings.CURRENT_VERSION,
+            },
+        )
+
     # Build parameters dict from keys and values
     param_keys = request.POST.getlist("param_keys[]")
     param_values = request.POST.getlist("param_values[]")
@@ -923,6 +937,15 @@ def group_add(request):
         commit_actor = user_helpers.get_user_commit_info(request.user)
         tools.create_group(groupname, group_payload, actor=commit_actor)
         messages.success(request, f"Group '{groupname}' created successfully!")
+    except ValueError as e:
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": [str(e), settings.TRY_AGAIN],
+                "current_version": settings.CURRENT_VERSION,
+            },
+        )
     except tools.EncapsuleTriggerError as sync_error:
         logger.warning(
             "Group create completed but enCapsule sync failed for '%s': %s",

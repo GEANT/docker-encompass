@@ -36,6 +36,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
 - [HA considerations](#ha-considerations)
 - [enCapsule Agent Runtime](#encapsule-agent-runtime)
 - [Security Checklist](#security-checklist)
+- [Doubts and open questions](#doubts-and-open-questions)
 - [ToDo](#todo)
 - [License](#license)
 
@@ -411,20 +412,13 @@ It’s recommended to back up your MySQL database when Database authentication i
 - Set non-default bootstrap passwords for local auth mode
 - Enable `USE_SSL` for production exposure
 
-## Release Notes
+## Doubts and open questions
 
-Current release highlights:
-
-- Added paginated Git history view (`/encompass/git_log/`) with current branch display.
-- Added PuppetDB unclassified hosts view (`/encompass/unclassified_hosts/`) with optional feature flag (`UNCLASSIFIED_HOSTS_ENABLED`).
-- Added regex host selectors in `groups.yaml` using `/regex/` syntax, with deterministic match order.
-- Improved save/commit/push UX so enCapsule fan-out failures are reported as warnings instead of blocking data writes.
-- Added manual “Sync with enCapsule” action from the Home page for admin users.
-- Standardized Git branch handling on `GIT_BRANCH` (legacy `GIT_REPO_BRANCH` removed).
+- at the moment enCompass allows setting empty classes for `hosts`/`groups`, which is valid and it might come to hand in some edge cases. Is it sensible?
 
 ## ToDo
 
-- Add Kerberos/LDAP password change support
+- feature branche: let's think about it, maybe we can just have the UI always support free-text environment and the dropdown is only a helper (with blank option for not set)
 
 ## License
 

@@ -493,6 +493,8 @@ def update_group(groupname: str, payload: dict, actor: dict | None = None) -> di
             raise Exception(f"ENC error for {groupname}: 404")
             # pylint: enable=broad-exception-raised
         normalized = enc_data.normalize_group_payload(payload)
+        if groupname != "default" and not normalized.get("hosts", []):
+            raise ValueError("At least one host selector is required for non-default groups")
         validate_group_selector_overlaps(
             groups, groupname, normalized.get("hosts", [])
         )
@@ -509,6 +511,8 @@ def create_group(groupname: str, payload: dict, actor: dict | None = None) -> di
     with enc_data.data_lock("groups"):
         groups = enc_data.load_map("groups")
         normalized = enc_data.normalize_group_payload(payload)
+        if groupname != "default" and not normalized.get("hosts", []):
+            raise ValueError("At least one host selector is required for non-default groups")
         validate_group_selector_overlaps(
             groups, groupname, normalized.get("hosts", [])
         )

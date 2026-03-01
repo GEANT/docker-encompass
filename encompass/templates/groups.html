@@ -130,10 +130,11 @@
           }
 
           const normalized = String(value);
-          const options = puppetEnvironments.map((env) => {
+          const blankSelected = normalized === '' ? ' selected' : '';
+          const options = [`<option value=""${blankSelected}>(not set)</option>`].concat(puppetEnvironments.map((env) => {
             const selected = env === normalized ? ' selected' : '';
             return `<option value="${escapeHtml(env)}"${selected}>${escapeHtml(env)}</option>`;
-          }).join('');
+          })).join('');
 
           return `<select class="form-select ${cssClass}">${options}</select>`;
         }
@@ -382,6 +383,11 @@
               }
 
               const payload = collectPayloadFromEditor(editorRoot, groupname);
+
+              if (groupname !== 'default' && (!Array.isArray(payload.hosts) || payload.hosts.length === 0)) {
+                alert('At least one host selector is required for non-default groups.');
+                return;
+              }
 
               try {
                 const response = await fetch('/encompass/group_save/', {

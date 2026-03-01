@@ -120,10 +120,11 @@
           }
 
           const normalized = String(value);
-          const options = puppetEnvironments.map((env) => {
+          const blankSelected = normalized === '' ? ' selected' : '';
+          const options = [`<option value=""${blankSelected}>(not set)</option>`].concat(puppetEnvironments.map((env) => {
             const selected = env === normalized ? ' selected' : '';
             return `<option value="${escapeHtml(env)}"${selected}>${escapeHtml(env)}</option>`;
-          }).join('');
+          })).join('');
 
           return `<select class="form-select ${cssClass}">${options}</select>`;
         }
