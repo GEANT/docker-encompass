@@ -48,6 +48,15 @@ In `site.pp`, a broad early matcher (catch-all style logic) can effectively over
 
 This is a common source of hard-to-debug behavior drift.
 
+## Ordering in OpenVox/Puppet
+
+For OpenVox/Puppet compilation, `site.pp` is evaluated first and ENC classification is applied after.
+
+Practical implication:
+
+- broad catch-all rules in `site.pp` can still interfere with an ENC-first operating model.
+- during migration, remove or narrow catch-all logic so ENC remains the effective source of classification intent.
+
 ## How enCompass ENC resolves nodes
 
 In this implementation, resolution is deterministic:
@@ -89,4 +98,5 @@ These views improve day-2 operations by making drift, leftovers, and custom bran
 
 - Prefer one source of truth for classification (ENC or manifest), not both
 - If both exist during migration, document ownership boundaries clearly
+- Remove or constrain broad catch-all expressions in `site.pp` when enabling ENC
 - Keep a fallback strategy for ENC unavailability

@@ -191,14 +191,14 @@ If you are migrating from `site.pp`-based classification to ENC, you can start s
 
 About lookup/precedence:
 
-- enCompass ENC resolves in this order: exact host -> first matching group selector -> `default`.
-- Puppet still compiles manifests from the selected environment, including `site.pp`.
-- In practice, ENC provides classification data (classes/parameters/environment), then Puppet compiles your codebase.
+- enCompass ENC data resolves in this order: exact host -> first matching group selector -> `default`.
+- In OpenVox/Puppet compilation, `site.pp` is evaluated before ENC classification is applied.
+- This means broad catch-all logic in `site.pp` can conflict with or dilute the intended ENC-driven model.
 
 Operational guidance:
 
 - Avoid keeping competing classification logic in both ENC and `site.pp` for the same nodes.
-- Keep `site.pp` minimal (for example fallback/safety) when ENC is the source of truth.
+- Remove or narrow broad catch-all rules in `site.pp` when adopting ENC.
 - If ENC omits `environment`, Puppet uses the node/default environment (commonly `production`).
 - Detailed comparison: [site.pp vs enCompass ENC](docs/SITEPP_VS_ENC.md).
 

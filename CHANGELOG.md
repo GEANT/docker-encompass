@@ -1,9 +1,18 @@
+## [unreleased]
+
+### 📚 Documentation
+
+- Doc(migration): clarify ordering and implications of site.pp and ENC in OpenVox/Puppet
 ## [0.9.1] - 2026-03-01
 
 ### 🚀 Features
 
 - Feat(docs): add migration notes and comparison between site.pp and enCompass ENC
 - Feat(ci): try deleting an image before pushing
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(release): update changelog for 0.9.1
 ## [0.9.0] - 2026-03-01
 
 ### 🚀 Features
