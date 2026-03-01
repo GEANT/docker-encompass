@@ -10,6 +10,7 @@ build_encompass:
     - printf '%s' "$AFACTORY_TOKEN" | docker login -u "$AFACTORY_USER" --password-stdin "$AFACTORY_HOST"
     - docker build --no-cache --build-arg CACHEBUST="$(date +%s)" -f Dockerfiles/encompass -t "encompass:$CI_COMMIT_TAG" .
     # Push the image using the tag number from the git tag
+    - curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${AFACTORY_HOST}/artifactory/geant-devops-docker/encompass:$CI_COMMIT_TAG"
     - docker tag "encompass:$CI_COMMIT_TAG" "$AFACTORY_HOST/geant-devops-docker/encompass:$CI_COMMIT_TAG"
     - docker image push "$AFACTORY_HOST/geant-devops-docker/encompass:$CI_COMMIT_TAG"
     # Push the image using the 'latest' tag
@@ -29,6 +30,7 @@ build_encapsule:
     - printf '%s' "$AFACTORY_TOKEN" | docker login -u "$AFACTORY_USER" --password-stdin "$AFACTORY_HOST"
     - docker build --no-cache --build-arg CACHEBUST="$(date +%s)" -f Dockerfiles/encapsule -t "encapsule:$CI_COMMIT_TAG" .
     # Push the image using the tag number from the git tag
+    - curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${AFACTORY_HOST}/artifactory/geant-devops-docker/encapsule:$CI_COMMIT_TAG"
     - docker tag "encapsule:$CI_COMMIT_TAG" "$AFACTORY_HOST/geant-devops-docker/encapsule:$CI_COMMIT_TAG"
     - docker image push "$AFACTORY_HOST/geant-devops-docker/encapsule:$CI_COMMIT_TAG"
     # Push the image using the 'latest' tag

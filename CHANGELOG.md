@@ -3,6 +3,7 @@
 ### 🚀 Features
 
 - Feat(docs): add migration notes and comparison between site.pp and enCompass ENC
+- Feat(ci): try deleting an image before pushing
 ## [0.9.0] - 2026-03-01
 
 ### 🚀 Features
