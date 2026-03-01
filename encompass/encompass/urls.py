@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+import os
 from django.conf import settings
 from django.shortcuts import redirect
 from django.urls import path
@@ -24,6 +25,7 @@ from django.views.generic.base import RedirectView
 from django.contrib import admin
 from . import views
 from . import enc_views
+from .forms import EncompassAuthenticationForm
 
 
 def _encompass_admin_has_permission(request):
@@ -48,13 +50,19 @@ extra = {
     "is_db_auth": settings.USE_AUTH_MYSQL,
     "is_ldap_auth": settings.USE_AUTH_LDAP,
     "demo_mode": settings.DEMO_MODE,
+    "ldap_password_reset_url": os.environ.get("LDAP_PASSWORD_RESET_URL", "").strip(),
+    "ldap_password_reset_help": os.environ.get("LDAP_PASSWORD_RESET_HELP", "").strip(),
 }
 
 urlpatterns = [
     re_path(r"^favicon\.ico$", favicon_view),
     re_path(
         r"^encompass/login/$",
-        auth_views.LoginView.as_view(template_name="login.html", extra_context=extra),
+        auth_views.LoginView.as_view(
+            template_name="login.html",
+            authentication_form=EncompassAuthenticationForm,
+            extra_context=extra,
+        ),
         name="login",
     ),
     re_path(

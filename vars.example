@@ -59,6 +59,9 @@ LDAP_USER_SEARCH_FILTER=""   # optional override, default depends on LDAP_PROFIL
 LDAP_GROUP_SEARCH_FILTER=""  # optional override, default depends on LDAP_PROFILE
 LDAP_GROUP_TYPE=""  # optional: ad_nested|ad|groupofnames|posix
 LDAP_USER_ATTR_MAP='{"first_name": "givenName", "last_name": "sn", "email": "mail"}'
+# optional login hint for expired passwords (for AD setups)
+LDAP_PASSWORD_RESET_URL=""   # optional absolute URL to external reset portal
+LDAP_PASSWORD_RESET_HELP=""  # optional fallback message when no portal URL exists
 
 # git settings (only SSH key-based authentication is supported)
 # ssh key must NOT be password-protected

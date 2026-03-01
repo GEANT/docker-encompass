@@ -56,8 +56,23 @@ Login
             </td>
           </tr>
         </table>
-        {% if form.errors %}
-        <p class="text-danger">You entered an invalid username or password. Please try again.</p>
+        {% if form.non_field_errors %}
+          {% for err in form.non_field_errors %}
+            <p class="text-danger">{{ err }}</p>
+          {% endfor %}
+        {% elif form.errors %}
+          <p class="text-danger">You entered an invalid username or password. Please try again.</p>
+        {% endif %}
+
+        {% if form.errors and is_ldap_auth %}
+          {% if ldap_password_reset_url %}
+            <p class="text-muted">
+              If your password has expired, reset it here:
+              <a href="{{ ldap_password_reset_url }}" target="_blank" rel="noopener noreferrer">{{ ldap_password_reset_url }}</a>
+            </p>
+          {% elif ldap_password_reset_help %}
+            <p class="text-muted">{{ ldap_password_reset_help }}</p>
+          {% endif %}
         {% endif %}
         <input type="submit" value="Login" class="btn btn-primary pull-center" />
         <input type="hidden" name="next" value="{{ next }}" />

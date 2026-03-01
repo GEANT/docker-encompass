@@ -1,5 +1,12 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- Feat(logs): improve logging
+- Feat(enc): forbid empty host in groups
+- Feat(environments): addd feature branch inventory card when FEATURE_BRANCH=true
+- Feat(ldap): add warn message if the password expired
+
 ### 📚 Documentation
 
 - Doc: add ToDo top implement Kerberos/LDAP password change support

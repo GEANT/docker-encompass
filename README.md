@@ -37,7 +37,6 @@ It does not depend on database and boots up in just 1 second making it ideal for
 - [enCapsule Agent Runtime](#encapsule-agent-runtime)
 - [Security Checklist](#security-checklist)
 - [Doubts and open questions](#doubts-and-open-questions)
-- [ToDo](#todo)
 - [License](#license)
 
 ## Development Guide
@@ -414,11 +413,7 @@ It’s recommended to back up your MySQL database when Database authentication i
 
 ## Doubts and open questions
 
-- at the moment enCompass allows setting empty classes for `hosts`/`groups`, which is valid and it might come to hand in some edge cases. Is it sensible?
-
-## ToDo
-
-- feature branche: let's think about it, maybe we can just have the UI always support free-text environment and the dropdown is only a helper (with blank option for not set)
+- enCompass allows setting empty classes for `hosts`/`groups`, which is valid and it might come to hand in some edge cases. Is it sensible and appropriate?
 
 ## License
 
