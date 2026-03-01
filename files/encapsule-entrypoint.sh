@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 set -e
 
+export GIT_READ_ONLY=true
 /usr/local/bin/git-setup.sh
 
 cd /code/encompass

@@ -55,6 +55,7 @@ if [ "$USE_SSL" = "true" ]; then
     export ENC_HTTP_REDIRECT='return 301 https://$host:8444$request_uri;'
 
     export ENCOMPASS_SSL_SERVER="
+
     server {
         listen 8443 ssl;
         ssl_certificate ${SSL_CERT_PATH};
@@ -79,6 +80,7 @@ if [ "$USE_SSL" = "true" ]; then
 "
 
     export ENC_SSL_SERVER="
+
     server {
         listen 8444 ssl;
         ssl_certificate ${SSL_CERT_PATH};

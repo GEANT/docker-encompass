@@ -13,7 +13,12 @@ http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
 
-    access_log /dev/stdout;
+    map $request_uri $loggable {
+        default 1;
+        ~^/healthz(?:\?.*)?$ 0;
+    }
+
+    access_log /dev/stdout combined if=$loggable;
     error_log /dev/stderr warn;
 
     upstream django_backend {
@@ -23,7 +28,6 @@ http {
     server {
         listen 8080;
         ${ENCOMPASS_HTTP_REDIRECT}
-
         location /static/ {
             alias /code/static/static/;
             try_files $uri =404;
@@ -45,7 +49,6 @@ http {
     server {
         listen 8081;
         ${ENC_HTTP_REDIRECT}
-
         location = /healthz {
             proxy_set_header Host $host;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -70,7 +73,5 @@ http {
         location / {
             return 404;
         }
-    }
-${ENCOMPASS_SSL_SERVER}
-${ENC_SSL_SERVER}
+    }${ENCOMPASS_SSL_SERVER}${ENC_SSL_SERVER}
 }

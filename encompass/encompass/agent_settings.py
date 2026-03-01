@@ -118,5 +118,10 @@ LOGGING = {
             "level": ENCAPSULE_LOG_LEVEL,
             "propagate": False,
         },
+        "encompass": {
+            "handlers": ["stream_to_console"],
+            "level": ENCAPSULE_LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }

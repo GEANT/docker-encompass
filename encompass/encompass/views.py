@@ -9,6 +9,7 @@ import json
 import logging
 import re
 from functools import wraps
+import ldap
 import yaml
 import markdown
 from django.conf import settings
@@ -22,6 +23,11 @@ from django.templatetags.static import static
 from . import tools
 from . import user_helpers
 from . import spring_cleaning
+
+LDAP_OPT_PROTOCOL_VERSION = getattr(ldap, "OPT_PROTOCOL_VERSION", 3)
+LDAP_OPT_REFERRALS = getattr(ldap, "OPT_REFERRALS", 0)
+LDAP_MOD_DELETE = getattr(ldap, "MOD_DELETE", 1)
+LDAP_MOD_ADD = getattr(ldap, "MOD_ADD", 0)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -99,13 +105,131 @@ def get_user_identity(user):
     }
 
 
+def _normalize_group_value(value: str) -> str:
+    """Normalize LDAP group DNs for resilient comparisons."""
+    return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def _group_name_from_dn(value: str) -> str:
+    """Extract group common name from a DN if present (CN=...)."""
+    token = str(value or "").strip()
+    for part in token.split(","):
+        head = part.strip()
+        if head.lower().startswith("cn="):
+            return head[3:].strip().lower()
+    return token.lower()
+
+
+def _user_in_any_group(groups, expected_groups) -> bool:
+    """Match user groups against expected groups by normalized DN and CN."""
+    normalized_user = {_normalize_group_value(item) for item in groups}
+    names_user = {_group_name_from_dn(item) for item in groups}
+
+    for expected in expected_groups:
+        expected_dn = _normalize_group_value(expected)
+        expected_name = _group_name_from_dn(expected)
+        if expected_dn in normalized_user or expected_name in names_user:
+            return True
+    return False
+
+
+def _ldap_error_detail(err: Exception) -> str:
+    """Extract a concise, user-friendly detail from an LDAP exception."""
+    if not getattr(err, "args", None):
+        return ""
+    first = err.args[0]
+    if isinstance(first, dict):
+        desc = str(first.get("desc", "")).strip()
+        info = str(first.get("info", "")).strip()
+        return ": ".join(part for part in (desc, info) if part)
+    return str(first).strip()
+
+
+def _is_ldap_exception(err: Exception, exc_name: str) -> bool:
+    """Best-effort check for a specific python-ldap exception class."""
+    exc_cls = getattr(ldap, exc_name, None)
+    return isinstance(exc_cls, type) and isinstance(err, exc_cls)
+
+
+def _change_password_ldap(user, current_password: str, new_password: str):
+    """Change user password against LDAP/AD using the authenticated user DN."""
+    ldap_user = getattr(user, "ldap_user", None)
+    user_dn = str(getattr(ldap_user, "dn", "")).strip()
+    if not user_dn:
+        return False, "Unable to resolve your LDAP identity for password change."
+
+    ldap_profile = str(getattr(settings, "LDAP_PROF", "ad")).strip().lower()
+    ldap_proto = str(os.environ.get("LDAP_PROTO", "")).strip().lower()
+    if ldap_profile == "ad" and ldap_proto != "ldaps":
+        return (
+            False,
+            "Active Directory password change requires LDAPS (set LDAP_PROTO=ldaps).",
+        )
+
+    conn = None
+    try:
+        conn = ldap.initialize(settings.AUTH_LDAP_SERVER_URI)
+        conn.set_option(LDAP_OPT_PROTOCOL_VERSION, 3)
+        conn.set_option(LDAP_OPT_REFERRALS, 0)
+        conn.simple_bind_s(user_dn, current_password)
+
+        if ldap_profile == "ad":
+            old_password = f'"{current_password}"'.encode("utf-16-le")
+            updated_password = f'"{new_password}"'.encode("utf-16-le")
+            conn.modify_s(
+                user_dn,
+                [
+                    (LDAP_MOD_DELETE, "unicodePwd", [old_password]),
+                    (LDAP_MOD_ADD, "unicodePwd", [updated_password]),
+                ],
+            )
+        else:
+            conn.passwd_s(user_dn, current_password, new_password)
+
+        return True, "Password updated successfully. Please log in again."
+    except Exception as err:  # pylint: disable=broad-except
+        if _is_ldap_exception(err, "INVALID_CREDENTIALS"):
+            return False, "Current password is incorrect"
+
+        if _is_ldap_exception(err, "CONSTRAINT_VIOLATION"):
+            detail = _ldap_error_detail(err)
+            message = "New password does not meet directory policy requirements"
+            if detail:
+                message = f"{message}: {detail}"
+            return False, message
+
+        if _is_ldap_exception(err, "UNWILLING_TO_PERFORM"):
+            detail = _ldap_error_detail(err)
+            message = "Directory refused the password change request"
+            if detail:
+                message = f"{message}: {detail}"
+            return False, message
+
+        detail = _ldap_error_detail(err)
+        logger.warning(
+            "LDAP password change failed for user '%s': %s",
+            user.get_username(),
+            detail or repr(err),
+        )
+        message = "Password change failed due to a directory error"
+        if detail:
+            message = f"{message}: {detail}"
+        return False, message
+    finally:
+        if conn is not None:
+            try:
+                conn.unbind_s()
+            except Exception:  # pylint: disable=broad-except
+                pass
+
+
 def group_required_ldap(group_dn: str | list):
     """group(s) required"""
     group_dn_list = group_dn if isinstance(group_dn, list) else [group_dn]
 
     def in_group_ldap(user):
         groups = get_user_groups(user)
-        if any(group in groups for group in group_dn_list):
+        if _user_in_any_group(groups, group_dn_list):
             return True
         return False
 
@@ -147,14 +271,17 @@ def healthz(_request):
 
 @login_required(login_url="/encompass/login/")
 def user_settings(request):
-    """Allow MySQL users to change their own password."""
-    if not getattr(settings, "USE_AUTH_MYSQL", False):
+    """Allow users to change their own password for supported auth backends."""
+    is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
+    is_ldap_auth = getattr(settings, "USE_AUTH_LDAP", False)
+
+    if not is_db_auth and not is_ldap_auth:
         return render(
             request,
             settings.ERROR_HTML,
             {
                 "results": [
-                    "User settings are managed externally (LDAP mode)",
+                    "User settings are managed externally",
                     settings.TRY_AGAIN,
                 ],
                 "current_version": settings.CURRENT_VERSION,
@@ -167,6 +294,10 @@ def user_settings(request):
     group_name = tools.get_groups_info(groups)
 
     if request.method == "POST":
+        if settings.DEMO_MODE:
+            messages.error(request, "This feature is unavailable on the demo site")
+            return redirect("/encompass/user_settings/")
+
         current_password = request.POST.get("current_password", "")
         new_password = request.POST.get("new_password", "")
         confirm_password = request.POST.get("confirm_password", "")
@@ -177,18 +308,28 @@ def user_settings(request):
             messages.error(request, "New password cannot be empty")
         elif new_password != confirm_password:
             messages.error(request, "New password and confirmation do not match")
-        else:
+        elif is_db_auth:
             request.user.set_password(new_password)
             request.user.save(update_fields=["password"])
             messages.success(
                 request, "Password updated successfully. Please log in again."
             )
             return redirect("/encompass/logout_confirmation/")
+        else:
+            changed, message = _change_password_ldap(
+                request.user, current_password, new_password
+            )
+            if changed:
+                messages.success(request, message)
+                return redirect("/encompass/logout_confirmation/")
+            messages.error(request, message)
 
     context = {
         "encompass_email": identity["email"],
         "disp_name": identity["display_name"],
         "group_name": group_name,
+        "is_db_auth": is_db_auth,
+        "is_ldap_auth": is_ldap_auth,
         "demo_mode": settings.DEMO_MODE,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
@@ -869,7 +1010,8 @@ def home_page(request):
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
     is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
-    is_admin = settings.ENC_ADMIN_GROUP in groups
+    is_ldap_auth = getattr(settings, "USE_AUTH_LDAP", False)
+    is_admin = _user_in_any_group(groups, [settings.ENC_ADMIN_GROUP])
     if is_db_auth:
         is_admin = is_admin and request.user.get_username() == "admin"
     context = {
@@ -880,6 +1022,7 @@ def home_page(request):
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "is_db_auth": is_db_auth,
+        "is_ldap_auth": is_ldap_auth,
         "is_admin": is_admin,
         "encapsule_sync_enabled": tools.encapsule_sync_enabled(),
     }
@@ -916,7 +1059,9 @@ def host_list(request):
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
     is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
-    can_save_hosts = request.user.is_superuser or settings.ENC_ADMIN_GROUP in groups
+    can_save_hosts = request.user.is_superuser or _user_in_any_group(
+        groups, [settings.ENC_ADMIN_GROUP]
+    )
     if is_db_auth and not request.user.is_superuser:
         can_save_hosts = can_save_hosts and request.user.get_username() == "admin"
     host_names = tools.list_hosts()
@@ -944,7 +1089,9 @@ def group_list(request):
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
     is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
-    can_save_groups = request.user.is_superuser or settings.ENC_ADMIN_GROUP in groups
+    can_save_groups = request.user.is_superuser or _user_in_any_group(
+        groups, [settings.ENC_ADMIN_GROUP]
+    )
     if is_db_auth and not request.user.is_superuser:
         can_save_groups = can_save_groups and request.user.get_username() == "admin"
     groups_list = tools.list_groups()

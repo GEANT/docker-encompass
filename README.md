@@ -17,6 +17,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
 ## Index
 
 - [Features](#features)
+- [Development Guide](#development-guide)
 - [Deployment](#deployment)
   - [Nomad Deployment](#nomad-deployment)
   - [Kubernetes Deployment](#kubernetes-deployment)
@@ -37,6 +38,11 @@ It does not depend on database and boots up in just 1 second making it ideal for
 - [Security Checklist](#security-checklist)
 - [ToDo](#todo)
 - [License](#license)
+
+## Development Guide
+
+- Full developer notes: <https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DEVELOPMENT.md>
+- Sync flow chapter: <https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DEVELOPMENT.md#encompass-to-encapsule-sync-flow>
 
 ## Features
 

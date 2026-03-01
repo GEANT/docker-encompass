@@ -8,6 +8,7 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 ## Index
 
 - [Development Notes](#development-notes)
+- [Encompass To Encapsule Sync Flow](#encompass-to-encapsule-sync-flow)
 - [Local Python Run (Optional)](#local-python-run-optional)
 - [Troubleshooting](#troubleshooting)
 - [ToDo](#todo)
@@ -18,6 +19,47 @@ Demo site: [encompass-demo.geant.org](https://encompass-demo.geant.org/)
 - In non-debug mode, Gunicorn serves Django behind Nginx.
 - Static files are collected automatically on container startup.
 - Database migrations are applied automatically when pending.
+
+## Encompass To Encapsule Sync Flow
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant UI as enCompass UI
+  participant V as Django views.py
+  participant T as tools.py
+  participant G as Git repo (/data)
+  participant S as encapsule-sync.sh
+  participant A as enCapsule /sync
+  participant GS as git-setup.sh (enCapsule)
+
+  Note over UI,V: Automatic flow starts after host/group write operations
+  V->>T: _sync_after_write(actor, action)
+  T->>G: git add + commit + push (if YAML changed)
+  T->>S: run /usr/local/bin/encapsule-sync.sh
+  S->>A: POST /sync + X-Encapsule-Token (fan-out)
+  A->>GS: run /usr/local/bin/git-setup.sh
+  GS->>G: fetch/checkout/reset (pull latest)
+  A-->>S: 200 {status: ok}
+
+  Note over UI,V: Manual flow from home page button
+  UI->>V: POST /encompass/encapsule_sync/
+  V->>T: trigger_encapsule_sync_now()
+  T->>S: run fan-out script (no local write required)
+```
+
+### Runtime controls
+
+- `USE_ENCAPSULE=true|false`: enables/disables fan-out trigger.
+- `GIT_SYNC_MODE=sync|async`: synchronous vs background retries on enCompass side.
+- `ENCAPSULE_SYNC_TOKEN`: shared token required by enCapsule `/sync` endpoint.
+- `ENCAPSULE_SYNC_HOST`: one or more targets (host, host:port, URL, or SRV).
+- `ENCAPSULE_SYNC_SCHEME`, `ENCAPSULE_SYNC_PORT`, `ENCAPSULE_SYNC_PATH`, `ENCAPSULE_SYNC_TIMEOUT`: fan-out transport settings.
+
+### Read-only behavior in enCapsule
+
+- enCapsule runs `git-setup.sh` in read-only mode via `GIT_READ_ONLY=true` in `files/encapsule-entrypoint.sh`.
+- In read-only mode, `git-setup.sh` refuses branch creation/push and only syncs local checkout from origin.
 
 ## Local Python Run (Optional)
 

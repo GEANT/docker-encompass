@@ -3,6 +3,7 @@
 # variables:
 # - GIT_BRANCH: branch of the Git repository to use (default: main)
 # - GIT_REPO_URL: URL of the Git repository
+# - GIT_READ_ONLY: when true, disallow any git writes (push/commit/branch creation)
 # - SSH_KEY_TYPE: type of the SSH key (rsa, ed25519, ecdsa)
 # - GIT_REPO_PRIVATE_SSH_KEY: SSH key for accessing the Git repository
 # - GIT_REPO_PRIVATE_SSH_KEY_FILE: path to a file containing the SSH key
@@ -11,6 +12,7 @@
 set -e
 
 GIT_BRANCH="${GIT_BRANCH:-main}"
+GIT_READ_ONLY="${GIT_READ_ONLY:-false}"
 GIT_REPO="${GIT_REPO:-}"
 if [ -z "$GIT_REPO" ] && [ -n "${GIT_REPO_URL:-}" ]; then
     GIT_REPO="$GIT_REPO_URL"
@@ -41,6 +43,14 @@ case "$SSH_KEY_TYPE" in
 rsa | ed25519 | ecdsa) ;;
 *)
     echo "==> Git-setup: [ERROR] Unsupported SSH_KEY_TYPE: $SSH_KEY_TYPE. Supported types are: rsa, ed25519, ecdsa"
+    exit 1
+    ;;
+esac
+
+case "$GIT_READ_ONLY" in
+true | false) ;;
+*)
+    echo "==> Git-setup: [ERROR] GIT_READ_ONLY must be either 'true' or 'false'"
     exit 1
     ;;
 esac
@@ -93,33 +103,45 @@ if git show-ref --verify --quiet "refs/heads/$GIT_BRANCH"; then
 elif git ls-remote --exit-code --heads origin "$GIT_BRANCH" >/dev/null 2>&1; then
     git checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
 else
+    if [ "$GIT_READ_ONLY" = "true" ]; then
+        echo "==> Git-setup: [ERROR] Branch '$GIT_BRANCH' does not exist on origin and GIT_READ_ONLY=true prevents creating it"
+        exit 1
+    fi
     git checkout -b "$GIT_BRANCH"
     git push -u origin "$GIT_BRANCH"
 fi
 
-# inject the hosts.yaml and groups.yaml if they don't exist
-[ -f hosts.yaml ] || echo "---" >hosts.yaml
-[ -f groups.yaml ] || cp /root/.do-not-delete/groups.yaml groups.yaml
-cmp -s /root/.do-not-delete/README.md README.md || cp -f /root/.do-not-delete/README.md README.md
+# we skip enCapsule here since it doesn't have the .do-not-delete directory
+if [ "$GIT_READ_ONLY" = "true" ]; then
+    echo "==> Git-setup: Read-only mode enabled; skipping bootstrap/commit/push steps"
+elif [ -d /root/.do-not-delete ]; then
+    # inject the hosts.yaml and groups.yaml if they don't exist
+    [ -f hosts.yaml ] || echo "---" >hosts.yaml
+    [ -f groups.yaml ] || cp /root/.do-not-delete/groups.yaml groups.yaml
+    cmp -s /root/.do-not-delete/README.md README.md || cp -f /root/.do-not-delete/README.md README.md
 
-# clean up alien files and directories
-find . -maxdepth 1 -mindepth 1 -type d -not -path ./.git -exec rm -rf {} +
-find . -type f ! -name hosts.yaml ! -name groups.yaml \
-    ! -name README.md -not -path "./.git/*" ! -name .git -exec rm -f {} +
+    # clean up alien files and directories
+    find . -maxdepth 1 -mindepth 1 -type d -not -path ./.git -exec rm -rf {} +
+    find . -type f ! -name hosts.yaml ! -name groups.yaml \
+        ! -name README.md -not -path "./.git/*" ! -name .git -exec rm -f {} +
 
-# add and commit the initial files if there are changes
-git add hosts.yaml groups.yaml README.md
-git config user.name "${GIT_COMMIT_NAME:-encompass-bot}"
-git config user.email "${GIT_COMMIT_EMAIL:-encompass@local}"
+    # add and commit the initial files if there are changes
+    git add hosts.yaml groups.yaml README.md
+    git config user.name "${GIT_COMMIT_NAME:-encompass-bot}"
+    git config user.email "${GIT_COMMIT_EMAIL:-encompass@local}"
 
-if [ -z "$(git status -s)" ]; then
-    echo "==> Git-setup: No changes to commit, skipping commit and push"
-else
-    git commit -m "Initial commit of hosts.yaml, groups.yaml, and README.md"
-    if git push origin "$GIT_BRANCH"; then
-        echo "==> Git-setup: Successfully pushed initial commit to branch '$GIT_BRANCH'"
+    # only commit and push if there are changes to avoid unnecessary commits
+    if [ -z "$(git status -s)" ]; then
+        echo "==> Git-setup: No changes to commit, skipping commit and push"
     else
-        echo "==> Git-setup: [ERROR] Failed to push initial commit to branch '$GIT_BRANCH'"
-        exit 1
+        git commit -m "Initial commit of hosts.yaml, groups.yaml, and README.md"
+        if git push origin "$GIT_BRANCH"; then
+            echo "==> Git-setup: Successfully pushed initial commit to branch '$GIT_BRANCH'"
+        else
+            echo "==> Git-setup: [ERROR] Failed to push initial commit to branch '$GIT_BRANCH'"
+            exit 1
+        fi
     fi
 fi
+
+

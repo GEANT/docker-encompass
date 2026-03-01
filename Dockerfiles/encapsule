@@ -37,7 +37,7 @@ COPY files/root /root
 COPY --chmod=755 files/scripts/git-setup.sh /usr/local/bin/git-setup.sh
 COPY --chmod=755 files/encapsule-entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY encompass code/encompass
-RUN chmod 700 /root/.ssh
+RUN chmod 700 /root/.ssh && rm -rf /root/.do-not-delete
 
 # port explanations: check docker-compose.yml for details
 EXPOSE 8081
