@@ -2,6 +2,11 @@
 
 ### 🚀 Features
 
+- Feat(docs): add migration notes and comparison between site.pp and enCompass ENC
+## [0.9.0] - 2026-03-01
+
+### 🚀 Features
+
 - Feat(logs): improve logging
 - Feat(enc): forbid empty host in groups
 - Feat(environments): addd feature branch inventory card when FEATURE_BRANCH=true

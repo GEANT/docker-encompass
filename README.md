@@ -11,6 +11,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
 
 **Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)  
 **Repository URL**: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass)  
+**site.pp vs enCompass ENC**: [codeberg.org/GEANT/docker-encompass/docs/SITEPP_VS_ENC.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/SITEPP_VS_ENC.md)  
 
 ![enCompass screenshot](static/images/enCompass.png)
 
@@ -25,6 +26,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
     - [Quick Start (Docker)](#quick-start-docker)
 - [Endpoints](#endpoints)
 - [Puppet ENC Integration](#puppet-enc-integration)
+- [Migration Notes](#migration-notes)
 - [Puppet ENC Keywords](#puppet-enc-keywords)
 - [Configuration](#configuration)
   - [Core settings](#core-settings)
@@ -41,8 +43,8 @@ It does not depend on database and boots up in just 1 second making it ideal for
 
 ## Development Guide
 
-- Full developer notes: <https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DEVELOPMENT.md>
-- Sync flow chapter: <https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DEVELOPMENT.md#encompass-to-encapsule-sync-flow>
+- Full developer notes: [codeberg.org/GEANT/docker-encompass/docs/DEVELOPMENT.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DEVELOPMENT.md)
+- Sync flow chapter: [codeberg.org/GEANT/docker-encompass/docs/DEVELOPMENT.md#encompass-to-encapsule-sync-flow](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DEVELOPMENT.md#encompass-to-encapsule-sync-flow)
 
 ## Features
 
@@ -58,7 +60,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
 
 ### Nomad Deployment
 
-You can use [encompass-demo.nomad](examples/encompass-demo.nomad) and adjust it to your needs.
+You can use [encompass-demo.nomad](https://codeberg.org/GEANT/docker-encompass/src/branch/main/examples/encompass-demo.nomad) and adjust it to your needs.
 
 The job contains:
 
@@ -178,6 +180,27 @@ sudo puppet config print node_terminus external_nodes --section master
 ```
 
 The ENC command must return valid YAML for the requested node and exit with code `0`.
+
+## Migration Notes
+
+If you are migrating from `site.pp`-based classification to ENC, you can start safely with a minimal ENC setup:
+
+- Keep only `default` in ENC and assign one test profile/class.
+- Validate one or a few nodes first.
+- Gradually add host/group-specific rules after confidence is built.
+
+About lookup/precedence:
+
+- enCompass ENC resolves in this order: exact host -> first matching group selector -> `default`.
+- Puppet still compiles manifests from the selected environment, including `site.pp`.
+- In practice, ENC provides classification data (classes/parameters/environment), then Puppet compiles your codebase.
+
+Operational guidance:
+
+- Avoid keeping competing classification logic in both ENC and `site.pp` for the same nodes.
+- Keep `site.pp` minimal (for example fallback/safety) when ENC is the source of truth.
+- If ENC omits `environment`, Puppet uses the node/default environment (commonly `production`).
+- Detailed comparison: [site.pp vs enCompass ENC](docs/SITEPP_VS_ENC.md).
 
 ## Configuration
 
@@ -307,6 +330,8 @@ The repository now includes an agent runtime named **enCapsule**.
 - It uses the same shared ENC core logic as enCompass.
 
 ### Run enCapsule with Docker Compose
+
+A full description of enCapsule and its sync flow with enCompass is available in the [enCapsule documentation](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/ENCAPSULE.md).
 
 ```bash
 docker compose --profile encapsule up --build encapsule

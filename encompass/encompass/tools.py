@@ -27,9 +27,7 @@ _SYNC_RESULT = threading.local()
 
 
 class EncSyncError(Exception):
-    """
-    Raised when Git sync or enCapsule sync fails after ENC writes.
-    """
+    """Raised when Git sync or enCapsule sync fails after ENC writes"""
 
 
 class EncapsuleTriggerError(EncSyncError):
@@ -69,16 +67,12 @@ def _git_sync_mode() -> str:
 
 
 def sync_runs_async() -> bool:
-    """
-    Return True when sync is configured to run asynchronously.
-    """
+    """Return True when sync is configured to run asynchronously."""
     return _git_sync_mode() == "async"
 
 
 def encapsule_sync_enabled() -> bool:
-    """
-    Return True when enCapsule sync fan-out is enabled.
-    """
+    """Return True when enCapsule sync fan-out is enabled."""
     value = str(os.environ.get("USE_ENCAPSULE", "true")).strip().lower()
     return value not in {"0", "false", "no", "off"}
 
@@ -91,9 +85,7 @@ def get_last_sync_result() -> dict:
 
 
 def _set_last_sync_result(state: str, details: str | None = None) -> None:
-    """
-    Store sync outcome for the current request thread.
-    """
+    """Store sync outcome for the current request thread."""
     value = {"state": state}
     if details:
         value["details"] = details
@@ -120,9 +112,7 @@ def _commit_actor(actor: dict | None) -> tuple[str, str, str]:
 
 
 def _commit_message(action: str | None, author: str) -> str:
-    """
-    Build commit message with optional action context and actor metadata.
-    """
+    """Build commit message with optional action context and actor metadata."""
     base_message = str(os.environ.get("GIT_COMMIT_MESSAGE", "ENC data update")).strip()
     if not base_message:
         base_message = "ENC data update"
@@ -132,9 +122,7 @@ def _commit_message(action: str | None, author: str) -> str:
 
 
 def _run_checked(command, cwd=None, timeout=None) -> subprocess.CompletedProcess:
-    """
-    Run command and raise EncSyncError with stderr/stdout on failure.
-    """
+    """Run command and raise EncSyncError with stderr/stdout on failure."""
     try:
         result = subprocess.run(
             command,
@@ -155,9 +143,7 @@ def _run_checked(command, cwd=None, timeout=None) -> subprocess.CompletedProcess
 
 
 def _sync_git_repo(actor: dict | None = None, action: str | None = None) -> bool:
-    """
-    Commit and push ENC data if there are staged/unstaged changes.
-    """
+    """Commit and push ENC data if there are staged/unstaged changes."""
     timeout = _env_int("GIT_SYNC_TIMEOUT", 30)
 
     _run_checked(
@@ -192,9 +178,7 @@ def _sync_git_repo(actor: dict | None = None, action: str | None = None) -> bool
 
 
 def _trigger_encapsule_sync() -> None:
-    """
-    Trigger enCapsule sync fan-out unless disabled by USE_ENCAPSULE.
-    """
+    """Trigger enCapsule sync fan-out unless disabled by USE_ENCAPSULE."""
     use_encapsule = str(os.environ.get("USE_ENCAPSULE", "true")).strip().lower()
     if use_encapsule in {"0", "false", "no", "off"}:
         logger.info("USE_ENCAPSULE disabled: skipping enCapsule sync fan-out")
@@ -217,9 +201,7 @@ def _sync_once(
     action: str | None = None,
     force_trigger: bool = False,
 ) -> bool:
-    """
-    Perform a single sync operation: commit/push ENC data and trigger enCapsule sync if needed.
-    """
+    """Perform a single sync operation: commit/push ENC data and trigger enCapsule sync if needed"""
     if force_trigger:
         _trigger_encapsule_sync()
         return True
@@ -278,9 +260,7 @@ def _sync_with_retries(
 
 
 def _sync_worker() -> None:
-    """
-    Background worker function to perform enCapsule sync fan-out with retries.
-    """
+    """Background worker function to perform enCapsule sync fan-out with retries."""
     while True:
         with _SYNC_STATE_LOCK:
             actor = _SYNC_STATE["actor"]
@@ -301,9 +281,7 @@ def _sync_worker() -> None:
 
 
 def _enqueue_async_sync(actor: dict | None = None, action: str | None = None) -> None:
-    """
-    Enqueue an asynchronous ENC sync operation if not already running.
-    """
+    """Enqueue an asynchronous ENC sync operation if not already running."""
     with _SYNC_STATE_LOCK:
         _SYNC_STATE["pending"] = True
         _SYNC_STATE["actor"] = actor
@@ -317,9 +295,7 @@ def _enqueue_async_sync(actor: dict | None = None, action: str | None = None) ->
 
 
 def _sync_after_write(actor: dict | None = None, action: str | None = None) -> None:
-    """
-    Commit/push YAML changes and trigger enCapsule sync when needed.
-    """
+    """Commit/push YAML changes and trigger enCapsule sync when needed."""
     if _git_sync_mode() == "async":
         _set_last_sync_result("async")
         _enqueue_async_sync(actor=actor, action=action)
@@ -342,9 +318,7 @@ def _sync_after_write(actor: dict | None = None, action: str | None = None) -> N
 
 
 def trigger_encapsule_sync_now() -> None:
-    """
-    Trigger enCapsule fan-out immediately, with retries.
-    """
+    """Trigger enCapsule fan-out immediately, with retries."""
     if not encapsule_sync_enabled():
         logger.info("Manual enCapsule sync requested but USE_ENCAPSULE is disabled")
         return
@@ -353,9 +327,7 @@ def trigger_encapsule_sync_now() -> None:
 
 
 def get_host_details(hostname: str) -> dict:
-    """
-    Get host details from local ENC YAML data, with group/default fallback.
-    """
+    """Get host details from local ENC YAML data, with group/default fallback."""
     hosts = enc_data.load_map("hosts")
     groups = enc_data.load_map("groups")
     data = enc_data.resolve_host(hosts, groups, hostname)
@@ -363,16 +335,12 @@ def get_host_details(hostname: str) -> dict:
 
 
 def host_exists(hostname: str) -> bool:
-    """
-    Check if a host exists in ENC.
-    """
+    """Check if a host exists in ENC."""
     return hostname in enc_data.load_map("hosts")
 
 
 def delete_host(hostname: str, actor: dict | None = None) -> dict:
-    """
-    Delete host from ENC.
-    """
+    """Delete host from ENC."""
     with enc_data.data_lock("hosts"):
         hosts = enc_data.load_map("hosts")
         if hostname not in hosts:
@@ -387,9 +355,7 @@ def delete_host(hostname: str, actor: dict | None = None) -> dict:
 
 
 def update_host(hostname: str, payload: dict, actor: dict | None = None) -> dict:
-    """
-    Update host in ENC from full payload.
-    """
+    """Update host in ENC from full payload."""
     with enc_data.data_lock("hosts"):
         hosts = enc_data.load_map("hosts")
         if hostname not in hosts:
@@ -404,9 +370,7 @@ def update_host(hostname: str, payload: dict, actor: dict | None = None) -> dict
 
 
 def create_host(hostname: str, payload: dict, actor: dict | None = None) -> dict:
-    """
-    Create new host in ENC.
-    """
+    """Create new host in ENC."""
     with enc_data.data_lock("hosts"):
         hosts = enc_data.load_map("hosts")
         normalized = enc_data.normalize_host_payload(payload)
@@ -483,9 +447,7 @@ def delete_group(groupname: str, actor: dict | None = None) -> dict:
 
 
 def update_group(groupname: str, payload: dict, actor: dict | None = None) -> dict:
-    """
-    Update group in ENC from full payload.
-    """
+    """Update group in ENC from full payload."""
     with enc_data.data_lock("groups"):
         groups = enc_data.load_map("groups")
         if groupname not in groups:
@@ -505,9 +467,7 @@ def update_group(groupname: str, payload: dict, actor: dict | None = None) -> di
 
 
 def create_group(groupname: str, payload: dict, actor: dict | None = None) -> dict:
-    """
-    Create new group in ENC.
-    """
+    """Create new group in ENC."""
     with enc_data.data_lock("groups"):
         groups = enc_data.load_map("groups")
         normalized = enc_data.normalize_group_payload(payload)
@@ -523,23 +483,17 @@ def create_group(groupname: str, payload: dict, actor: dict | None = None) -> di
 
 
 def group_exists(groupname: str) -> bool:
-    """
-    Check if a group exists in ENC.
-    """
+    """Check if a group exists in ENC."""
     return groupname in enc_data.load_map("groups")
 
 
 def list_hosts() -> list[str]:
-    """
-    Return sorted host names.
-    """
+    """Return sorted host names."""
     return sorted(enc_data.load_map("hosts").keys())
 
 
 def list_groups() -> list[str]:
-    """
-    Return sorted group names.
-    """
+    """Return sorted group names."""
     return sorted(enc_data.load_map("groups").keys())
 
 
@@ -643,9 +597,7 @@ def get_git_log_patch_page(page: int = 1, per_page: int = 1) -> dict:
 
 
 def _canonical_profile(profile: dict | None) -> str:
-    """
-    Canonicalize an ENC profile for reliable equality checks.
-    """
+    """Canonicalize an ENC profile for reliable equality checks."""
     data = profile if isinstance(profile, dict) else {}
 
     environment = str(data.get("environment", "")).strip()
@@ -673,16 +625,12 @@ def _canonical_profile(profile: dict | None) -> str:
 
 
 def _is_regex_selector(selector: str) -> bool:
-    """
-    Return True when a selector uses /regex/ notation.
-    """
+    """Return True when a selector uses /regex/ notation."""
     return len(selector) >= 2 and selector.startswith("/") and selector.endswith("/")
 
 
 def _regex_literal_prefix(regex_selector: str) -> str:
-    """
-    Extract a leading literal prefix from /regex/ selectors when possible.
-    """
+    """Extract a leading literal prefix from /regex/ selectors when possible."""
     if not _is_regex_selector(regex_selector):
         return ""
 
@@ -717,9 +665,7 @@ def _regex_literal_prefix(regex_selector: str) -> str:
 
 
 def _selector_patterns_overlap(selector_a: str, selector_b: str) -> bool:
-    """
-    Return True when two selectors can overlap on at least one hostname.
-    """
+    """Return True when two selectors can overlap on at least one hostname."""
     if selector_a == selector_b:
         return True
 
@@ -764,9 +710,7 @@ def _selector_patterns_overlap(selector_a: str, selector_b: str) -> bool:
 def validate_group_selector_overlaps(
     groups: dict, groupname: str, candidate_hosts: list[str]
 ) -> None:
-    """
-    Reject ambiguous selector overlaps between candidate and other groups.
-    """
+    """Reject ambiguous selector overlaps between candidate and other groups."""
     candidate_selectors = []
     for raw_selector in candidate_hosts or []:
         selector = str(raw_selector).strip()
@@ -851,9 +795,7 @@ def validate_group_selector_overlaps(
 
 
 def _puppetdb_nodes_url() -> str:
-    """
-    Build PuppetDB nodes URL from split env variables.
-    """
+    """Build PuppetDB nodes URL from split env variables."""
     schema = str(os.environ.get("PUPPETDB_SCHEMA", "http")).strip()
     host = str(os.environ.get("PUPPETDB_HOST", "puppetdb.service.ha.geant.net")).strip()
     port = str(os.environ.get("PUPPETDB_PORT", "8080")).strip()
@@ -916,9 +858,7 @@ def _build_group_matchers(
 def _resolve_group_match(
     certname: str, trie: dict, regex_matchers: list[tuple[int, re.Pattern, dict]]
 ) -> dict | None:
-    """
-    Resolve a certname against compiled group matchers using earliest configured match.
-    """
+    """Resolve a certname against compiled group matchers using earliest configured match."""
     node = trie
     best_order = None
     best_payload = None
@@ -958,9 +898,7 @@ def _resolve_group_match(
 
 
 def get_puppetdb_nodes() -> list[str]:
-    """
-    Fetch and return sorted node certnames from PuppetDB.
-    """
+    """Fetch and return sorted node certnames from PuppetDB."""
     url = _puppetdb_nodes_url()
     timeout = _env_int("PUPPETDB_TIMEOUT", 20)
 
@@ -992,9 +930,7 @@ def get_puppetdb_nodes() -> list[str]:
 
 
 def list_unclassified_hosts() -> dict:
-    """
-    Return PuppetDB nodes whose ENC resolved profile matches the default profile.
-    """
+    """Return PuppetDB nodes whose ENC resolved profile matches the default profile."""
     nodes = get_puppetdb_nodes()
     hosts = enc_data.load_map("hosts")
     groups = enc_data.load_map("groups")
