@@ -39,7 +39,13 @@
               <div class="mb-3">
                 <label class="form-label"><strong>Environment</strong></label>
                 {% if feature_branch %}
-                <input type="text" class="form-control" name="environment" placeholder="production">
+                <input type="text" class="form-control" name="environment" list="host-environment-options" placeholder="production or feature/my-branch">
+                <datalist id="host-environment-options">
+                  {% for env in puppet_environments %}
+                  <option value="{{ env }}"></option>
+                  {% endfor %}
+                </datalist>
+                <div class="form-text">Suggested environments: {{ puppet_environments|join:", " }}. You can still type any custom branch name.</div>
                 {% else %}
                 <select class="form-select" name="environment">
                   <option value="" selected>(not set)</option>

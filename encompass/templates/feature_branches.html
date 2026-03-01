@@ -1,0 +1,59 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+  <div class="container mt-4">
+    <div class="page-header text-center mb-4">
+      <h2 class="text-primary">Feature Branches</h2>
+      <p class="text-muted mb-1">Custom environments not in predefined list</p>
+      <p class="text-muted mb-0">Predefined: {{ predefined_environments|join:", " }}</p>
+    </div>
+
+    {% if not feature_branch %}
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <h5 class="card-title mb-2">Feature branches are disabled</h5>
+          <p class="card-text text-muted mb-0">Set <code>FEATURE_BRANCH=true</code> to enable custom environment tracking.</p>
+        </div>
+      </div>
+    {% elif custom_environment_usage %}
+      <div class="card shadow-sm">
+        <div class="card-body p-0">
+          <table class="table table-striped table-hover mb-0">
+            <thead>
+              <tr>
+                <th class="px-3">Environment</th>
+                <th class="px-3">Groups</th>
+                <th class="px-3">Hosts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in custom_environment_usage %}
+                <tr>
+                  <td class="px-3"><code>{{ item.environment }}</code></td>
+                  <td class="px-3">
+                    {% if item.groups %}
+                      {{ item.groups|join:", " }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-3">
+                    {% if item.hosts %}
+                      {{ item.hosts|join:", " }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        No custom environments found. All hosts/groups use predefined environments (or no environment).
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

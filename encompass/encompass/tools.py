@@ -543,6 +543,60 @@ def list_groups() -> list[str]:
     return sorted(enc_data.load_map("groups").keys())
 
 
+def list_nonstandard_environment_usage() -> list[dict]:
+    """
+    Return non-predefined environment usage across hosts and groups.
+
+    Each item has shape:
+    {
+        "environment": "feature/foo",
+        "hosts": ["host1.example.org", ...],
+        "groups": ["group_a", ...],
+    }
+    """
+    predefined = {
+        str(item).strip().lower()
+        for item in getattr(settings, "PUPPET_ENVIRONMENTS", [])
+        if str(item).strip()
+    }
+
+    usage: dict[str, dict] = {}
+
+    def collect(environment_value: str, category: str, name: str) -> None:
+        environment = str(environment_value or "").strip()
+        if not environment:
+            return
+        if environment.lower() in predefined:
+            return
+
+        entry = usage.setdefault(
+            environment,
+            {"environment": environment, "hosts": [], "groups": []},
+        )
+        entry[category].append(name)
+
+    hosts = enc_data.load_map("hosts")
+    for hostname, payload in hosts.items():
+        if not isinstance(payload, dict):
+            continue
+        collect(payload.get("environment", ""), "hosts", hostname)
+
+    groups = enc_data.load_map("groups")
+    for groupname, payload in groups.items():
+        if not isinstance(payload, dict):
+            continue
+        collect(payload.get("environment", ""), "groups", groupname)
+
+    results = []
+    for environment in sorted(usage.keys(), key=lambda value: value.lower()):
+        item = usage[environment]
+        item["hosts"] = sorted(item["hosts"])
+        item["groups"] = sorted(item["groups"])
+        results.append(item)
+
+    return results
+
+
 def get_git_log_patch_page(page: int = 1, per_page: int = 1) -> dict:
     """
     Return paginated output of `git log -p` from the ENC repository.

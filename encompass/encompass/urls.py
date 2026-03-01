@@ -77,6 +77,7 @@ urlpatterns = [
     ),
     re_path(r"^encompass/about/$", views.about_page),
     re_path(r"^encompass/encapsule_sync/$", views.encapsule_sync_now),
+    re_path(r"^encompass/feature_branches/$", views.feature_branches_page),
     re_path(r"^encompass/unclassified_hosts/$", views.unclassified_hosts_page),
     re_path(r"^encompass/spring_cleaning/$", views.spring_cleaning_page),
     re_path(r"^encompass/git_log/$", views.git_log_page),

@@ -62,6 +62,11 @@
       </div>
 
       {{ puppet_environments|json_script:"group-puppet-environments" }}
+      <datalist id="group-environment-options">
+        {% for env in puppet_environments %}
+        <option value="{{ env }}"></option>
+        {% endfor %}
+      </datalist>
       <script>
         const featureBranchesEnabled = {{ feature_branch|yesno:"true,false" }};
         const canSaveGroups = {{ can_save_groups|yesno:"true,false" }};
@@ -126,7 +131,7 @@
         function environmentFieldHtml(cssClass, currentValue) {
           const value = currentValue || '';
           if (featureBranchesEnabled || !Array.isArray(puppetEnvironments) || puppetEnvironments.length === 0) {
-            return `<input type="text" class="form-control ${cssClass}" value="${escapeHtml(value)}" placeholder="production">`;
+            return `<input type="text" class="form-control ${cssClass}" value="${escapeHtml(value)}" list="group-environment-options" placeholder="production or feature/my-branch">`;
           }
 
           const normalized = String(value);

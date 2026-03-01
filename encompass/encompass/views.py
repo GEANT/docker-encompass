@@ -1047,10 +1047,37 @@ def home_page(request):
         "is_db_auth": is_db_auth,
         "is_ldap_auth": is_ldap_auth,
         "is_admin": is_admin,
+        "feature_branch": settings.FEATURE_BRANCH,
         "encapsule_sync_enabled": tools.encapsule_sync_enabled(),
     }
 
     return render(request, "home.html", context)
+
+
+@login_required(login_url="/encompass/login/")
+@group_required_ldap(settings.READ_ONLY_GROUPS)
+def feature_branches_page(request):
+    """List non-predefined environments and where they are used."""
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
+    group_name = tools.get_groups_info(groups)
+
+    usage = []
+    if settings.FEATURE_BRANCH:
+        usage = tools.list_nonstandard_environment_usage()
+
+    context = {
+        "groups": groups,
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
+        "group_name": group_name,
+        "watermark": settings.WATERMARK,
+        "current_version": settings.CURRENT_VERSION,
+        "feature_branch": settings.FEATURE_BRANCH,
+        "predefined_environments": settings.PUPPET_ENVIRONMENTS,
+        "custom_environment_usage": usage,
+    }
+    return render(request, "feature_branches.html", context)
 
 
 @login_required(login_url="/encompass/login/")

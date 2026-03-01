@@ -86,7 +86,7 @@ KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
 
 # puppet environments
 FEATURE_BRANCH=false
-PUPPET_ENVIRONMENTS='["test", "uat", "production"]'  # with feature branches enabled this variable is ignored
+PUPPET_ENVIRONMENTS='["test", "uat", "production"]'
 
 # PuppetDB settings (used by /encompass/unclassified_hosts/)
 UNCLASSIFIED_HOSTS_ENABLED=true

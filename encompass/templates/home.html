@@ -107,6 +107,22 @@
             </a>
           </div>
 
+          {% if feature_branch %}
+          <div class="col-md-4">
+            <a href="/encompass/feature_branches/" class="text-decoration-none">
+              <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-git fs-1 mb-3"></i>
+                  <h5 class="card-title">Feature Branches</h5>
+                  <p class="card-text text-muted">
+                    List custom environments and where they are used
+                  </p>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
           {% if is_admin %}
           <div class="col-md-4">
             <div class="card shadow-sm h-100">
