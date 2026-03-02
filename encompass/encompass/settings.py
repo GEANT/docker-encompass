@@ -56,6 +56,7 @@ def env_choice(name, default, allowed):
 USE_AUTH_LDAP = env_json("AUTH_LDAP_ENABLED", False)
 USE_AUTH_MYSQL = env_json("AUTH_MYSQL_ENABLED", False)
 FEATURE_BRANCH = env_json("FEATURE_BRANCH", False)
+ENC_OVERLAPPING_DEFINITIONS_ENABLED = env_json("ENC_OVERLAPPING_DEFINITIONS_ENABLED", False)
 UNCLASSIFIED_HOSTS_ENABLED = env_json("UNCLASSIFIED_HOSTS_ENABLED", True)
 DEMO_MODE = env_json("DEMO_MODE", False)
 PUPPET_ENVIRONMENTS = env_json("PUPPET_ENVIRONMENTS", ["production"])
@@ -67,6 +68,9 @@ if USE_AUTH_LDAP == USE_AUTH_MYSQL:
     raise SystemExit(1)
 if FEATURE_BRANCH not in [True, False]:
     print("FEATURE_BRANCH must be True or False")
+    raise SystemExit(1)
+if ENC_OVERLAPPING_DEFINITIONS_ENABLED not in [True, False]:
+    print("ENC_OVERLAPPING_DEFINITIONS_ENABLED must be True or False")
     raise SystemExit(1)
 if UNCLASSIFIED_HOSTS_ENABLED not in [True, False]:
     print("UNCLASSIFIED_HOSTS_ENABLED must be True or False")

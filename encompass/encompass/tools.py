@@ -710,7 +710,7 @@ def _selector_patterns_overlap(selector_a: str, selector_b: str) -> bool:
 def validate_group_selector_overlaps(
     groups: dict, groupname: str, candidate_hosts: list[str]
 ) -> None:
-    """Reject ambiguous selector overlaps between candidate and other groups."""
+    """Reject ambiguous selector overlaps unless explicitly enabled by configuration."""
     candidate_selectors = []
     for raw_selector in candidate_hosts or []:
         selector = str(raw_selector).strip()
@@ -724,6 +724,9 @@ def validate_group_selector_overlaps(
         candidate_selectors.append(selector)
 
     if not candidate_selectors:
+        return
+
+    if settings.ENC_OVERLAPPING_DEFINITIONS_ENABLED:
         return
 
     conflicts = []

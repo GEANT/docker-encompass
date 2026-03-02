@@ -89,6 +89,7 @@ KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
 
 # puppet environments
 FEATURE_BRANCH=false
+ENC_OVERLAPPING_DEFINITIONS_ENABLED=false  # true|false. If true, overlapping definitions in enCompass are allowed and merged.
 PUPPET_ENVIRONMENTS='["test", "uat", "production"]'
 
 # PuppetDB settings (used by /encompass/unclassified_hosts/)
