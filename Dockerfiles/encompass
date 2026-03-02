@@ -18,7 +18,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_ROOT_USER_ACTION=ignore \
     APP_DEBUG=${APP_DEBUG}
 
-# Instaall all dependencies and cleanup the image, if not in debug mode
+# Install all dependencies and cleanup the image, if not in debug mode
 COPY files/requirements-encompass.txt /requirements.txt
 RUN apt update && \
     apt install -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc git nginx gettext-base supervisor netcat-openbsd && \
@@ -40,7 +40,10 @@ COPY --chmod=755 files/scripts /usr/local/bin
 COPY --chmod=644 README.md code/encompass/templates/help.md
 COPY --chmod=644 CHANGELOG.md code/encompass/templates/changelog.md
 COPY static code/static/static
-COPY encompass code/encompass
+COPY encompass/encompass /code/encompass/encompass
+COPY encompass/enc_core /code/encompass/enc_core
+COPY encompass/templates /code/encompass/templates
+COPY encompass/manage.py /code/encompass/manage.py
 COPY --chmod=644 files/deployment-stuff/watermark code
 COPY --chmod=644 files/deployment-stuff/version code
 RUN chmod 700 /root/.ssh

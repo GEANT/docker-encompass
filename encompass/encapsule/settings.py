@@ -82,11 +82,11 @@ MIDDLEWARE = (
     "django.middleware.common.CommonMiddleware",
 )
 
-ROOT_URLCONF = "encompass.agent_urls"
+ROOT_URLCONF = "encapsule.urls"
 
 TEMPLATES = []
 
-WSGI_APPLICATION = "encompass.agent_wsgi.application"
+WSGI_APPLICATION = "encapsule.wsgi.application"
 
 USE_TZ = True
 TIME_ZONE = os.environ.get("TIME_ZONE", "UTC")

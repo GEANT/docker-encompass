@@ -31,7 +31,7 @@ services:
       args:
         APP_DEBUG: "true"
     environment:
-      DJANGO_SETTINGS_MODULE: encompass.agent_settings
+      DJANGO_SETTINGS_MODULE: encapsule.settings
       ENCAPSULE_PORT: 8081
     ports:
       - "9081:8081"  # enCapsule ENC API

@@ -3,7 +3,7 @@
 enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for Docker.  
 It provides a web UI to manage hosts and groups, plus read-only ENC endpoints for external consumers.
 
-If you are searching for a **Puppet ENC** implementation, this repository provides a production-oriented
+If you are searching for a **Puppet ENC** implementation, this repository provides a production-oriented  
 **Puppet External Node Classifier** with Docker deployment, host/group classification, and ENC API endpoints.
 
 enCapsule is an optional agent for enCompass that can be used to provide high availability for the ENC API.  
