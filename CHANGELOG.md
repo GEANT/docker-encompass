@@ -1,3 +1,13 @@
+## [unreleased]
+
+### 🚀 Features
+
+- Feat(ssh): enhance SSH configuration and key handling in git-setup.sh, update vars.example for clarity
+- Feat(settings): add ENC_OVERLAPPING_DEFINITIONS_ENABLED setting and validation
+
+### 📚 Documentation
+
+- Doc(enc): update README to clarify ENC endpoints and add enCapsule details
 ## [0.9.3] - 2026-03-02
 
 ### 🚀 Features
@@ -5,6 +15,10 @@
 - Feat(chore): split django code for encapsule and encompass
 - Feat(git): implement pull-only sync with git-pull.sh and update git-setup.sh logic
 - Feat(docker): update Dockerfile description and requirements for enCapsule; adjust nginx wait time
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(release): update changelog for 0.9.3
 ## [0.9.2] - 2026-03-01
 
 ### 📚 Documentation

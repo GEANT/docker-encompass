@@ -1,7 +1,7 @@
 # enCompass + enCapsule
 
 enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for Docker.  
-It provides a web UI to manage hosts and groups, plus read-only ENC endpoints for external consumers.
+It provides a web UI to manage hosts and groups, plus read-only ENC endpoints exposed by both enCompass and enCapsule.
 
 If you are searching for a **Puppet ENC** implementation, this repository provides a production-oriented  
 **Puppet External Node Classifier** with Docker deployment, host/group classification, and ENC API endpoints.
@@ -101,10 +101,13 @@ _The following instructions are not intended for a production grade deployment._
 
 ## Endpoints
 
-- `8080`: enCompass web UI (HTTP)
-- `8081`: ENC read-only endpoint (HTTP)
-- `8443`: enCompass web UI (HTTPS, when `USE_SSL=true`)
-- `8444`: ENC read-only endpoint (HTTPS, when `USE_SSL=true`)
+- enCompass
+  - `8080`: web UI (HTTP)
+  - `8081`: ENC read-only endpoint (HTTP)
+  - `8443`: web UI (HTTPS, when `USE_SSL=true`)
+  - `8444`: ENC read-only endpoint (HTTPS, when `USE_SSL=true`)
+- enCapsule (optional profile)
+  - `9081`: ENC read-only endpoint (HTTP; container `8081` exposed on host `9081` in Docker Compose)
 
 ## Puppet ENC Keywords
 
@@ -246,6 +249,8 @@ Validation guardrails:
 
 - Group host selectors are validated on create/update to prevent ambiguous overlaps across groups.
 - Overlapping selectors (for example plain prefixes like `test-` and `test-app-`) are rejected with a validation error.
+- `ENC_OVERLAPPING_DEFINITIONS_ENABLED=true` disables that overlap rejection and allows overlapping enCompass definitions.
+- This deviates from the recommended non-overlapping selector pattern, but remains deterministic and convenient for migrations because merge resolution order is unchanged (first matching selector wins).
 
 ### PuppetDB unclassified hosts
 
