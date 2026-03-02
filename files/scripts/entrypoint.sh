@@ -9,7 +9,7 @@
 set -e
 
 # ========== #
-# set git up #
+# set up Git #
 # ========== #
 /usr/local/bin/git-setup.sh
 

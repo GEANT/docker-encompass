@@ -107,7 +107,9 @@ def sync_from_git(request):
     if request.method != "POST":
         return _method_not_allowed(request, ["POST"])
     if not token:
-        logger.error("enCapsule sync trigger rejected from %s: token not configured", client_ip)
+        logger.error(
+            "enCapsule sync trigger rejected from %s: token not configured", client_ip
+        )
         return JsonResponse(
             {"error": "Forbidden", "message": "Sync token is not configured"},
             status=403,
@@ -115,7 +117,9 @@ def sync_from_git(request):
 
     request_token = request.headers.get("X-Encapsule-Token", "")
     if request_token != token:
-        logger.warning("enCapsule sync trigger rejected from %s: invalid token", client_ip)
+        logger.warning(
+            "enCapsule sync trigger rejected from %s: invalid token", client_ip
+        )
         return JsonResponse(
             {"error": "Forbidden", "message": "Invalid encapsule sync token"},
             status=403,
@@ -124,7 +128,7 @@ def sync_from_git(request):
     logger.info("enCapsule sync trigger received from %s", client_ip)
 
     result = subprocess.run(  # nosec B603
-        ["/usr/local/bin/git-setup.sh"],
+        ["/usr/local/bin/git-pull.sh"],
         check=False,
         capture_output=True,
         text=True,
@@ -133,12 +137,12 @@ def sync_from_git(request):
     stderr = (result.stderr or "").strip()
 
     if stdout:
-        logger.info("enCapsule sync git-setup stdout:\n%s", stdout)
+        logger.info("enCapsule sync git-pull stdout:\n%s", stdout)
     if stderr:
         if result.returncode == 0:
-            logger.warning("enCapsule sync git-setup stderr:\n%s", stderr)
+            logger.warning("enCapsule sync git-pull stderr:\n%s", stderr)
         else:
-            logger.error("enCapsule sync git-setup stderr:\n%s", stderr)
+            logger.error("enCapsule sync git-pull stderr:\n%s", stderr)
 
     if result.returncode != 0:
         logger.error(

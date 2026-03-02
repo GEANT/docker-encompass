@@ -31,15 +31,15 @@ sequenceDiagram
   participant G as Git repo (/data)
   participant S as encapsule-sync.sh
   participant A as enCapsule /sync
-  participant GS as git-setup.sh (enCapsule)
+  participant GP as git-pull.sh (enCapsule)
 
   Note over UI,V: Automatic flow starts after host/group write operations
   V->>T: _sync_after_write(actor, action)
   T->>G: git add + commit + push (if YAML changed)
   T->>S: run /usr/local/bin/encapsule-sync.sh
   S->>A: POST /sync + X-Encapsule-Token (fan-out)
-  A->>GS: run /usr/local/bin/git-setup.sh
-  GS->>G: fetch/checkout/reset (pull latest)
+  A->>GP: run /usr/local/bin/git-pull.sh
+  GP->>G: fetch/checkout/reset (pull latest)
   A-->>S: 200 {status: ok}
 
   Note over UI,V: Manual flow from home page button
@@ -58,8 +58,8 @@ sequenceDiagram
 
 ### Read-only behavior in enCapsule
 
-- enCapsule runs `git-setup.sh` in read-only mode via `GIT_READ_ONLY=true` in `files/encapsule-entrypoint.sh`.
-- In read-only mode, `git-setup.sh` refuses branch creation/push and only syncs local checkout from origin.
+- enCapsule runs `git-setup.sh` at startup in read-only mode via `GIT_READ_ONLY=true` in `files/encapsule-entrypoint.sh`.
+- enCapsule `/sync` uses `git-pull.sh`, a pull-only script that never creates branches or pushes.
 
 ## Local Python Run (Optional)
 

@@ -35,6 +35,7 @@ RUN if [ "$APP_DEBUG" = "true" ]; then \
 
 COPY files/root /root
 COPY --chmod=755 files/scripts/git-setup.sh /usr/local/bin/git-setup.sh
+COPY --chmod=755 files/scripts/git-pull.sh /usr/local/bin/git-pull.sh
 COPY --chmod=755 files/encapsule-entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY encompass/enc_core /code/encapsule/enc_core
 COPY encompass/encapsule /code/encapsule/encapsule

@@ -82,13 +82,24 @@ chmod 600 /root/.ssh/conf.d/git.conf
 if [ -d /data/.git ]; then
     echo "==> Git-setup: Existing Git repository found in /data, updating..."
     git -C /data remote set-url origin "$GIT_REPO"
-    git -C /data fetch origin "$GIT_BRANCH"
-    if git -C /data show-ref --verify --quiet "refs/remotes/origin/$GIT_BRANCH"; then
-        git -C /data checkout "$GIT_BRANCH" || git -C /data checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
+    if git -C /data ls-remote --exit-code --heads origin "$GIT_BRANCH" >/dev/null 2>&1; then
+        git -C /data fetch origin "$GIT_BRANCH"
+        if [ "$(git -C /data branch --show-current)" = "$GIT_BRANCH" ]; then
+            echo "==> Git-setup: Already on branch '$GIT_BRANCH'"
+        else
+            git -C /data checkout "$GIT_BRANCH" || git -C /data checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
+        fi
         git -C /data reset --hard "origin/$GIT_BRANCH"
+    else
+        echo "==> Git-setup: Branch '$GIT_BRANCH' does not exist on origin (yet); branch-creation logic will handle it"
     fi
 else
-    if ! git clone --branch "$GIT_BRANCH" "$GIT_REPO" /data; then
+    if git ls-remote --exit-code --heads "$GIT_REPO" "$GIT_BRANCH" >/dev/null 2>&1; then
+        if ! git clone --branch "$GIT_BRANCH" "$GIT_REPO" /data; then
+            echo "==> Git-setup: [ERROR] Failed to clone Git repository"
+            exit 1
+        fi
+    elif ! git clone "$GIT_REPO" /data; then
         echo "==> Git-setup: [ERROR] Failed to clone Git repository"
         exit 1
     fi
@@ -101,10 +112,19 @@ cd /data
 if git show-ref --verify --quiet "refs/heads/$GIT_BRANCH"; then
     git checkout "$GIT_BRANCH"
 elif git ls-remote --exit-code --heads origin "$GIT_BRANCH" >/dev/null 2>&1; then
-    git checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
+    if [ "$(git branch --show-current)" = "$GIT_BRANCH" ]; then
+        echo "==> Git-setup: Already on branch '$GIT_BRANCH'"
+    else
+        echo "==> Git-setup: Branch '$GIT_BRANCH' exists on origin but not locally, checking it out"
+        git checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
+    fi
 else
     if [ "$GIT_READ_ONLY" = "true" ]; then
         echo "==> Git-setup: [ERROR] Branch '$GIT_BRANCH' does not exist on origin and GIT_READ_ONLY=true prevents creating it"
+        exit 1
+    elif [ ! -d /root/.do-not-delete ]; then
+        echo "==> Git-setup: [ERROR] Branch '$GIT_BRANCH' does not exist on origin and this runtime is not allowed to create it"
+        echo "==> Git-setup: [ERROR] Only enCompass bootstrap context can create missing branches"
         exit 1
     fi
     git checkout -b "$GIT_BRANCH"
