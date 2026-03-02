@@ -40,7 +40,18 @@ else
     exit 1
 fi
 case "$SSH_KEY_TYPE" in
-rsa | ed25519 | ecdsa) ;;
+rsa)
+    SSH_KEYSCAN_TYPE="rsa"
+    SSH_HOST_KEY_ALGORITHMS="ssh-rsa"
+    ;;
+ed25519)
+    SSH_KEYSCAN_TYPE="ed25519"
+    SSH_HOST_KEY_ALGORITHMS="ssh-ed25519"
+    ;;
+ecdsa)
+    SSH_KEYSCAN_TYPE="ecdsa"
+    SSH_HOST_KEY_ALGORITHMS="ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521"
+    ;;
 *)
     echo "==> Git-setup: [ERROR] Unsupported SSH_KEY_TYPE: $SSH_KEY_TYPE. Supported types are: rsa, ed25519, ecdsa"
     exit 1
@@ -64,9 +75,13 @@ chmod 600 "$KEY_FILE"
 
 touch /root/.ssh/known_hosts
 chmod 600 /root/.ssh/known_hosts
-if ! ssh-keygen -F "$GIT_HOST" -f /root/.ssh/known_hosts >/dev/null 2>&1; then
-    ssh-keyscan -H "$GIT_HOST" >>/root/.ssh/known_hosts 2>/dev/null || true
+ssh-keygen -R "$GIT_HOST" -f /root/.ssh/known_hosts >/dev/null 2>&1 || true
+SCANNED_HOST_KEY="$(ssh-keyscan -H -t "$SSH_KEYSCAN_TYPE" "$GIT_HOST" 2>/dev/null | grep -v '^#' || true)"
+if [ -z "$SCANNED_HOST_KEY" ]; then
+    echo "==> Git-setup: [ERROR] No $SSH_KEYSCAN_TYPE host key found on $GIT_HOST"
+    exit 1
 fi
+printf '%s\n' "$SCANNED_HOST_KEY" >>/root/.ssh/known_hosts
 
 # create a basic SSH config
 install -d -m 700 /root/.ssh/conf.d
@@ -75,6 +90,7 @@ Host $GIT_HOST
     HostName $GIT_HOST
     User $GIT_REPO_USERNAME
     IdentityFile $KEY_FILE
+    HostKeyAlgorithms $SSH_HOST_KEY_ALGORITHMS
 EOF
 chmod 600 /root/.ssh/conf.d/git.conf
 
