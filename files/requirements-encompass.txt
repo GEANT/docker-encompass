@@ -1,14 +1,10 @@
 django-allow-cidr==0.7.1
 django-auth-ldap==5.3.0
 django-cors-headers==4.9.0
-django-htmlmin==0.11.0
-django-livereload-server==0.5.1
-Django==6.0.1
-html5lib==1.1
-requests==2.32.5
-gunicorn==25.0.3
-PyYAML==6.0.3
-mysqlclient>=2.2.1
-GitPython==3.1.46
+Django==6.0.2
+gunicorn==25.1.0
 markdown==3.10.2
-shyaml==0.6.2  # for parsing yaml files in bash scripts
+mysqlclient>=2.2.1
+PyYAML==6.0.3
+requests==2.32.5
+# shyaml==0.6.2  # can be used in bash scripts, currently unused

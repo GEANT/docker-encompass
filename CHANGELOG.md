@@ -1,8 +1,19 @@
+## [unreleased]
+
+### 🚀 Features
+
+- Feat(chore): split django code for encapsule and encompass
+- Feat(git): implement pull-only sync with git-pull.sh and update git-setup.sh logic
+- Feat(docker): update Dockerfile description and requirements for enCapsule; adjust nginx wait time
 ## [0.9.2] - 2026-03-01
 
 ### 📚 Documentation
 
 - Doc(migration): clarify ordering and implications of site.pp and ENC in OpenVox/Puppet
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(release): update changelog for 0.9.2
 ## [0.9.1] - 2026-03-01
 
 ### 🚀 Features

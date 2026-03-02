@@ -7,7 +7,7 @@
 FROM python:3.14-slim-trixie
 
 LABEL author="Massimiliano Adamo <massimiliano.adamo@geant.org>" \
-      description="enCompass is a tool to manage a Puppet ENC with a Django web interface." \
+      description="enCapsule is a Highly Available ENC endpoint for enCompass" \
       version="1.0.0"
 
 # Custom cache invalidation: check .gitlab-ci.yml for details
