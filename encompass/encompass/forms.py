@@ -104,7 +104,9 @@ class EncompassAuthenticationForm(AuthenticationForm):
         search_filter = filter_template.replace("%(user)s", escaped_user)
 
         try:
-            result = conn.search_s(base_dn, LDAP_SCOPE_SUBTREE, search_filter, attrlist=[])
+            result = conn.search_s(
+                base_dn, LDAP_SCOPE_SUBTREE, search_filter, attrlist=[]
+            )
         finally:
             try:
                 conn.unbind_s()

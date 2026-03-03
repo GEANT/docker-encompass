@@ -67,20 +67,18 @@ try:
 except socket.gaierror:
     LOCAL_ADDR = "127.0.0.1"
 
-ALLOWED_HOSTS = env_json("ALLOWED_HOSTS", []) + [
-    "localhost",
-    "127.0.0.1",
-    LOCAL_ADDR,
-] + _sync_target_hosts()
+DEFAULT_LOCAL_ALLOWED_HOSTS = list({"localhost", "127.0.0.1", LOCAL_ADDR})
+
+ALLOWED_HOSTS = (
+    env_json("ALLOWED_HOSTS", [])
+    + DEFAULT_LOCAL_ALLOWED_HOSTS
+    + _sync_target_hosts()
+)
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
-INSTALLED_APPS = (
-    "django.contrib.contenttypes",
-)
+INSTALLED_APPS = ("django.contrib.contenttypes",)
 
-MIDDLEWARE = (
-    "django.middleware.common.CommonMiddleware",
-)
+MIDDLEWARE = ("django.middleware.common.CommonMiddleware",)
 
 ROOT_URLCONF = "encapsule.urls"
 

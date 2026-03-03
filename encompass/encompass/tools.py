@@ -230,7 +230,9 @@ def _sync_with_retries(
         attempt_num = attempt + 1
         logger.info("ENC sync attempt %s/%s started", attempt_num, total_attempts)
         try:
-            changed = _sync_once(actor=actor, action=action, force_trigger=force_trigger)
+            changed = _sync_once(
+                actor=actor, action=action, force_trigger=force_trigger
+            )
             if attempt > 0:
                 logger.info(
                     "ENC sync attempt %s/%s succeeded after retry",
@@ -456,10 +458,10 @@ def update_group(groupname: str, payload: dict, actor: dict | None = None) -> di
             # pylint: enable=broad-exception-raised
         normalized = enc_data.normalize_group_payload(payload)
         if groupname != "default" and not normalized.get("hosts", []):
-            raise ValueError("At least one host selector is required for non-default groups")
-        validate_group_selector_overlaps(
-            groups, groupname, normalized.get("hosts", [])
-        )
+            raise ValueError(
+                "At least one host selector is required for non-default groups"
+            )
+        validate_group_selector_overlaps(groups, groupname, normalized.get("hosts", []))
         groups[groupname] = normalized
         enc_data.save_map("groups", groups)
     _sync_after_write(actor=actor, action=f"update group {groupname}")
@@ -472,10 +474,10 @@ def create_group(groupname: str, payload: dict, actor: dict | None = None) -> di
         groups = enc_data.load_map("groups")
         normalized = enc_data.normalize_group_payload(payload)
         if groupname != "default" and not normalized.get("hosts", []):
-            raise ValueError("At least one host selector is required for non-default groups")
-        validate_group_selector_overlaps(
-            groups, groupname, normalized.get("hosts", [])
-        )
+            raise ValueError(
+                "At least one host selector is required for non-default groups"
+            )
+        validate_group_selector_overlaps(groups, groupname, normalized.get("hosts", []))
         groups[groupname] = normalized
         enc_data.save_map("groups", groups)
     _sync_after_write(actor=actor, action=f"create group {groupname}")
@@ -792,8 +794,7 @@ def validate_group_selector_overlaps(
 
     raise ValueError(
         "Selector overlap detected. "
-        "Adjust group host selectors to avoid ambiguous matches: "
-        + "; ".join(details)
+        "Adjust group host selectors to avoid ambiguous matches: " + "; ".join(details)
     )
 
 

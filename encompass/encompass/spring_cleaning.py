@@ -1,4 +1,7 @@
-"""Discover orphaned YAML files in /data"""
+"""
+Discover orphaned YAML files in /data
+"""
+
 import logging
 import re
 

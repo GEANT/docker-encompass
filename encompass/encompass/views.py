@@ -1,6 +1,7 @@
 """
 views definition
 """
+
 # pylint: disable=too-many-lines
 
 # -*- coding: utf-8 -*-
@@ -1088,7 +1089,9 @@ def encapsule_sync_now(request):
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
     if not tools.encapsule_sync_enabled():
-        messages.info(request, "enCapsule synchronization is disabled by configuration.")
+        messages.info(
+            request, "enCapsule synchronization is disabled by configuration."
+        )
         return redirect("/encompass/")
 
     try:

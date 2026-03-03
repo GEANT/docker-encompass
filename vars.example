@@ -35,7 +35,6 @@ ENCAPSULE_SYNC_TIMEOUT=5
 ENCAPSULE_SYNC_PORT=8081
 ENCAPSULE_SYNC_HOST="encapsule.example.org"  # comma-separated: host, host:port, full URL, or SRV record (_service._tcp.domain)
 
-
 # MySQL variables
 MYSQL_HOST="mysql.example.org"
 MYSQL_PORT=3306
@@ -80,8 +79,7 @@ yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
 zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
 wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
-rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
-aaaaa=
+rrrrr=
 -----END OPENSSH PRIVATE KEY-----"
 # do NOT change the following 2 variables
 GIT_REPO="ssh://$GIT_REPO_USERNAME@$GIT_HOST/$GIT_REPO_PATH"

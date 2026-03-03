@@ -40,9 +40,7 @@ def _encompass_admin_has_permission(request):
 
 admin.site.has_permission = _encompass_admin_has_permission
 
-favicon_view = RedirectView.as_view(
-    url="/static/images/favicon.ico", permanent=True
-)
+favicon_view = RedirectView.as_view(url="/static/images/favicon.ico", permanent=True)
 
 extra = {
     "watermark": settings.WATERMARK,
