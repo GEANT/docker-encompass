@@ -145,6 +145,7 @@ ALLOWED_HOSTS = env_json("ALLOWED_HOSTS", []) + [
 # Applications definition
 INSTALLED_APPS = (
     # "oauth2_provider",  # DISABLED in requirements.txt
+    "encompass",
     "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",

@@ -42,6 +42,7 @@ COPY --chmod=644 CHANGELOG.md code/encompass/templates/changelog.md
 COPY static code/static/static
 COPY encompass/encompass /code/encompass/encompass
 COPY encompass/enc_core /code/encompass/enc_core
+COPY encompass/csr_store /code/encompass/csr_store
 COPY encompass/templates /code/encompass/templates
 COPY encompass/manage.py /code/encompass/manage.py
 COPY --chmod=644 files/deployment-stuff/watermark code

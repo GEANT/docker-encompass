@@ -39,6 +39,7 @@ COPY --chmod=755 files/scripts/git-pull.sh /usr/local/bin/git-pull.sh
 COPY --chmod=755 files/encapsule-entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY encompass/enc_core /code/encapsule/enc_core
 COPY encompass/encapsule /code/encapsule/encapsule
+COPY encompass/csr_store /code/encapsule/csr_store
 RUN chmod 700 /root/.ssh && rm -rf /root/.do-not-delete
 
 # port explanations: check docker-compose.yml for details

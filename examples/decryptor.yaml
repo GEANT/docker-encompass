@@ -1,0 +1,10 @@
+server:
+  host: enc.example.org
+  port: 8081
+  srv: false
+  scheme: http
+  insecure_skip_verify: false
+auth:
+  token_file: /etc/puppetlabs/puppet/csr_api_key
+network:
+  timeout_seconds: 5

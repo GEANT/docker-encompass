@@ -13,6 +13,8 @@ Endpoints:
 - `GET /healthz`
 - `GET /hosts`
 - `GET /hosts/<fqdn>`
+- `GET /hosts/<fqdn>/csr_attributes` (requires header `X-CSR-API-KEY`)
 - `GET /groups`
 - `GET /groups/<name>`
+- `GET /groups/<name>/csr_attributes` (requires header `X-CSR-API-KEY`)
 - `POST /sync` (requires `ENCAPSULE_SYNC_TOKEN`)

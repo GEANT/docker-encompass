@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
+
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import QueryDict
 from django.views.decorators.csrf import csrf_exempt
 import yaml
+from csr_store import csr_attributes
 
 from . import enc_data
 
@@ -36,6 +39,40 @@ def _is_public_proxy_request(request):
     Helper to determine if the request is coming from a public proxy.
     """
     return bool(request.headers.get("X-External-Proxy"))
+
+
+def _csr_attributes_yaml_response(entity_name: str):
+    """Build YAML payload for CSR custom_attributes response."""
+    challenge_password, _created = csr_attributes.get_or_create(entity_name)
+    payload = {
+        "custom_attributes": {
+            "challengePassword": challenge_password,
+        }
+    }
+    return HttpResponse(
+        yaml.safe_dump(payload, sort_keys=False, explicit_start=True),
+        status=200,
+        content_type="text/yaml",
+    )
+
+
+def _require_csr_api_token(request):
+    """Validate CSR API token for externally exposed CSR endpoints."""
+    configured_token = str(os.environ.get("CSR_API_KEY", "")).strip()
+    if not configured_token:
+        return JsonResponse(
+            {"error": "Forbidden", "message": "CSR API token is not configured"},
+            status=403,
+        )
+
+    request_token = str(request.headers.get("X-CSR-API-KEY", "")).strip()
+    if request_token != configured_token:
+        return JsonResponse(
+            {"error": "Forbidden", "message": "Invalid CSR API token"},
+            status=403,
+        )
+
+    return None
 
 
 @csrf_exempt
@@ -80,6 +117,7 @@ def hosts_collection(request):
             hosts = enc_data.load_map("hosts")
             hosts[fqdn] = payload
             enc_data.save_map("hosts", hosts)
+        csr_attributes.get_or_create(csr_attributes.host_entity_name(fqdn))
     except enc_data.EncDataLockTimeout:
         return JsonResponse(
             {"error": "Conflict", "message": "Hosts data is currently locked"},
@@ -117,6 +155,7 @@ def hosts_item(request, fqdn):
                 deleted = hosts[fqdn]
                 del hosts[fqdn]
                 enc_data.save_map("hosts", hosts)
+                csr_attributes.delete(csr_attributes.host_entity_name(fqdn))
                 return _yaml_http_response(deleted)
         except enc_data.EncDataLockTimeout:
             return JsonResponse(
@@ -185,6 +224,7 @@ def hosts_item(request, fqdn):
 
             hosts[fqdn] = host
             enc_data.save_map("hosts", hosts)
+            csr_attributes.get_or_create(csr_attributes.host_entity_name(fqdn))
             return _yaml_http_response(host)
     except enc_data.EncDataLockTimeout:
         return JsonResponse(
@@ -226,6 +266,7 @@ def groups_collection(request):
             groups = enc_data.load_map("groups")
             groups[name] = payload
             enc_data.save_map("groups", groups)
+        csr_attributes.get_or_create(csr_attributes.group_entity_name(name))
     except enc_data.EncDataLockTimeout:
         return JsonResponse(
             {"error": "Conflict", "message": "Groups data is currently locked"},
@@ -265,6 +306,7 @@ def groups_item(request, name):
                 deleted = groups[name]
                 del groups[name]
                 enc_data.save_map("groups", groups)
+                csr_attributes.delete(csr_attributes.group_entity_name(name))
                 return _yaml_http_response(deleted)
         except enc_data.EncDataLockTimeout:
             return JsonResponse(
@@ -348,9 +390,36 @@ def groups_item(request, name):
 
             groups[name] = data
             enc_data.save_map("groups", groups)
+            csr_attributes.get_or_create(csr_attributes.group_entity_name(name))
             return _yaml_http_response(data)
     except enc_data.EncDataLockTimeout:
         return JsonResponse(
             {"error": "Conflict", "message": "Groups data is currently locked"},
             status=409,
         )
+
+
+@csrf_exempt
+def host_csr_attributes(request, fqdn):
+    """Return CSR custom_attributes for a host entity."""
+    if request.method != "GET":
+        return HttpResponse(status=405)
+
+    token_error = _require_csr_api_token(request)
+    if token_error:
+        return token_error
+
+    return _csr_attributes_yaml_response(csr_attributes.host_entity_name(fqdn))
+
+
+@csrf_exempt
+def group_csr_attributes(request, name):
+    """Return CSR custom_attributes for a group entity."""
+    if request.method != "GET":
+        return HttpResponse(status=405)
+
+    token_error = _require_csr_api_token(request)
+    if token_error:
+        return token_error
+
+    return _csr_attributes_yaml_response(csr_attributes.group_entity_name(name))

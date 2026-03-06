@@ -2,9 +2,15 @@
 Tests for encompass.urls._encompass_admin_has_permission.
 """
 
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
+from contextlib import nullcontext
 from unittest.mock import patch
+from django.test import RequestFactory
 from django.test import SimpleTestCase, override_settings
+from csr_store import csr_attributes
+from . import enc_views
 from . import tools
 from .urls import _encompass_admin_has_permission
 
@@ -90,3 +96,170 @@ class ManualEncapsuleSyncTests(SimpleTestCase):
         """
         tools.trigger_encapsule_sync_now()
         sync_with_retries_mock.assert_not_called()
+
+
+class CSRChallengeStoreTests(SimpleTestCase):
+    """Tests for encrypted CSR challengePassword storage helpers."""
+
+    @patch("encompass.tests.csr_attributes._db_lock", return_value=nullcontext())
+    def test_get_or_create_is_idempotent(self, _lock_mock):
+        """get_or_create returns existing value when entity already exists."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store_path = Path(temp_dir) / "csr_challenges.yaml"
+            with patch.object(csr_attributes, "CSR_DATA_PATH", store_path):
+                with patch.dict("os.environ", {"CSR_CHALLENGE_KEY": "test-key"}):
+                    first_value, created_first = csr_attributes.get_or_create(
+                        "host/node1.example.org"
+                    )
+                    second_value, created_second = csr_attributes.get_or_create(
+                        "host/node1.example.org"
+                    )
+
+        self.assertTrue(created_first)
+        self.assertFalse(created_second)
+        self.assertEqual(first_value, second_value)
+
+    @patch("encompass.tests.csr_attributes._db_lock", return_value=nullcontext())
+    def test_rotate_replaces_value(self, _lock_mock):
+        """rotate changes an existing challengePassword value."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store_path = Path(temp_dir) / "csr_challenges.yaml"
+            with patch.object(csr_attributes, "CSR_DATA_PATH", store_path):
+                with patch.dict("os.environ", {"CSR_CHALLENGE_KEY": "test-key"}):
+                    initial, _ = csr_attributes.get_or_create("group/default")
+                    rotated = csr_attributes.rotate("group/default")
+
+        self.assertNotEqual(initial, rotated)
+
+
+class CSRChallengeLifecycleHookTests(SimpleTestCase):
+    """Tests ensuring host/group writes create CSR challenge entries."""
+
+    @patch("encompass.tests.tools._sync_after_write")
+    @patch("encompass.tests.tools.csr_attributes.get_or_create")
+    @patch("encompass.tests.tools.enc_data.save_map")
+    @patch("encompass.tests.tools.enc_data.load_map", return_value={"node1": {}})
+    @patch("encompass.tests.tools.enc_data.data_lock", return_value=nullcontext())
+    def test_update_host_calls_get_or_create(
+        self,
+        _lock_mock,
+        _load_map_mock,
+        _save_map_mock,
+        get_or_create_mock,
+        _sync_mock,
+    ):
+        """Updating a host creates the CSR challenge entry only if missing."""
+        tools.update_host("node1", {"environment": "production"})
+        get_or_create_mock.assert_called_once_with("host/node1")
+
+    @patch("encompass.tests.tools._sync_after_write")
+    @patch("encompass.tests.tools.csr_attributes.get_or_create")
+    @patch("encompass.tests.tools.validate_group_selector_overlaps")
+    @patch("encompass.tests.tools.enc_data.save_map")
+    @patch("encompass.tests.tools.enc_data.load_map", return_value={"default": {}})
+    @patch("encompass.tests.tools.enc_data.data_lock", return_value=nullcontext())
+    def test_update_group_calls_get_or_create(
+        self,
+        _lock_mock,
+        _load_map_mock,
+        _save_map_mock,
+        _validate_overlap_mock,
+        get_or_create_mock,
+        _sync_mock,
+    ):
+        """Updating a group creates the CSR challenge entry only if missing."""
+        tools.update_group(
+            "default",
+            {"environment": "production", "classes": [], "hosts": []},
+        )
+        get_or_create_mock.assert_called_once_with("group/default")
+
+
+class CSRAttributesApiTests(SimpleTestCase):
+    """Tests for CSR custom_attributes API endpoints."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    @patch("encompass.tests.csr_attributes.get_or_create")
+    def test_host_csr_attributes_returns_yaml_payload(self, get_or_create_mock):
+        """Host CSR endpoint returns YAML with custom_attributes.challengePassword."""
+        get_or_create_mock.return_value = ("secure_password", False)
+
+        with patch.dict("os.environ", {"CSR_API_KEY": "test-token"}):
+            response = enc_views.host_csr_attributes(
+                self.factory.get(
+                    "/hosts/node1.example.org/csr_attributes",
+                    HTTP_X_CSR_API_KEY="test-token",
+                ),
+                "node1.example.org",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/yaml")
+        self.assertTrue(response.content.decode("utf-8").startswith("---\n"))
+        self.assertIn("custom_attributes", response.content.decode("utf-8"))
+        self.assertIn("challengePassword: secure_password", response.content.decode("utf-8"))
+        get_or_create_mock.assert_called_once_with("host/node1.example.org")
+
+    @patch("encompass.tests.csr_attributes.get_or_create")
+    def test_group_csr_attributes_returns_yaml_payload(self, get_or_create_mock):
+        """Group CSR endpoint returns YAML with custom_attributes.challengePassword."""
+        get_or_create_mock.return_value = ("group_secret", False)
+
+        with patch.dict("os.environ", {"CSR_API_KEY": "test-token"}):
+            response = enc_views.group_csr_attributes(
+                self.factory.get(
+                    "/groups/default/csr_attributes",
+                    HTTP_X_CSR_API_KEY="test-token",
+                ),
+                "default",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.decode("utf-8").startswith("---\n"))
+        self.assertIn("challengePassword: group_secret", response.content.decode("utf-8"))
+        get_or_create_mock.assert_called_once_with("group/default")
+
+    def test_host_csr_attributes_rejects_non_get(self):
+        """Host CSR endpoint only supports GET."""
+        response = enc_views.host_csr_attributes(
+            self.factory.post("/hosts/node1.example.org/csr_attributes"),
+            "node1.example.org",
+        )
+        self.assertEqual(response.status_code, 405)
+
+    @patch("encompass.tests.csr_attributes.get_or_create")
+    def test_group_csr_attributes_allows_public_proxy(self, get_or_create_mock):
+        """CSR endpoint remains reachable when requests come via public proxy."""
+        get_or_create_mock.return_value = ("group_secret", False)
+        with patch.dict("os.environ", {"CSR_API_KEY": "test-token"}):
+            request = self.factory.get(
+                "/groups/default/csr_attributes",
+                HTTP_X_EXTERNAL_PROXY="1",
+                HTTP_X_CSR_API_KEY="test-token",
+            )
+            response = enc_views.group_csr_attributes(request, "default")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("challengePassword: group_secret", response.content.decode("utf-8"))
+
+    def test_host_csr_attributes_rejects_missing_token(self):
+        """Host CSR endpoint rejects requests without API token."""
+        with patch.dict("os.environ", {"CSR_API_KEY": "test-token"}):
+            response = enc_views.host_csr_attributes(
+                self.factory.get("/hosts/node1.example.org/csr_attributes"),
+                "node1.example.org",
+            )
+        self.assertEqual(response.status_code, 403)
+
+    def test_group_csr_attributes_rejects_invalid_token(self):
+        """Group CSR endpoint rejects requests with wrong API token."""
+        with patch.dict("os.environ", {"CSR_API_KEY": "test-token"}):
+            response = enc_views.group_csr_attributes(
+                self.factory.get(
+                    "/groups/default/csr_attributes",
+                    HTTP_X_CSR_API_KEY="wrong-token",
+                ),
+                "default",
+            )
+        self.assertEqual(response.status_code, 403)

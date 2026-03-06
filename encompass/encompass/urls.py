@@ -105,6 +105,12 @@ urlpatterns = [
     re_path(r"^healthz$", views.healthz),
     re_path(r"^hosts/?$", enc_views.hosts_collection),
     re_path(r"^hosts/(?P<fqdn>[^/]+)/?$", enc_views.hosts_item),
+    re_path(
+        r"^hosts/(?P<fqdn>[^/]+)/csr_attributes/?$", enc_views.host_csr_attributes
+    ),
     re_path(r"^groups/?$", enc_views.groups_collection),
     re_path(r"^groups/(?P<name>[^/]+)/?$", enc_views.groups_item),
+    re_path(
+        r"^groups/(?P<name>[^/]+)/csr_attributes/?$", enc_views.group_csr_attributes
+    ),
 ]

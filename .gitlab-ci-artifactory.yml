@@ -1,0 +1,47 @@
+stages:
+  - build_and_push
+
+variables:
+  GIT_STRATEGY: clone
+  DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+
+.docker_build_and_push:
+  stage: build_and_push
+  only:
+    - tags
+  tags:
+    - shared-global-shell-runner
+  script:
+    - |
+      set -euo pipefail
+
+      [ "$SERVICE_NAME" = "encompass" ] && bash ./files/deployment-stuff/pre-build.sh
+      printf '%s' "$AFACTORY_TOKEN" | docker login -u "$AFACTORY_USER" --password-stdin "$AFACTORY_HOST"
+
+      docker build --no-cache --build-arg CACHEBUST="$(date +%s)" -f Dockerfiles/$SERVICE_NAME -t "$SERVICE_NAME:$CI_COMMIT_TAG" .
+
+      LOCAL_IMAGE="$SERVICE_NAME:$CI_COMMIT_TAG"
+      if ! docker image inspect "$LOCAL_IMAGE" >/dev/null 2>&1; then
+        echo "ERROR: built image '$LOCAL_IMAGE' not found" >&2
+        exit 1
+      fi
+
+      REMOTE_BASE="$AFACTORY_HOST/geant-devops-docker/$SERVICE_NAME"
+      URL_BASE="${AFACTORY_HOST}/artifactory/geant-devops-docker/${SERVICE_NAME}"
+
+      for DOCKER_TAG in "$CI_COMMIT_TAG" latest; do
+        curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${URL_BASE}:${DOCKER_TAG}" || true
+        docker tag "$LOCAL_IMAGE" "${REMOTE_BASE}:${DOCKER_TAG}"
+        docker push "${REMOTE_BASE}:${DOCKER_TAG}"
+      done
+
+build_encompass:
+  extends: .docker_build_and_push
+  variables:
+    SERVICE_NAME: encompass
+
+build_encapsule:
+  extends: .docker_build_and_push
+  variables:
+    SERVICE_NAME: encapsule

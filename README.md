@@ -1,13 +1,24 @@
-# enCompass + enCapsule
+# enCompass + enCapsule + enCryptor
 
-enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for Docker.  
-It provides a web UI to manage hosts and groups, plus read-only ENC endpoints exposed by both enCompass and enCapsule.
+## preface
+
+_I started coding this project alone, but I crossed paths with Copilot and we decided to join forces and work on it together._  
+I do not master some of the frontend technologies (Ajax, jQuery...), so Copilot has been a great help to implement the UI and related logic.
+
+This project is mirrored on [Codeberg](https://codeberg.org/GEANT/docker-encompass) and [Github](https://github.com/GEANT/docker-encompass), and the artifacts are pushed to Codeberg.  
+If Open Source is your thing, please consider starring and contributing on Codeberg: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass).
 
 If you are searching for a **Puppet ENC** implementation, this repository provides a production-oriented  
 **Puppet External Node Classifier** with Docker deployment, host/group classification, and ENC API endpoints.
 
+enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for Docker.  
+It provides a web UI to manage hosts and groups, plus read-only ENC endpoints exposed by both enCompass and enCapsule.
+
 enCapsule is an optional agent for enCompass that can be used to provide high availability for the ENC API.  
 It does not depend on database and boots up in just 1 second making it ideal for an autoscaling setup.
+
+This repository also includes an optional `enCryptor` component that enables  
+certificate auto-signing flows through CSR `challengePassword` validation.
 
 **Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)  
 **Repository URL**: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass)  
@@ -25,6 +36,7 @@ It does not depend on database and boots up in just 1 second making it ideal for
   - [Docker Compose](#docker-compose)
     - [Quick Start (Docker)](#quick-start-docker)
 - [Endpoints](#endpoints)
+- [enCryptor (Optional)](#encryptor-optional)
 - [Puppet ENC Integration](#puppet-enc-integration)
 - [Migration Notes](#migration-notes)
 - [Puppet ENC Keywords](#puppet-enc-keywords)
@@ -108,6 +120,81 @@ _The following instructions are not intended for a production grade deployment._
   - `8444`: ENC read-only endpoint (HTTPS, when `USE_SSL=true`)
 - enCapsule (optional profile)
   - `9081`: ENC read-only endpoint (HTTP; container `8081` exposed on host `9081` in Docker Compose)
+
+Additional enCompass CSR endpoints (usable for external provisioning):
+
+- `GET /hosts/<fqdn>/csr_attributes`
+- `GET /groups/<name>/csr_attributes`
+
+Response example:
+
+```yaml
+---
+custom_attributes:
+  challengePassword: secure_password
+```
+
+CSR endpoint authentication:
+
+- Set `CSR_API_KEY` in `vars`.
+- Send the token in header `X-CSR-API-KEY`.
+- Applies to both enCompass and enCapsule CSR endpoints.
+
+Example:
+
+```bash
+curl -s -H "X-CSR-API-KEY: $CSR_API_KEY" \
+  http://enc.example.org:8081/hosts/node1.example.org/csr_attributes
+```
+
+## enCryptor (Optional)
+
+`enCryptor` is an optional helper component for provisioning workflows that
+retrieve CSR `challengePassword` values from enCompass/enCapsule and write the
+expected YAML blob for autosign use cases.
+
+Component name is `enCryptor`; executable name is `encryptor`.
+
+Full documentation:
+
+- [docs/ENCRYPTOR.md](docs/ENCRYPTOR.md)
+- [codeberg.org/GEANT/docker-encompass/docs/ENCRYPTOR.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/ENCRYPTOR.md)
+
+## Go Policy Tool: decryptor
+
+`decryptor` is a Puppet autosign policy helper that validates CSR `challengePassword`
+against enCompass/enCapsule.
+
+Build:
+
+```bash
+cd cmd/decryptor
+go build -o decryptor .
+```
+
+Config:
+
+- Default config path: `/etc/puppetlabs/puppet/decryptor.yaml`
+- Example config: `examples/decryptor.yaml`
+- Token file default: `/etc/puppetlabs/puppet/csr_api_key`
+
+Usage:
+
+```bash
+# Puppet passes CSR PEM on stdin and certname as $1
+cat /path/to/request.pem | ./decryptor node1.example.org
+```
+
+Exit codes:
+
+- `0`: challenge matches, autosign allowed.
+- non-zero: reject or error.
+
+Policy script wrapper example:
+
+```bash
+sudo install -m 0755 examples/autosign-policy-decryptor.sh /etc/puppetlabs/puppet/autosign-policy.sh
+```
 
 ## Puppet ENC Keywords
 
@@ -213,8 +300,22 @@ Main runtime configuration is in `vars` (copied from `vars.example`).
 
 - `DEBUG`: Django debug mode
 - `SECRET_KEY`: Django secret key (generate a unique value)
+- `CSR_CHALLENGE_KEY`: dedicated symmetric key for encrypted CSR `challengePassword` storage
 - `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
 - `TIME_ZONE`, `LANGUAGE_CODE`
+
+### CSR challengePassword store
+
+- enCompass now keeps a dedicated encrypted map for CSR attributes under `/data/csr_challenges.yaml`.
+- Entries are created automatically on host/group save with get-or-create behavior (no overwrite of existing value).
+- Canonical entity names are `host/<fqdn>` and `group/<groupname>`.
+- Rotate values with Django command:
+
+```bash
+python manage.py rotate_csr_challenge --host node1.example.org
+python manage.py rotate_csr_challenge --group default
+python manage.py rotate_csr_challenge --all
+```
 
 ### Logging
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+#
 set -euo pipefail
 
 SCHEME="${ENCAPSULE_SYNC_SCHEME:-http}"

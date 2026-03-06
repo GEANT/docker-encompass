@@ -11,6 +11,7 @@ import threading
 import time
 import requests
 from django.conf import settings
+from csr_store import csr_attributes
 from . import enc_data
 
 logger = logging.getLogger(__name__)
@@ -147,11 +148,21 @@ def _sync_git_repo(actor: dict | None = None, action: str | None = None) -> bool
     timeout = _env_int("GIT_SYNC_TIMEOUT", 30)
 
     _run_checked(
-        ["git", "add", "hosts.yaml", "groups.yaml"], cwd=ENC_REPO_DIR, timeout=timeout
+        ["git", "add", "hosts.yaml", "groups.yaml", "csr_challenges.yaml"],
+        cwd=ENC_REPO_DIR,
+        timeout=timeout,
     )
 
     status = _run_checked(
-        ["git", "status", "-s", "--", "hosts.yaml", "groups.yaml"],
+        [
+            "git",
+            "status",
+            "-s",
+            "--",
+            "hosts.yaml",
+            "groups.yaml",
+            "csr_challenges.yaml",
+        ],
         cwd=ENC_REPO_DIR,
         timeout=timeout,
     )
@@ -352,6 +363,7 @@ def delete_host(hostname: str, actor: dict | None = None) -> dict:
         deleted = hosts[hostname]
         del hosts[hostname]
         enc_data.save_map("hosts", hosts)
+    csr_attributes.delete(csr_attributes.host_entity_name(hostname))
     _sync_after_write(actor=actor, action=f"delete host {hostname}")
     return deleted
 
@@ -367,6 +379,7 @@ def update_host(hostname: str, payload: dict, actor: dict | None = None) -> dict
         normalized = enc_data.normalize_host_payload(payload)
         hosts[hostname] = normalized
         enc_data.save_map("hosts", hosts)
+    csr_attributes.get_or_create(csr_attributes.host_entity_name(hostname))
     _sync_after_write(actor=actor, action=f"update host {hostname}")
     return normalized
 
@@ -378,6 +391,7 @@ def create_host(hostname: str, payload: dict, actor: dict | None = None) -> dict
         normalized = enc_data.normalize_host_payload(payload)
         hosts[hostname] = normalized
         enc_data.save_map("hosts", hosts)
+    csr_attributes.get_or_create(csr_attributes.host_entity_name(hostname))
     _sync_after_write(actor=actor, action=f"create host {hostname}")
     return normalized
 
@@ -444,6 +458,7 @@ def delete_group(groupname: str, actor: dict | None = None) -> dict:
         deleted = groups[groupname]
         del groups[groupname]
         enc_data.save_map("groups", groups)
+    csr_attributes.delete(csr_attributes.group_entity_name(groupname))
     _sync_after_write(actor=actor, action=f"delete group {groupname}")
     return deleted
 
@@ -464,6 +479,7 @@ def update_group(groupname: str, payload: dict, actor: dict | None = None) -> di
         validate_group_selector_overlaps(groups, groupname, normalized.get("hosts", []))
         groups[groupname] = normalized
         enc_data.save_map("groups", groups)
+    csr_attributes.get_or_create(csr_attributes.group_entity_name(groupname))
     _sync_after_write(actor=actor, action=f"update group {groupname}")
     return normalized
 
@@ -480,6 +496,7 @@ def create_group(groupname: str, payload: dict, actor: dict | None = None) -> di
         validate_group_selector_overlaps(groups, groupname, normalized.get("hosts", []))
         groups[groupname] = normalized
         enc_data.save_map("groups", groups)
+    csr_attributes.get_or_create(csr_attributes.group_entity_name(groupname))
     _sync_after_write(actor=actor, action=f"create group {groupname}")
     return normalized
 

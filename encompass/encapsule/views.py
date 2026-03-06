@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import yaml
 
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from csr_store import csr_attributes
 
 from . import enc_data
 
@@ -35,6 +37,40 @@ def _request_client_ip(request) -> str:
     if forwarded_for:
         return forwarded_for.split(",", 1)[0].strip()
     return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _require_csr_api_token(request):
+    """Validate CSR API token for CSR endpoints."""
+    configured_token = str(os.environ.get("CSR_API_KEY", "")).strip()
+    if not configured_token:
+        return JsonResponse(
+            {"error": "Forbidden", "message": "CSR API token is not configured"},
+            status=403,
+        )
+
+    request_token = str(request.headers.get("X-CSR-API-KEY", "")).strip()
+    if request_token != configured_token:
+        return JsonResponse(
+            {"error": "Forbidden", "message": "Invalid CSR API token"},
+            status=403,
+        )
+
+    return None
+
+
+def _csr_attributes_yaml_response(entity_name: str):
+    """Return CSR attributes as YAML with explicit document start."""
+    challenge_password, _created = csr_attributes.get_or_create(entity_name)
+    payload = {
+        "custom_attributes": {
+            "challengePassword": challenge_password,
+        }
+    }
+    return HttpResponse(
+        yaml.safe_dump(payload, sort_keys=False, explicit_start=True),
+        status=200,
+        content_type="text/yaml",
+    )
 
 
 @csrf_exempt
@@ -95,6 +131,32 @@ def groups_item(request, name):
     if name not in groups:
         return HttpResponse(status=404)
     return _yaml_http_response(groups.get(name))
+
+
+@csrf_exempt
+def host_csr_attributes(request, fqdn):
+    """Endpoint to retrieve CSR custom_attributes for a host."""
+    if request.method != "GET":
+        return _method_not_allowed(request, ["GET"])
+
+    token_error = _require_csr_api_token(request)
+    if token_error:
+        return token_error
+
+    return _csr_attributes_yaml_response(csr_attributes.host_entity_name(fqdn))
+
+
+@csrf_exempt
+def group_csr_attributes(request, name):
+    """Endpoint to retrieve CSR custom_attributes for a group."""
+    if request.method != "GET":
+        return _method_not_allowed(request, ["GET"])
+
+    token_error = _require_csr_api_token(request)
+    if token_error:
+        return token_error
+
+    return _csr_attributes_yaml_response(csr_attributes.group_entity_name(name))
 
 
 @csrf_exempt

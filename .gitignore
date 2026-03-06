@@ -91,3 +91,7 @@ groups.yaml
 hosts.yaml
 users.yaml
 secret_key
+
+# Local Go build outputs
+cmd/encryptor/encryptor
+cmd/decryptor/decryptor

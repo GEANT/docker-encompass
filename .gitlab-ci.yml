@@ -36,6 +36,50 @@ variables:
         docker push "${REMOTE_BASE}:${DOCKER_TAG}"
       done
 
+.go_binary_build:
+  stage: build_and_push
+  only:
+    - tags
+  tags:
+    - shared-global-shell-runner
+  artifacts:
+    name: "$TOOL_NAME-$CI_COMMIT_TAG"
+    paths:
+      - dist/$TOOL_NAME/
+    expire_in: 30 days
+  script:
+    - |
+      set -euo pipefail
+
+      mkdir -p "dist/${TOOL_NAME}"
+      pushd "$TOOL_DIR" >/dev/null
+
+      go mod download
+
+      GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+        go build -trimpath -ldflags "-s -w" \
+        -o "../../dist/${TOOL_NAME}/${TOOL_NAME}-linux-amd64" .
+
+      GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
+        go build -trimpath -ldflags "-s -w" \
+        -o "../../dist/${TOOL_NAME}/${TOOL_NAME}-linux-arm64" .
+
+      GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 \
+        go build -trimpath -ldflags "-s -w" \
+        -o "../../dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64" .
+
+      popd >/dev/null
+
+      chmod +x \
+        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-amd64" \
+        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-arm64" \
+        "dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64"
+      sha256sum \
+        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-amd64" \
+        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-arm64" \
+        "dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64" \
+        > "dist/${TOOL_NAME}/SHA256SUMS"
+
 build_encompass:
   extends: .docker_build_and_push
   variables:
@@ -45,3 +89,15 @@ build_encapsule:
   extends: .docker_build_and_push
   variables:
     SERVICE_NAME: encapsule
+
+build_encryptor:
+  extends: .go_binary_build
+  variables:
+    TOOL_NAME: encryptor
+    TOOL_DIR: cmd/encryptor
+
+build_decryptor:
+  extends: .go_binary_build
+  variables:
+    TOOL_NAME: decryptor
+    TOOL_DIR: cmd/decryptor

@@ -151,18 +151,19 @@ fi
 if [ "$GIT_READ_ONLY" = "true" ]; then
     echo "==> Git-setup: Read-only mode enabled; skipping bootstrap/commit/push steps"
 elif [ -d /root/.do-not-delete ]; then
-    # inject the hosts.yaml and groups.yaml if they don't exist
+    # inject ENC data files if they don't exist
     [ -f hosts.yaml ] || echo "---" >hosts.yaml
     [ -f groups.yaml ] || cp /root/.do-not-delete/groups.yaml groups.yaml
+    [ -f csr_challenges.yaml ] || cp /root/.do-not-delete/csr_challenges.yaml csr_challenges.yaml
     cmp -s /root/.do-not-delete/README.md README.md || cp -f /root/.do-not-delete/README.md README.md
 
     # clean up alien files and directories
     find . -maxdepth 1 -mindepth 1 -type d -not -path ./.git -exec rm -rf {} +
-    find . -type f ! -name hosts.yaml ! -name groups.yaml \
+    find . -type f ! -name hosts.yaml ! -name groups.yaml ! -name csr_challenges.yaml \
         ! -name README.md -not -path "./.git/*" ! -name .git -exec rm -f {} +
 
     # add and commit the initial files if there are changes
-    git add hosts.yaml groups.yaml README.md
+    git add hosts.yaml groups.yaml csr_challenges.yaml README.md
     git config user.name "${GIT_COMMIT_NAME:-encompass-bot}"
     git config user.email "${GIT_COMMIT_EMAIL:-encompass@local}"
 
@@ -170,7 +171,7 @@ elif [ -d /root/.do-not-delete ]; then
     if [ -z "$(git status -s)" ]; then
         echo "==> Git-setup: No changes to commit, skipping commit and push"
     else
-        git commit -m "Initial commit of hosts.yaml, groups.yaml, and README.md"
+        git commit -m "Initial commit of hosts.yaml, groups.yaml, csr_challenges.yaml, and README.md"
         if git push origin "$GIT_BRANCH"; then
             echo "==> Git-setup: Successfully pushed initial commit to branch '$GIT_BRANCH'"
         else
