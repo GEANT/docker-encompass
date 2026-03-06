@@ -4,10 +4,25 @@
 
 - Feat(ssh): enhance SSH configuration and key handling in git-setup.sh, update vars.example for clarity
 - Feat(settings): add ENC_OVERLAPPING_DEFINITIONS_ENABLED setting and validation
+- Feat(csr): Add CSR challengePassword management and API endpoints
+
+- Introduced `csr_attributes` module for managing encrypted CSR challengePassword values.
+- Added new API endpoints to retrieve CSR attributes for hosts and groups, requiring an API key for access.
+- Implemented `enCryptor` binary for fetching CSR challengePassword attributes.
+- Updated documentation to reflect new endpoints and usage of `enCryptor`.
+- Created management command to rotate CSR challengePassword values for specified entities.
+- Enhanced tests to cover new functionality and ensure proper behavior of CSR attribute management.
+- Updated requirements to include necessary cryptography library.
+- Feat(ci): integrate Codeberg support for Docker image uploads and release asset management
+- Feat(docs): add deCryptor documentation and update README for clarity
 
 ### 📚 Documentation
 
 - Doc(enc): update README to clarify ENC endpoints and add enCapsule details
+
+### 🎨 Styling
+
+- Style(linter): make linter happy
 ## [0.9.3] - 2026-03-02
 
 ### 🚀 Features

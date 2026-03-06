@@ -17,8 +17,8 @@ It provides a web UI to manage hosts and groups, plus read-only ENC endpoints ex
 enCapsule is an optional agent for enCompass that can be used to provide high availability for the ENC API.  
 It does not depend on database and boots up in just 1 second making it ideal for an autoscaling setup.
 
-This repository also includes an optional `enCryptor` component that enables  
-certificate auto-signing flows through CSR `challengePassword` validation.
+This repository also includes optional `enCryptor` and `deCryptor` components that enable certificate  
+auto-signing flows through CSR `challengePassword` generation and validation.
 
 **Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)  
 **Repository URL**: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass)  
@@ -36,7 +36,7 @@ certificate auto-signing flows through CSR `challengePassword` validation.
   - [Docker Compose](#docker-compose)
     - [Quick Start (Docker)](#quick-start-docker)
 - [Endpoints](#endpoints)
-- [enCryptor (Optional)](#encryptor-optional)
+- [enCryptor + deCryptor (Optional)](#encryptor--decryptor-optional)
 - [Puppet ENC Integration](#puppet-enc-integration)
 - [Migration Notes](#migration-notes)
 - [Puppet ENC Keywords](#puppet-enc-keywords)
@@ -147,54 +147,24 @@ curl -s -H "X-CSR-API-KEY: $CSR_API_KEY" \
   http://enc.example.org:8081/hosts/node1.example.org/csr_attributes
 ```
 
-## enCryptor (Optional)
+## enCryptor + deCryptor (Optional)
 
 `enCryptor` is an optional helper component for provisioning workflows that
 retrieve CSR `challengePassword` values from enCompass/enCapsule and write the
 expected YAML blob for autosign use cases.
 
-Component name is `enCryptor`; executable name is `encryptor`.
+`deCryptor` is an optional Puppet autosign policy helper that validates incoming
+CSR `challengePassword` values against enCompass/enCapsule.
+
+Component names are `enCryptor` and `deCryptor`; executable names are
+`encryptor` and `decryptor`.
 
 Full documentation:
 
 - [docs/ENCRYPTOR.md](docs/ENCRYPTOR.md)
 - [codeberg.org/GEANT/docker-encompass/docs/ENCRYPTOR.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/ENCRYPTOR.md)
-
-## Go Policy Tool: decryptor
-
-`decryptor` is a Puppet autosign policy helper that validates CSR `challengePassword`
-against enCompass/enCapsule.
-
-Build:
-
-```bash
-cd cmd/decryptor
-go build -o decryptor .
-```
-
-Config:
-
-- Default config path: `/etc/puppetlabs/puppet/decryptor.yaml`
-- Example config: `examples/decryptor.yaml`
-- Token file default: `/etc/puppetlabs/puppet/csr_api_key`
-
-Usage:
-
-```bash
-# Puppet passes CSR PEM on stdin and certname as $1
-cat /path/to/request.pem | ./decryptor node1.example.org
-```
-
-Exit codes:
-
-- `0`: challenge matches, autosign allowed.
-- non-zero: reject or error.
-
-Policy script wrapper example:
-
-```bash
-sudo install -m 0755 examples/autosign-policy-decryptor.sh /etc/puppetlabs/puppet/autosign-policy.sh
-```
+- [docs/DECRYPTOR.md](docs/DECRYPTOR.md)
+- [codeberg.org/GEANT/docker-encompass/docs/DECRYPTOR.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DECRYPTOR.md)
 
 ## Puppet ENC Keywords
 
