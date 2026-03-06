@@ -19,7 +19,9 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-CSR_DATA_PATH = Path(os.environ.get("CSR_CHALLENGE_DATA_PATH", "/data/csr_challenges.yaml"))
+CSR_DATA_PATH = Path(
+    os.environ.get("CSR_CHALLENGE_DATA_PATH", "/data/csr_challenges.yaml")
+)
 _LOCK_NAME = "encompass:csr:challenges"
 _LOCAL_LOCK = RLock()
 
