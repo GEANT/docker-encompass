@@ -8,6 +8,7 @@ variables:
   CODEBERG_HOST: codeberg.org
   CODEBERG_OWNER: GEANT
   CODEBERG_REPO: docker-encompass
+  GOTOOLCHAIN: "local"
 
 .docker_build_and_push:
   stage: build_and_push
