@@ -16,6 +16,14 @@
 - Feat(ci): integrate Codeberg support for Docker image uploads and release asset management
 - Feat(docs): add deCryptor documentation and update README for clarity
 
+### 🐛 Bug Fixes
+
+- Fix(ci): add GOTOOLCHAIN variable
+
+### 🚜 Refactor
+
+- Refactor: remove deprecated autosign policy scripts
+
 ### 📚 Documentation
 
 - Doc(enc): update README to clarify ENC endpoints and add enCapsule details
@@ -23,6 +31,11 @@
 ### 🎨 Styling
 
 - Style(linter): make linter happy
+- Style(linter): make linter happier
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(release): update changelog for 0.9.4
 ## [0.9.3] - 2026-03-02
 
 ### 🚀 Features
