@@ -5,6 +5,9 @@ variables:
   GIT_STRATEGY: clone
   DOCKER_BUILDKIT: "1"
   COMPOSE_DOCKER_CLI_BUILD: "1"
+  CODEBERG_HOST: codeberg.org
+  CODEBERG_OWNER: GEANT
+  CODEBERG_REPO: docker-encompass
 
 .docker_build_and_push:
   stage: build_and_push
@@ -18,6 +21,7 @@ variables:
 
       [ "$SERVICE_NAME" = "encompass" ] && bash ./files/deployment-stuff/pre-build.sh
       printf '%s' "$AFACTORY_TOKEN" | docker login -u "$AFACTORY_USER" --password-stdin "$AFACTORY_HOST"
+      printf '%s' "$CODEBERG_TOKEN" | docker login -u "$CODEBERG_USER" --password-stdin "$CODEBERG_HOST"
 
       docker build --no-cache --build-arg CACHEBUST="$(date +%s)" -f Dockerfiles/$SERVICE_NAME -t "$SERVICE_NAME:$CI_COMMIT_TAG" .
 
@@ -29,11 +33,17 @@ variables:
 
       REMOTE_BASE="$AFACTORY_HOST/geant-devops-docker/$SERVICE_NAME"
       URL_BASE="${AFACTORY_HOST}/artifactory/geant-devops-docker/${SERVICE_NAME}"
+      CODEBERG_OWNER_LC="$(printf '%s' "$CODEBERG_OWNER" | tr '[:upper:]' '[:lower:]')"
+      CODEBERG_REPO_LC="$(printf '%s' "$CODEBERG_REPO" | tr '[:upper:]' '[:lower:]')"
+      CODEBERG_REMOTE_BASE="${CODEBERG_HOST}/${CODEBERG_OWNER_LC}/${CODEBERG_REPO_LC}/${SERVICE_NAME}"
 
       for DOCKER_TAG in "$CI_COMMIT_TAG" latest; do
         curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${URL_BASE}:${DOCKER_TAG}" || true
         docker tag "$LOCAL_IMAGE" "${REMOTE_BASE}:${DOCKER_TAG}"
         docker push "${REMOTE_BASE}:${DOCKER_TAG}"
+
+        docker tag "$LOCAL_IMAGE" "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
+        docker push "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
       done
 
 .go_binary_build:
@@ -79,6 +89,47 @@ variables:
         "dist/${TOOL_NAME}/${TOOL_NAME}-linux-arm64" \
         "dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64" \
         > "dist/${TOOL_NAME}/SHA256SUMS"
+
+      API_BASE="https://${CODEBERG_HOST}/api/v1/repos/${CODEBERG_OWNER}/${CODEBERG_REPO}"
+      AUTH_HEADER="Authorization: token ${CODEBERG_TOKEN}"
+
+      release_json="$(curl -sS -H "$AUTH_HEADER" "${API_BASE}/releases/tags/${CI_COMMIT_TAG}" || true)"
+      release_id="$(printf '%s' "$release_json" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+
+      if [ -z "$release_id" ]; then
+        create_payload="{\"tag_name\":\"${CI_COMMIT_TAG}\",\"name\":\"${CI_COMMIT_TAG}\",\"target_commitish\":\"${CI_COMMIT_SHA}\"}"
+        release_json="$(curl -sS -X POST -H "$AUTH_HEADER" -H "Content-Type: application/json" -d "$create_payload" "${API_BASE}/releases")"
+        release_id="$(printf '%s' "$release_json" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+      fi
+
+      if [ -z "$release_id" ]; then
+        echo "ERROR: unable to resolve Codeberg release id for tag ${CI_COMMIT_TAG}" >&2
+        exit 1
+      fi
+
+      for file in "dist/${TOOL_NAME}"/*; do
+        asset_name="$(basename "$file")"
+        status_code="$(curl -sS -o /tmp/codeberg-upload-${TOOL_NAME}.log -w "%{http_code}" \
+          -X POST \
+          -H "$AUTH_HEADER" \
+          -H "Content-Type: application/octet-stream" \
+          --data-binary "@$file" \
+          "${API_BASE}/releases/${release_id}/assets?name=${asset_name}")"
+
+        if [ "$status_code" = "201" ] || [ "$status_code" = "200" ]; then
+          echo "Uploaded ${asset_name} to Codeberg release ${CI_COMMIT_TAG}"
+          continue
+        fi
+
+        if [ "$status_code" = "409" ]; then
+          echo "Asset ${asset_name} already exists on Codeberg release ${CI_COMMIT_TAG}; skipping"
+          continue
+        fi
+
+        echo "ERROR: failed to upload ${asset_name} to Codeberg (HTTP ${status_code})" >&2
+        cat /tmp/codeberg-upload-${TOOL_NAME}.log >&2 || true
+        exit 1
+      done
 
 build_encompass:
   extends: .docker_build_and_push
