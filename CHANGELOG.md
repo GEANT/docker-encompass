@@ -20,6 +20,7 @@
 
 - Fix(ci): add GOTOOLCHAIN variable
 - Fix(ci): fix release artifcats creation
+- Fix(ci): use external scripts
 
 ### 🚜 Refactor
 
@@ -36,6 +37,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
