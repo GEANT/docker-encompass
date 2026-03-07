@@ -33,7 +33,7 @@ variables:
     expire_in: 30 days
   script:
     - chmod +x ./files/ci/push-artifacts-codeberg.sh
-    - ./files/ci/push-artifacts-codeberg.sh "$TOOL_NAME" "$TOOL_DIR"
+    - ./files/ci/push-artifacts-codeberg.sh "$TOOL_NAME" "$TOOL_DIR" "true"
 
 build_encompass:
   extends: .docker_build_and_push
