@@ -17,35 +17,8 @@ variables:
   tags:
     - shared-global-shell-runner
   script:
-    - |
-      set -euo pipefail
-
-      [ "$SERVICE_NAME" = "encompass" ] && bash ./files/deployment-stuff/pre-build.sh
-      printf '%s' "$AFACTORY_TOKEN" | docker login -u "$AFACTORY_USER" --password-stdin "$AFACTORY_HOST"
-      printf '%s' "$CODEBERG_TOKEN" | docker login -u "$CODEBERG_USER" --password-stdin "$CODEBERG_HOST"
-
-      docker build --no-cache --build-arg CACHEBUST="$(date +%s)" -f Dockerfiles/$SERVICE_NAME -t "$SERVICE_NAME:$CI_COMMIT_TAG" .
-
-      LOCAL_IMAGE="$SERVICE_NAME:$CI_COMMIT_TAG"
-      if ! docker image inspect "$LOCAL_IMAGE" >/dev/null 2>&1; then
-        echo "ERROR: built image '$LOCAL_IMAGE' not found" >&2
-        exit 1
-      fi
-
-      REMOTE_BASE="$AFACTORY_HOST/geant-devops-docker/$SERVICE_NAME"
-      URL_BASE="${AFACTORY_HOST}/artifactory/geant-devops-docker/${SERVICE_NAME}"
-      CODEBERG_OWNER_LC="$(printf '%s' "$CODEBERG_OWNER" | tr '[:upper:]' '[:lower:]')"
-      CODEBERG_REPO_LC="$(printf '%s' "$CODEBERG_REPO" | tr '[:upper:]' '[:lower:]')"
-      CODEBERG_REMOTE_BASE="${CODEBERG_HOST}/${CODEBERG_OWNER_LC}/${CODEBERG_REPO_LC}/${SERVICE_NAME}"
-
-      for DOCKER_TAG in "$CI_COMMIT_TAG" latest; do
-        curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${URL_BASE}:${DOCKER_TAG}" || true
-        docker tag "$LOCAL_IMAGE" "${REMOTE_BASE}:${DOCKER_TAG}"
-        docker push "${REMOTE_BASE}:${DOCKER_TAG}"
-
-        docker tag "$LOCAL_IMAGE" "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
-        docker push "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
-      done
+    - chmod +x ./files/ci/push-containers-codeberg.sh
+    - ./files/ci/push-containers-codeberg.sh
 
 .go_binary_build:
   stage: build_and_push
@@ -59,107 +32,8 @@ variables:
       - dist/$TOOL_NAME/
     expire_in: 30 days
   script:
-    - |
-      set -euo pipefail
-
-      mkdir -p "dist/${TOOL_NAME}"
-      pushd "$TOOL_DIR" >/dev/null
-
-      go mod download
-
-      GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-        go build -trimpath -ldflags "-s -w" \
-        -o "../../dist/${TOOL_NAME}/${TOOL_NAME}-linux-amd64" .
-
-      GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
-        go build -trimpath -ldflags "-s -w" \
-        -o "../../dist/${TOOL_NAME}/${TOOL_NAME}-linux-arm64" .
-
-      GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 \
-        go build -trimpath -ldflags "-s -w" \
-        -o "../../dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64" .
-
-      popd >/dev/null
-
-      chmod +x \
-        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-amd64" \
-        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-arm64" \
-        "dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64"
-      sha256sum \
-        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-amd64" \
-        "dist/${TOOL_NAME}/${TOOL_NAME}-linux-arm64" \
-        "dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64" \
-        > "dist/${TOOL_NAME}/SHA256SUMS"
-
-      CODEBERG_OWNER_LC="$(printf '%s' "$CODEBERG_OWNER" | tr '[:upper:]' '[:lower:]')"
-      CODEBERG_REPO_LC="$(printf '%s' "$CODEBERG_REPO" | tr '[:upper:]' '[:lower:]')"
-      API_BASE="https://${CODEBERG_HOST}/api/v1/repos/${CODEBERG_OWNER_LC}/${CODEBERG_REPO_LC}"
-      AUTH_HEADER="Authorization: token ${CODEBERG_TOKEN}"
-
-      parse_release_id() {
-        printf '%s' "$1" | tr -d '\n' | grep -o '"id"[[:space:]]*:[[:space:]]*[0-9]\+' | head -n 1 | grep -o '[0-9]\+' || true
-      }
-
-      release_id=""
-      # Codeberg/Gitea release assets are tied to a release object, not just a git tag.
-      # Create first; if it already exists, fetch by tag.
-      create_payload="{\"tag_name\":\"${CI_COMMIT_TAG}\",\"name\":\"${CI_COMMIT_TAG}\",\"target_commitish\":\"${CI_COMMIT_SHA}\"}"
-      create_resp="$(curl -sS -w '\n%{http_code}' -X POST -H "$AUTH_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" -d "$create_payload" "${API_BASE}/releases" || true)"
-      create_body="${create_resp%$'\n'*}"
-      create_code="${create_resp##*$'\n'}"
-
-      if [ "$create_code" = "201" ] || [ "$create_code" = "200" ]; then
-        release_id="$(parse_release_id "$create_body")"
-      elif [ "$create_code" = "409" ] || [ "$create_code" = "422" ]; then
-        echo "Codeberg release for tag ${CI_COMMIT_TAG} already exists; fetching id"
-      else
-        echo "ERROR: failed to create Codeberg release for tag ${CI_COMMIT_TAG} (HTTP ${create_code})" >&2
-        printf '%s\n' "$create_body" >&2
-        exit 1
-      fi
-
-      if [ -z "$release_id" ]; then
-        release_lookup_resp="$(curl -sS -w '\n%{http_code}' -H "$AUTH_HEADER" -H "Accept: application/json" "${API_BASE}/releases/tags/${CI_COMMIT_TAG}" || true)"
-        release_lookup_body="${release_lookup_resp%$'\n'*}"
-        release_lookup_code="${release_lookup_resp##*$'\n'}"
-
-        if [ "$release_lookup_code" = "200" ]; then
-          release_id="$(parse_release_id "$release_lookup_body")"
-        else
-          echo "ERROR: failed to query Codeberg release for tag ${CI_COMMIT_TAG} (HTTP ${release_lookup_code})" >&2
-          printf '%s\n' "$release_lookup_body" >&2
-          exit 1
-        fi
-      fi
-
-      if [ -z "$release_id" ]; then
-        echo "ERROR: unable to resolve Codeberg release id for tag ${CI_COMMIT_TAG} (API response did not include id)" >&2
-        exit 1
-      fi
-
-      for file in "dist/${TOOL_NAME}"/*; do
-        asset_name="$(basename "$file")"
-        status_code="$(curl -sS -o /tmp/codeberg-upload-${TOOL_NAME}.log -w "%{http_code}" \
-          -X POST \
-          -H "$AUTH_HEADER" \
-          -H "Content-Type: application/octet-stream" \
-          --data-binary "@$file" \
-          "${API_BASE}/releases/${release_id}/assets?name=${asset_name}")"
-
-        if [ "$status_code" = "201" ] || [ "$status_code" = "200" ]; then
-          echo "Uploaded ${asset_name} to Codeberg release ${CI_COMMIT_TAG}"
-          continue
-        fi
-
-        if [ "$status_code" = "409" ]; then
-          echo "Asset ${asset_name} already exists on Codeberg release ${CI_COMMIT_TAG}; skipping"
-          continue
-        fi
-
-        echo "ERROR: failed to upload ${asset_name} to Codeberg (HTTP ${status_code})" >&2
-        cat /tmp/codeberg-upload-${TOOL_NAME}.log >&2 || true
-        exit 1
-      done
+    - chmod +x ./files/ci/push-artifacts-codeberg.sh
+    - ./files/ci/push-artifacts-codeberg.sh "$TOOL_NAME" "$TOOL_DIR"
 
 build_encompass:
   extends: .docker_build_and_push
