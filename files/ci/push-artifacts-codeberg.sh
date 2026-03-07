@@ -35,7 +35,9 @@ popd >/dev/null
 chmod +x "dist/${TOOL_NAME}/${TOOL_NAME}-"*
 sha256sum "dist/${TOOL_NAME}/${TOOL_NAME}-"* >"dist/${TOOL_NAME}/SHA256SUMS"
 
-PACKAGE_BASE="https://${CODEBERG_HOST}/api/packages/${CODEBERG_OWNER}/generic/${TOOL_NAME}"
+CODEBERG_OWNER_LC="$(printf '%s' "$CODEBERG_OWNER" | tr '[:upper:]' '[:lower:]')"
+
+PACKAGE_BASE="https://${CODEBERG_HOST}/api/packages/${CODEBERG_OWNER_LC}/generic/${TOOL_NAME}"
 
 for package_version in "$CI_COMMIT_TAG" latest; do
   if [ "$DELETE_EXISTING" = "true" ]; then
