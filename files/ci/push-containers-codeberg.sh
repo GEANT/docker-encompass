@@ -26,14 +26,16 @@ if ! docker image inspect "$LOCAL_IMAGE" >/dev/null 2>&1; then
   exit 1
 fi
 
-REMOTE_BASE="$AFACTORY_HOST/geant-devops-docker/$SERVICE_NAME"
+CODEBERG_OWNER_LC="$(printf '%s' "$CODEBERG_OWNER" | tr '[:upper:]' '[:lower:]')"
+CODEBERG_REPO_LC="$(printf '%s' "$CODEBERG_REPO" | tr '[:upper:]' '[:lower:]')"
+AFACTORY_REMOTE_BASE="$AFACTORY_HOST/geant-devops-docker/$SERVICE_NAME"
 URL_BASE="${AFACTORY_HOST}/artifactory/geant-devops-docker/${SERVICE_NAME}"
-CODEBERG_REMOTE_BASE="${CODEBERG_HOST}/${CODEBERG_OWNER}/${CODEBERG_REPO}/${SERVICE_NAME}"
+CODEBERG_REMOTE_BASE="${CODEBERG_HOST}/${CODEBERG_OWNER_LC}/${CODEBERG_REPO_LC}/${SERVICE_NAME}"
 
 for DOCKER_TAG in "$CI_COMMIT_TAG" latest; do
   curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${URL_BASE}:${DOCKER_TAG}" || true
-  docker tag "$LOCAL_IMAGE" "${REMOTE_BASE}:${DOCKER_TAG}"
-  docker push "${REMOTE_BASE}:${DOCKER_TAG}"
+  docker tag "$LOCAL_IMAGE" "${AFACTORY_REMOTE_BASE}:${DOCKER_TAG}"
+  docker push "${AFACTORY_REMOTE_BASE}:${DOCKER_TAG}"
 
   docker tag "$LOCAL_IMAGE" "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
   docker push "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
