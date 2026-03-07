@@ -21,6 +21,7 @@
 - Fix(ci): add GOTOOLCHAIN variable
 - Fix(ci): fix release artifcats creation
 - Fix(ci): use external scripts
+- Fix(ci): correct remote base URLs for Docker image tagging and pushing
 
 ### 🚜 Refactor
 
@@ -37,6 +38,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
