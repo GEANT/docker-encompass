@@ -8,7 +8,7 @@ variables:
   CODEBERG_HOST: codeberg.org
   CODEBERG_OWNER: GEANT
   CODEBERG_REPO: docker-encompass
-  GOTOOLCHAIN: "local"
+  GOTOOLCHAIN: local
 
 .docker_build_and_push:
   stage: build_and_push
@@ -91,39 +91,49 @@ variables:
         "dist/${TOOL_NAME}/${TOOL_NAME}-darwin-arm64" \
         > "dist/${TOOL_NAME}/SHA256SUMS"
 
-      API_BASE="https://${CODEBERG_HOST}/api/v1/repos/${CODEBERG_OWNER}/${CODEBERG_REPO}"
+      CODEBERG_OWNER_LC="$(printf '%s' "$CODEBERG_OWNER" | tr '[:upper:]' '[:lower:]')"
+      CODEBERG_REPO_LC="$(printf '%s' "$CODEBERG_REPO" | tr '[:upper:]' '[:lower:]')"
+      API_BASE="https://${CODEBERG_HOST}/api/v1/repos/${CODEBERG_OWNER_LC}/${CODEBERG_REPO_LC}"
       AUTH_HEADER="Authorization: token ${CODEBERG_TOKEN}"
 
-      release_lookup_resp="$(curl -sS -w '\n%{http_code}' -H "$AUTH_HEADER" -H "Accept: application/json" "${API_BASE}/releases/tags/${CI_COMMIT_TAG}" || true)"
-      release_lookup_body="${release_lookup_resp%$'\n'*}"
-      release_lookup_code="${release_lookup_resp##*$'\n'}"
+      parse_release_id() {
+        printf '%s' "$1" | tr -d '\n' | grep -o '"id"[[:space:]]*:[[:space:]]*[0-9]\+' | head -n 1 | grep -o '[0-9]\+' || true
+      }
 
       release_id=""
-      if [ "$release_lookup_code" = "200" ]; then
-        release_id="$(printf '%s' "$release_lookup_body" | tr -d '\n' | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
-      elif [ "$release_lookup_code" != "404" ]; then
-        echo "ERROR: failed to query Codeberg release for tag ${CI_COMMIT_TAG} (HTTP ${release_lookup_code})" >&2
-        printf '%s\n' "$release_lookup_body" >&2
+      # Codeberg/Gitea release assets are tied to a release object, not just a git tag.
+      # Create first; if it already exists, fetch by tag.
+      create_payload="{\"tag_name\":\"${CI_COMMIT_TAG}\",\"name\":\"${CI_COMMIT_TAG}\",\"target_commitish\":\"${CI_COMMIT_SHA}\"}"
+      create_resp="$(curl -sS -w '\n%{http_code}' -X POST -H "$AUTH_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" -d "$create_payload" "${API_BASE}/releases" || true)"
+      create_body="${create_resp%$'\n'*}"
+      create_code="${create_resp##*$'\n'}"
+
+      if [ "$create_code" = "201" ] || [ "$create_code" = "200" ]; then
+        release_id="$(parse_release_id "$create_body")"
+      elif [ "$create_code" = "409" ] || [ "$create_code" = "422" ]; then
+        echo "Codeberg release for tag ${CI_COMMIT_TAG} already exists; fetching id"
+      else
+        echo "ERROR: failed to create Codeberg release for tag ${CI_COMMIT_TAG} (HTTP ${create_code})" >&2
+        printf '%s\n' "$create_body" >&2
         exit 1
       fi
 
       if [ -z "$release_id" ]; then
-        create_payload="{\"tag_name\":\"${CI_COMMIT_TAG}\",\"name\":\"${CI_COMMIT_TAG}\",\"target_commitish\":\"${CI_COMMIT_SHA}\"}"
-        create_resp="$(curl -sS -w '\n%{http_code}' -X POST -H "$AUTH_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" -d "$create_payload" "${API_BASE}/releases" || true)"
-        create_body="${create_resp%$'\n'*}"
-        create_code="${create_resp##*$'\n'}"
+        release_lookup_resp="$(curl -sS -w '\n%{http_code}' -H "$AUTH_HEADER" -H "Accept: application/json" "${API_BASE}/releases/tags/${CI_COMMIT_TAG}" || true)"
+        release_lookup_body="${release_lookup_resp%$'\n'*}"
+        release_lookup_code="${release_lookup_resp##*$'\n'}"
 
-        if [ "$create_code" = "201" ] || [ "$create_code" = "200" ]; then
-          release_id="$(printf '%s' "$create_body" | tr -d '\n' | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+        if [ "$release_lookup_code" = "200" ]; then
+          release_id="$(parse_release_id "$release_lookup_body")"
         else
-          echo "ERROR: failed to create Codeberg release for tag ${CI_COMMIT_TAG} (HTTP ${create_code})" >&2
-          printf '%s\n' "$create_body" >&2
+          echo "ERROR: failed to query Codeberg release for tag ${CI_COMMIT_TAG} (HTTP ${release_lookup_code})" >&2
+          printf '%s\n' "$release_lookup_body" >&2
           exit 1
         fi
       fi
 
       if [ -z "$release_id" ]; then
-        echo "ERROR: unable to resolve Codeberg release id for tag ${CI_COMMIT_TAG} (unexpected API response)" >&2
+        echo "ERROR: unable to resolve Codeberg release id for tag ${CI_COMMIT_TAG} (API response did not include id)" >&2
         exit 1
       fi
 

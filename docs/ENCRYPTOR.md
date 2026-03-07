@@ -44,3 +44,11 @@ Example output:
 custom_attributes:
   challengePassword: secure_password
 ```
+
+## Terraform Pattern (local-exec)
+
+If Terraform runs outside the target VM, you can execute `encryptor` with a
+`local-exec` provisioner and then upload the generated
+`csr_attributes.yaml` over SSH.
+
+See example: `examples/terraform-encryptor-local-exec.tf`
