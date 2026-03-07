@@ -1,4 +1,5 @@
 #!/bin/bash
+#
 set -euo pipefail
 
 TOOL_NAME="$1"
@@ -21,9 +22,10 @@ go mod download
 function build_artifact {
   local goos="$1"
   local goarch="$2"
+  local binary_path="../../dist/${TOOL_NAME}/${TOOL_NAME}-${goos}-${goarch}"
   GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
-    go build -trimpath -ldflags "-s -w" \
-    -o "../../dist/${TOOL_NAME}/${TOOL_NAME}-${goos}-${goarch}" .
+    go build -trimpath -ldflags "-s -w" -o "$binary_path" .
+  [ "$TOOL_NAME" = "encryptor" ] && upx -q -9 "$binary_path"
 }
 
 build_artifact linux amd64

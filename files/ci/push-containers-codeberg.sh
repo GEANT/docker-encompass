@@ -1,4 +1,5 @@
 #!/bin/bash
+#
 set -euo pipefail
 
 # Read CI-provided variables directly from the environment.
