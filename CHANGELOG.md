@@ -22,6 +22,7 @@
 - Fix(ci): fix release artifcats creation
 - Fix(ci): use external scripts
 - Fix(ci): correct remote base URLs for Docker image tagging and pushing
+- Fix(ci): test lower case owner with artifacts
 
 ### 🚜 Refactor
 
@@ -38,6 +39,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
