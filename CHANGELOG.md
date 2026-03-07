@@ -19,6 +19,7 @@
 ### 🐛 Bug Fixes
 
 - Fix(ci): add GOTOOLCHAIN variable
+- Fix(ci): fix release artifcats creation
 
 ### 🚜 Refactor
 
@@ -35,6 +36,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 ## [0.9.3] - 2026-03-02
