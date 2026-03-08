@@ -2,6 +2,9 @@
 #
 set -euo pipefail
 
+set -x
+
+
 TOOL_NAME="$1"
 TOOL_DIR="$2"
 DELETE_EXISTING="${3:-}"
@@ -33,8 +36,6 @@ build_artifact linux arm64
 build_artifact darwin arm64
 
 popd >/dev/null
-
-set -x
 
 chmod +x "dist/${TOOL_NAME}/${TOOL_NAME}-"*
 sha256sum "dist/${TOOL_NAME}/${TOOL_NAME}-"* >"dist/${TOOL_NAME}/SHA256SUMS"
