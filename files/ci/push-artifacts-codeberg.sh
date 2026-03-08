@@ -2,6 +2,8 @@
 #
 set -euo pipefail
 
+set -x
+
 TOOL_NAME="$1"
 TOOL_DIR="$2"
 DELETE_EXISTING="${3:-}"
