@@ -2,6 +2,23 @@
 
 ### 🚀 Features
 
+- Feat: Add Terraform encryptor example and remove old entrypoint script
+
+- Introduced a new Terraform configuration file `terraform-encryptor.tf` for generating CSR attributes on target nodes.
+- Removed the obsolete `encapsule-entrypoint.sh` script.
+- Added Nginx configuration templates for both enCapsule and encompass services.
+- Created new scripts for encapsule and encompass services to manage their respective server processes.
+- Implemented Git setup and pull scripts for managing repository synchronization.
+- Configured supervisord for managing service processes, including Nginx and application servers.
+- Updated requirements for both encapsule and encompass services to include necessary dependencies.
+
+### 🐛 Bug Fixes
+
+- Fix(ci): update artifact build process to include UPX compression for encryptor
+## [0.9.4] - 2026-03-07
+
+### 🚀 Features
+
 - Feat(ssh): enhance SSH configuration and key handling in git-setup.sh, update vars.example for clarity
 - Feat(settings): add ENC_OVERLAPPING_DEFINITIONS_ENABLED setting and validation
 - Feat(csr): Add CSR challengePassword management and API endpoints
@@ -40,6 +57,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
 - Chore(release): update changelog for 0.9.4
