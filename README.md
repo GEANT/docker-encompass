@@ -3,7 +3,7 @@
 ## preface
 
 _I started coding this project alone, but I crossed paths with Copilot and we decided to join forces and work on it together._  
-I do not master some of the frontend technologies (Ajax, jQuery...), so Copilot has been a great help to implement the UI and related logic.
+I do not master some of the frontend technologies (Ajax, jQuery), so Copilot has been a great help to implement the UI and related logic.
 
 This project is mirrored on [Codeberg](https://codeberg.org/GEANT/docker-encompass) and [Github](https://github.com/GEANT/docker-encompass), and the artifacts are pushed to Codeberg.  
 If Open Source is your thing, please consider starring and contributing on Codeberg: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass).
@@ -15,7 +15,7 @@ enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for D
 It provides a web UI to manage hosts and groups, plus read-only ENC endpoints exposed by both enCompass and enCapsule.
 
 enCapsule is an optional agent for enCompass that can be used to provide high availability for the ENC API.  
-It does not depend on database and boots up in just 1 second making it ideal for an autoscaling setup.
+It does not depend on a database and boots up in just 1 second, making it ideal for an autoscaling setup.
 
 This repository also includes optional `enCryptor` and `deCryptor` components that enable certificate  
 auto-signing flows through CSR `challengePassword` generation and validation.
@@ -29,6 +29,7 @@ auto-signing flows through CSR `challengePassword` generation and validation.
 ## Index
 
 - [Features](#features)
+- [Application Flow](#application-flow)
 - [Development Guide](#development-guide)
 - [Deployment](#deployment)
   - [Nomad Deployment](#nomad-deployment)
@@ -68,6 +69,47 @@ auto-signing flows through CSR `challengePassword` generation and validation.
 - Optional read-only basic auth for ENC endpoints
 - Optional SSL listeners through Nginx
 - Persistent YAML data via Git repository
+
+## Application Flow
+
+```mermaid
+flowchart LR
+  classDef user fill:#eaf4ff,stroke:#2563eb,color:#0f172a,stroke-width:1px;
+  classDef app fill:#eefbf3,stroke:#15803d,color:#052e16,stroke-width:1px;
+  classDef data fill:#fff7ed,stroke:#c2410c,color:#431407,stroke-width:1px;
+  classDef optional fill:#f5f3ff,stroke:#6d28d9,color:#2e1065,stroke-width:1px;
+
+  Admin[Admin Operator\nWeb UI]:::user
+  Puppet[Puppet Server\nENC client]:::user
+  Agent[Puppet Agent\nCSR submitter]:::user
+
+  UI[enCompass Django UI\n/auth + host/group management]:::app
+  API[enCompass ENC API\n/hosts and /groups read-only endpoints]:::app
+  Sync[encapsule-sync.sh\nfan-out trigger]:::app
+
+  Git[(Git-backed YAML data\n/data hosts/groups/default)]:::data
+  CSR[(CSR challenge store\n/data/csr_challenges.yaml)]:::data
+
+  Capsule[enCapsule\nread-only ENC API]:::optional
+  Enc[enCryptor\nfetch challengePassword]:::optional
+  Dec[deCryptor\nvalidate challengePassword]:::optional
+
+  Admin -->|Create/update hosts/groups| UI
+  UI -->|Write YAML + git commit/push| Git
+  UI -->|Optional sync trigger| Sync
+  Sync -->|POST /sync + token| Capsule
+  Capsule -->|git pull (read-only)| Git
+
+  Puppet -->|GET /hosts/{certname}| API
+  API -->|Read classification| Git
+  Capsule -->|GET /hosts/{certname}| Git
+
+  Agent -->|Request CSR attributes| Enc
+  Enc -->|GET /hosts/{fqdn}/csr_attributes| API
+  API -->|Read challengePassword| CSR
+  Dec -->|GET /hosts/{certname}/csr_attributes| API
+  Dec -->|Allow/deny autosign| Puppet
+```
 
 ## Deployment
 
@@ -499,11 +541,9 @@ In Nomad, SRV entries are typically easiest. In non-SRV environments, use explic
 
 Host/group YAML data is stored in the configured Git repository.
 
-When using LDAP authentication, the data stored in the database is not critical. It can be rebuilt from scratch without causing problems. Only session cookies will be lost.
+When using LDAP authentication, the data stored in the database is not critical. It can be rebuilt from scratch and only session cookies will be lost.
 
-When the authentication backend is MySQL, the database stores user information.
-
-It’s recommended to back up your MySQL database when Database authentication is in use.
+When the authentication backend is MySQL, the database stores user information. It’s recommended to back up your MySQL database when Database authentication is used.
 
 ## Security Checklist
 
