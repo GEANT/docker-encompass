@@ -2,9 +2,6 @@
 #
 set -euo pipefail
 
-set -x
-
-
 TOOL_NAME="$1"
 TOOL_DIR="$2"
 DELETE_EXISTING="${3:-}"
@@ -28,7 +25,7 @@ function build_artifact {
   local binary_path="../../dist/${TOOL_NAME}/${TOOL_NAME}-${goos}-${goarch}"
   GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
     go build -trimpath -ldflags "-s -w" -o "$binary_path" .
-  [ "$TOOL_NAME" == "encryptor" ] && [ "$goos" == "linux" ] && upx -q -9 "$binary_path"
+  [ "$TOOL_NAME" = "encryptor" ] && [ "$goos" = "linux" ] && upx -q -9 "$binary_path"
 }
 
 build_artifact linux amd64
