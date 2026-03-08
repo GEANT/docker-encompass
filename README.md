@@ -74,41 +74,36 @@ auto-signing flows through CSR `challengePassword` generation and validation.
 
 ```mermaid
 flowchart LR
-  classDef user fill:#eaf4ff,stroke:#2563eb,color:#0f172a,stroke-width:1px;
-  classDef app fill:#eefbf3,stroke:#15803d,color:#052e16,stroke-width:1px;
-  classDef data fill:#fff7ed,stroke:#c2410c,color:#431407,stroke-width:1px;
-  classDef optional fill:#f5f3ff,stroke:#6d28d9,color:#2e1065,stroke-width:1px;
+  Admin[Admin Operator - Web UI]
+  Puppet[Puppet Server - ENC client]
+  Agent[Puppet Agent - CSR submitter]
 
-  Admin[Admin Operator\nWeb UI]:::user
-  Puppet[Puppet Server\nENC client]:::user
-  Agent[Puppet Agent\nCSR submitter]:::user
+  UI[enCompass Django UI]
+  API[enCompass ENC API]
+  Sync[encapsule-sync.sh]
 
-  UI[enCompass Django UI\n/auth + host/group management]:::app
-  API[enCompass ENC API\n/hosts and /groups read-only endpoints]:::app
-  Sync[encapsule-sync.sh\nfan-out trigger]:::app
+  Git[(Git-backed YAML data)]
+  CSR[(CSR challenge store)]
 
-  Git[(Git-backed YAML data\n/data hosts/groups/default)]:::data
-  CSR[(CSR challenge store\n/data/csr_challenges.yaml)]:::data
+  Capsule[enCapsule read-only ENC API]
+  Enc[enCryptor]
+  Dec[deCryptor]
 
-  Capsule[enCapsule\nread-only ENC API]:::optional
-  Enc[enCryptor\nfetch challengePassword]:::optional
-  Dec[deCryptor\nvalidate challengePassword]:::optional
+  Admin -->|create or update hosts and groups| UI
+  UI -->|write yaml and git commit push| Git
+  UI -->|optional sync trigger| Sync
+  Sync -->|post sync with token| Capsule
+  Capsule -->|git pull read-only| Git
 
-  Admin -->|Create/update hosts/groups| UI
-  UI -->|Write YAML + git commit/push| Git
-  UI -->|Optional sync trigger| Sync
-  Sync -->|POST /sync + token| Capsule
-  Capsule -->|git pull (read-only)| Git
+  Puppet -->|get hosts certname| API
+  API -->|read classification| Git
+  Capsule -->|get hosts certname| Git
 
-  Puppet -->|GET /hosts/{certname}| API
-  API -->|Read classification| Git
-  Capsule -->|GET /hosts/{certname}| Git
-
-  Agent -->|Request CSR attributes| Enc
-  Enc -->|GET /hosts/{fqdn}/csr_attributes| API
-  API -->|Read challengePassword| CSR
-  Dec -->|GET /hosts/{certname}/csr_attributes| API
-  Dec -->|Allow/deny autosign| Puppet
+  Agent -->|request csr attributes| Enc
+  Enc -->|get hosts fqdn csr_attributes| API
+  API -->|read challengePassword| CSR
+  Dec -->|get hosts certname csr_attributes| API
+  Dec -->|allow or deny autosign| Puppet
 ```
 
 ## Deployment
