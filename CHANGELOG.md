@@ -16,6 +16,7 @@
 
 - Fix(ci): update artifact build process to include UPX compression for encryptor
 - Fix: do not use upx with darwin binaries
+- Fix: improve error handling and formatting in push-artifacts and push-containers scripts
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -28,6 +29,7 @@
 - Chore: remove debug mode and fix string comparison in push-artifacts script
 - Chore(release): update changelog for 0.9.5
 - Chore: enable debug mode in push-artifacts script
+- Chore(release): update changelog for 0.9.5
 ## [0.9.4] - 2026-03-07
 
 ### 🚀 Features
