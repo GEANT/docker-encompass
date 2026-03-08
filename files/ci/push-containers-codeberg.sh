@@ -23,8 +23,8 @@ docker build --no-cache --build-arg CACHEBUST="$(date +%s)" -f Dockerfiles/"$SER
 
 LOCAL_IMAGE="$SERVICE_NAME:$CI_COMMIT_TAG"
 if ! docker image inspect "$LOCAL_IMAGE" >/dev/null 2>&1; then
-  echo "ERROR: built image '$LOCAL_IMAGE' not found" >&2
-  exit 1
+    echo "ERROR: built image '$LOCAL_IMAGE' not found" >&2
+    exit 1
 fi
 
 CODEBERG_OWNER_LC="$(printf '%s' "$CODEBERG_OWNER" | tr '[:upper:]' '[:lower:]')"
@@ -34,10 +34,10 @@ URL_BASE="${AFACTORY_HOST}/artifactory/geant-devops-docker/${SERVICE_NAME}"
 CODEBERG_REMOTE_BASE="${CODEBERG_HOST}/${CODEBERG_OWNER_LC}/${CODEBERG_REPO_LC}/${SERVICE_NAME}"
 
 for DOCKER_TAG in "$CI_COMMIT_TAG" latest; do
-  curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${URL_BASE}:${DOCKER_TAG}" || true
-  docker tag "$LOCAL_IMAGE" "${AFACTORY_REMOTE_BASE}:${DOCKER_TAG}"
-  docker push "${AFACTORY_REMOTE_BASE}:${DOCKER_TAG}"
+    curl -u "${AFACTORY_USER}:${AFACTORY_TOKEN}" -X DELETE "https://${URL_BASE}:${DOCKER_TAG}" || true
+    docker tag "$LOCAL_IMAGE" "${AFACTORY_REMOTE_BASE}:${DOCKER_TAG}"
+    docker push "${AFACTORY_REMOTE_BASE}:${DOCKER_TAG}"
 
-  docker tag "$LOCAL_IMAGE" "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
-  docker push "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
+    docker tag "$LOCAL_IMAGE" "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
+    docker push "${CODEBERG_REMOTE_BASE}:${DOCKER_TAG}"
 done
