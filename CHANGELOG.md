@@ -22,6 +22,8 @@
 - Chore(release): update changelog for 0.9.5
 - Chore(release): update changelog for 0.9.5
 - Chore: enable debug mode in push-artifacts script
+- Chore(release): update changelog for 0.9.5
+- Chore: enable debug mode in push-artifacts script
 ## [0.9.4] - 2026-03-07
 
 ### 🚀 Features
