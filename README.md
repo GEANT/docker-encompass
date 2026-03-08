@@ -51,6 +51,7 @@ auto-signing flows through CSR `challengePassword` generation and validation.
 - [enCapsule Agent Runtime](#encapsule-agent-runtime)
 - [Security Checklist](#security-checklist)
 - [Doubts and open questions](#doubts-and-open-questions)
+- [ToDo](#todo)
 - [License](#license)
 
 ## Development Guide
@@ -515,6 +516,11 @@ It’s recommended to back up your MySQL database when Database authentication i
 ## Doubts and open questions
 
 - enCompass allows setting empty classes for `hosts`/`groups`, which is valid and it might come to hand in some edge cases. Is it sensible and appropriate?
+
+## ToDo
+
+- csr orphan attribute cleanup: if a host/group is deleted, its CSR `challengePassword` entry remains in the encrypted store.
+- when feature branch is disabled, the environment field in the UI is a free-text input. It might be good to show the default environments as suggestions (placeholder).
 
 ## License
 
