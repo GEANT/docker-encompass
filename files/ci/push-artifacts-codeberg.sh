@@ -34,6 +34,8 @@ build_artifact darwin arm64
 
 popd >/dev/null
 
+set -x
+
 chmod +x "dist/${TOOL_NAME}/${TOOL_NAME}-"*
 sha256sum "dist/${TOOL_NAME}/${TOOL_NAME}-"* >"dist/${TOOL_NAME}/SHA256SUMS"
 
