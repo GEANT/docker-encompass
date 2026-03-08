@@ -19,9 +19,9 @@ ENV PYTHONUNBUFFERED=1 \
     APP_DEBUG=${APP_DEBUG}
 
 # Install all dependencies and cleanup the image, if not in debug mode
-COPY files/requirements-encapsule.txt /requirements.txt
+COPY files/encapsule/requirements.txt /
 RUN apt update && \
-    apt install -y git && \
+    apt install -y gettext-base git nginx supervisor && \
     pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
     pip3 install --root-user-action=ignore --no-compile --only-binary=:all: --requirement /requirements.txt && \
     install -d -o root -g root -m 755 /data
@@ -33,14 +33,23 @@ RUN if [ "$APP_DEBUG" = "true" ]; then \
         rm -rf /root/.cache/pip/* /var/lib/apt/lists/*; \
     fi
 
+COPY files/encapsule/supervisord /etc/supervisor/conf.d
+COPY files/shared/supervisord /etc/supervisor/conf.d
 COPY files/root /root
-COPY --chmod=755 files/scripts/git-setup.sh /usr/local/bin/git-setup.sh
-COPY --chmod=755 files/scripts/git-pull.sh /usr/local/bin/git-pull.sh
-COPY --chmod=755 files/encapsule-entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY files/encapsule/.templates /root/.templates
+COPY --chmod=755 files/encapsule/scripts /usr/local/bin
+COPY --chmod=755 files/shared/scripts /usr/local/bin
 COPY encompass/enc_core /code/encapsule/enc_core
 COPY encompass/encapsule /code/encapsule/encapsule
 COPY encompass/csr_store /code/encapsule/csr_store
-RUN chmod 700 /root/.ssh && rm -rf /root/.do-not-delete
+ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/encryptor-linux-amd64 /code/encapsule/static/encryptor-linux-amd64
+ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/encryptor-linux-arm64 /code/encapsule/static/encryptor-linux-arm64
+ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/SHA256SUMS /tmp/encryptor-SHA256SUMS
+RUN grep -E 'encryptor-linux-amd64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/encapsule/static/encryptor-linux-amd64"}' | sha256sum -c - && \
+    grep -E 'encryptor-linux-arm64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/encapsule/static/encryptor-linux-arm64"}' | sha256sum -c - && \
+    chmod 0700 /root/.ssh && \
+    chmod 0644 /code/encapsule/static/encryptor-* && \
+    rm -f /tmp/encryptor-SHA256SUMS
 
 # port explanations: check docker-compose.yml for details
 EXPOSE 8081

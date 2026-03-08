@@ -1,0 +1,60 @@
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    types_hash_max_size 2048;
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    map $request_uri $loggable {
+        default 1;
+        ~^/healthz(?:\?.*)?$ 0;
+    }
+
+    access_log /dev/stdout combined if=$loggable;
+    error_log /dev/stderr warn;
+
+    upstream django_backend {
+        server unix:/run/encapsule.sock;
+    }
+
+    server {
+        listen ${ENCAPSULE_PORT};
+        location /static/ {
+            alias /code/encapsule/static/;
+            try_files $uri =404;
+        }
+
+        location = /healthz {
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_pass http://django_backend;
+        }
+
+        location / {
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_pass http://django_backend;
+        }
+
+        location ~ ^/(hosts|groups)(/|$) {
+            limit_except GET HEAD OPTIONS {
+                deny all;
+            }
+            ${ENC_VIEWER_AUTH}
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_pass http://django_backend;
+        }
+    }
+}

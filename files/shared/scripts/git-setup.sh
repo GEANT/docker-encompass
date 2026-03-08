@@ -138,7 +138,7 @@ else
     if [ "$GIT_READ_ONLY" = "true" ]; then
         echo "==> Git-setup: [ERROR] Branch '$GIT_BRANCH' does not exist on origin and GIT_READ_ONLY=true prevents creating it"
         exit 1
-    elif [ ! -d /root/.do-not-delete ]; then
+    elif [ ! -d /root/.templates ]; then
         echo "==> Git-setup: [ERROR] Branch '$GIT_BRANCH' does not exist on origin and this runtime is not allowed to create it"
         echo "==> Git-setup: [ERROR] Only enCompass bootstrap context can create missing branches"
         exit 1
@@ -147,15 +147,15 @@ else
     git push -u origin "$GIT_BRANCH"
 fi
 
-# we skip enCapsule here since it doesn't have the .do-not-delete directory
+# we skip enCapsule here since it doesn't have the .templates directory
 if [ "$GIT_READ_ONLY" = "true" ]; then
     echo "==> Git-setup: Read-only mode enabled; skipping bootstrap/commit/push steps"
-elif [ -d /root/.do-not-delete ]; then
+elif [ -d /root/.templates ]; then
     # inject ENC data files if they don't exist
     [ -f hosts.yaml ] || echo "---" >hosts.yaml
-    [ -f groups.yaml ] || cp /root/.do-not-delete/groups.yaml groups.yaml
-    [ -f csr_challenges.yaml ] || cp /root/.do-not-delete/csr_challenges.yaml csr_challenges.yaml
-    cmp -s /root/.do-not-delete/README.md README.md || cp -f /root/.do-not-delete/README.md README.md
+    [ -f groups.yaml ] || cp /root/.templates/groups.yaml groups.yaml
+    [ -f csr_challenges.yaml ] || cp /root/.templates/csr_challenges.yaml csr_challenges.yaml
+    cmp -s /root/.templates/README.md README.md || cp -f /root/.templates/README.md README.md
 
     # clean up alien files and directories
     find . -maxdepth 1 -mindepth 1 -type d -not -path ./.git -exec rm -rf {} +

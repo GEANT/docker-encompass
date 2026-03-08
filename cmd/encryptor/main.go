@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -209,6 +210,12 @@ func run(cfg config) error {
 			return fmt.Errorf("failed to write output: %w", err)
 		}
 		return nil
+	}
+
+	if dir := filepath.Dir(cfg.outputPath); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("failed to create output directory %q: %w", dir, err)
+		}
 	}
 
 	if err := os.WriteFile(cfg.outputPath, body, 0o600); err != nil {

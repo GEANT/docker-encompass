@@ -19,7 +19,7 @@ ENV PYTHONUNBUFFERED=1 \
     APP_DEBUG=${APP_DEBUG}
 
 # Install all dependencies and cleanup the image, if not in debug mode
-COPY files/requirements-encompass.txt /requirements.txt
+COPY files/encompass/requirements.txt /
 RUN apt update && \
     apt install -y libsasl2-dev libldap2-dev default-libmysqlclient-dev pkg-config gcc git nginx gettext-base supervisor netcat-openbsd && \
     pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
@@ -34,12 +34,14 @@ RUN if [ "$APP_DEBUG" = "true" ]; then \
         rm -rf /root/.cache/pip/* /var/lib/apt/lists/*; \
     fi
 
-COPY files/supervisord /etc/supervisor/conf.d
+COPY files/encompass/supervisord /etc/supervisor/conf.d
+COPY files/shared/supervisord /etc/supervisor/conf.d
 COPY files/root /root
-COPY --chmod=755 files/scripts /usr/local/bin
+COPY files/encompass/.templates /root/.templates
+COPY --chmod=755 files/encompass/scripts /usr/local/bin
+COPY --chmod=755 files/shared/scripts /usr/local/bin
 COPY --chmod=644 README.md code/encompass/templates/help.md
 COPY --chmod=644 CHANGELOG.md code/encompass/templates/changelog.md
-COPY static code/static/static
 COPY encompass/encompass /code/encompass/encompass
 COPY encompass/enc_core /code/encompass/enc_core
 COPY encompass/csr_store /code/encompass/csr_store
@@ -47,7 +49,15 @@ COPY encompass/templates /code/encompass/templates
 COPY encompass/manage.py /code/encompass/manage.py
 COPY --chmod=644 files/deployment-stuff/watermark code
 COPY --chmod=644 files/deployment-stuff/version code
-RUN chmod 700 /root/.ssh
+COPY static code/static/static
+ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/encryptor-linux-amd64 /code/static/static/encryptor-linux-amd64
+ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/encryptor-linux-arm64 /code/static/static/encryptor-linux-arm64
+ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/SHA256SUMS /tmp/encryptor-SHA256SUMS
+RUN grep -E 'encryptor-linux-amd64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/static/static/encryptor-linux-amd64"}' | sha256sum -c - && \
+    grep -E 'encryptor-linux-arm64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/static/static/encryptor-linux-arm64"}' | sha256sum -c - && \
+    chmod 0700 /root/.ssh && \
+    chmod 0644 /code/static/static/encryptor-* && \
+    rm -f /tmp/encryptor-SHA256SUMS
 
 # port explanations: check docker-compose.yml for details
 EXPOSE 8080 8081 8443 8444

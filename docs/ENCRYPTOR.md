@@ -45,10 +45,13 @@ custom_attributes:
   challengePassword: secure_password
 ```
 
-## Terraform Pattern (local-exec)
+## Terraform Patterns (remote-exec)
 
-If Terraform runs outside the target VM, you can execute `encryptor` with a
-`local-exec` provisioner and then upload the generated
-`csr_attributes.yaml` over SSH.
+Terraform examples now use `remote-exec` directly on the target VM.
 
-See example: `examples/terraform-encryptor-local-exec.tf`
+- Pattern 1: download `encryptor` on the VM, run it, and write
+  `csr_attributes.yaml` in place.
+  See: [examples/terraform-encryptor.tf](https://codeberg.org/GEANT/docker-encompass/src/branch/main/examples/terraform-encryptor.tf)
+- Pattern 2: fetch `csr_attributes.yaml` directly with `curl` from the ENC API,
+  then install it at the target path.
+  See: [examples/terraform-curl.tf](https://codeberg.org/GEANT/docker-encompass/src/branch/main/examples/terraform-curl.tf)
