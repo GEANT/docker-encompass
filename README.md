@@ -3,7 +3,7 @@
 ## preface
 
 _I started coding this project alone, but I crossed paths with Copilot and we decided to join forces and work on it together._  
-I do not master some of the frontend technologies (Ajax, jQuery), so Copilot has been a great help to implement the UI and related logic.
+It has been a great help for coding javascript, jquery, as well as testing, debugging, and documentation.
 
 This project is mirrored on [Codeberg](https://codeberg.org/GEANT/docker-encompass) and [Github](https://github.com/GEANT/docker-encompass), and the artifacts are pushed to Codeberg.  
 If Open Source is your thing, please consider starring and contributing on Codeberg: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass).
