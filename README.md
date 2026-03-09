@@ -554,8 +554,7 @@ When the authentication backend is MySQL, the database stores user information. 
 
 ## ToDo
 
-- csr orphan attribute cleanup: if a host/group is deleted, its CSR `challengePassword` entry remains in the encrypted store.
-- when feature branch is disabled, the environment field in the UI is a free-text input. It might be good to show the default environments as suggestions (placeholder).
+- ¡Nada (at the moment)!
 
 ## License
 

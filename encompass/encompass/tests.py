@@ -174,6 +174,42 @@ class CSRChallengeLifecycleHookTests(SimpleTestCase):
         )
         get_or_create_mock.assert_called_once_with("group/default")
 
+    @patch("encompass.tests.tools._sync_after_write")
+    @patch("encompass.tests.tools.csr_attributes.delete")
+    @patch("encompass.tests.tools.enc_data.save_map")
+    @patch("encompass.tests.tools.enc_data.load_map", return_value={"node1": {}})
+    @patch("encompass.tests.tools.enc_data.data_lock", return_value=nullcontext())
+    def test_delete_host_calls_csr_delete(
+        self,
+        _lock_mock,
+        _load_map_mock,
+        _save_map_mock,
+        csr_delete_mock,
+        _sync_mock,
+    ):
+        """Deleting a host removes its CSR challenge entry."""
+        tools.delete_host("node1")
+        csr_delete_mock.assert_called_once_with("host/node1")
+
+    @patch("encompass.tests.tools._sync_after_write")
+    @patch("encompass.tests.tools.csr_attributes.delete")
+    @patch("encompass.tests.tools.validate_group_selector_overlaps")
+    @patch("encompass.tests.tools.enc_data.save_map")
+    @patch("encompass.tests.tools.enc_data.load_map", return_value={"team-a": {}})
+    @patch("encompass.tests.tools.enc_data.data_lock", return_value=nullcontext())
+    def test_delete_group_calls_csr_delete(
+        self,
+        _lock_mock,
+        _load_map_mock,
+        _save_map_mock,
+        _validate_overlap_mock,
+        csr_delete_mock,
+        _sync_mock,
+    ):
+        """Deleting a group removes its CSR challenge entry."""
+        tools.delete_group("team-a")
+        csr_delete_mock.assert_called_once_with("group/team-a")
+
 
 class CSRAttributesApiTests(SimpleTestCase):
     """Tests for CSR custom_attributes API endpoints."""

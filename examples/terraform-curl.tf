@@ -60,15 +60,13 @@ locals {
   csr_api_key_shell = replace(var.csr_api_key, "'", "'\"'\"'")
 }
 
-resource "null_resource" "fetch_csr_attributes_with_curl_remote_exec" {
-  triggers = {
-    node_name            = var.node_name
-    enc_host             = var.enc_host
-    enc_port             = tostring(var.enc_port)
-    target_host          = var.target_host
-    ssh_user             = var.ssh_user
-    ssh_private_key_path = var.ssh_private_key_path
-    csr_api_key_hash     = sha256(var.csr_api_key)
+resource "openstack_compute_instance_v2" "my_server" {
+  name            = "my_instance"
+  image_id        = "55c38903-d2b0-469e-943c-97fd6c6001c3"
+  flavor_id       = "126ba281-552d-4a27-9562-4a603b821e59"
+  security_groups = ["default"]
+  network {
+    name = "my_network"
   }
 
   provisioner "remote-exec" {

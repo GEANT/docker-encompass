@@ -121,7 +121,10 @@
         function environmentFieldHtml(cssClass, currentValue) {
           const value = currentValue || '';
           if (featureBranchesEnabled || !Array.isArray(puppetEnvironments) || puppetEnvironments.length === 0) {
-            return `<input type="text" class="form-control ${cssClass}" value="${escapeHtml(value)}" list="host-environment-options" placeholder="production or feature/my-branch">`;
+            return `
+              <input type="text" class="form-control ${cssClass}" value="${escapeHtml(value)}" list="host-environment-options" placeholder="production or feature/my-branch">
+              <div class="form-text host-environment-feedback"></div>
+            `;
           }
 
           const normalized = String(value);
@@ -132,6 +135,80 @@
           })).join('');
 
           return `<select class="form-select ${cssClass}">${options}</select>`;
+        }
+
+        function levenshteinDistance(a, b) {
+          const left = String(a || '');
+          const right = String(b || '');
+          const matrix = Array.from({ length: left.length + 1 }, () => []);
+
+          for (let i = 0; i <= left.length; i += 1) matrix[i][0] = i;
+          for (let j = 0; j <= right.length; j += 1) matrix[0][j] = j;
+
+          for (let i = 1; i <= left.length; i += 1) {
+            for (let j = 1; j <= right.length; j += 1) {
+              const cost = left[i - 1].toLowerCase() === right[j - 1].toLowerCase() ? 0 : 1;
+              matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + cost,
+              );
+            }
+          }
+
+          return matrix[left.length][right.length];
+        }
+
+        function getClosestEnvironment(value) {
+          const input = String(value || '').trim();
+          if (!input || !Array.isArray(puppetEnvironments) || puppetEnvironments.length === 0) {
+            return { match: null, distance: Number.MAX_SAFE_INTEGER };
+          }
+
+          return puppetEnvironments.reduce((closest, candidate) => {
+            const distance = levenshteinDistance(input, candidate);
+            if (distance < closest.distance) {
+              return { match: candidate, distance };
+            }
+            return closest;
+          }, { match: null, distance: Number.MAX_SAFE_INTEGER });
+        }
+
+        function updateEnvironmentFeedbackForEditor(editorRoot) {
+          if (!featureBranchesEnabled) return { shouldWarn: false };
+
+          const input = editorRoot.querySelector('.host-environment');
+          const feedback = editorRoot.querySelector('.host-environment-feedback');
+          if (!input || !feedback || input.tagName !== 'INPUT') return { shouldWarn: false };
+
+          const value = input.value.trim();
+          const isDefault = puppetEnvironments.includes(value);
+
+          input.classList.remove('is-valid', 'border-warning');
+          feedback.classList.remove('text-success', 'text-warning', 'text-muted');
+
+          if (!value) {
+            feedback.textContent = 'Optional. Leave empty to inherit from group/default.';
+            feedback.classList.add('text-muted');
+            return { shouldWarn: false };
+          }
+
+          if (isDefault) {
+            input.classList.add('is-valid');
+            feedback.textContent = `Default environment selected: ${value}`;
+            feedback.classList.add('text-success');
+            return { shouldWarn: false };
+          }
+
+          const closest = getClosestEnvironment(value);
+          input.classList.add('border-warning');
+          if (closest.match && closest.distance <= 2) {
+            feedback.textContent = `Custom environment: ${value}. Did you mean '${closest.match}'?`;
+          } else {
+            feedback.textContent = `Custom environment: ${value}. This value is not in PUPPET_ENVIRONMENTS.`;
+          }
+          feedback.classList.add('text-warning');
+          return { shouldWarn: true };
         }
 
         function renderEditor(hostname, hostData) {
@@ -258,6 +335,15 @@
         function bindEditorActions(editorRoot, hostname, rowNode) {
           if (editorRoot.dataset.editorBound === 'true') return;
 
+          if (featureBranchesEnabled) {
+            const environmentInput = editorRoot.querySelector('.host-environment');
+            if (environmentInput && environmentInput.tagName === 'INPUT') {
+              environmentInput.addEventListener('input', () => updateEnvironmentFeedbackForEditor(editorRoot));
+              environmentInput.addEventListener('change', () => updateEnvironmentFeedbackForEditor(editorRoot));
+              updateEnvironmentFeedbackForEditor(editorRoot);
+            }
+          }
+
           editorRoot.addEventListener('click', (event) => {
             if (event.target.matches('[data-add-class]')) {
               editorRoot.querySelector('.host-classes').insertAdjacentHTML('beforeend', classRowHtml(''));
@@ -302,6 +388,13 @@
               }
 
               const payload = collectPayloadFromEditor(editorRoot, hostname);
+              const envStatus = updateEnvironmentFeedbackForEditor(editorRoot);
+              if (featureBranchesEnabled && envStatus.shouldWarn) {
+                const proceed = confirm('The selected environment is not in PUPPET_ENVIRONMENTS. Continue with this custom value?');
+                if (!proceed) {
+                  return;
+                }
+              }
 
               try {
                 const response = await fetch('/encompass/host_save/', {

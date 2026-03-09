@@ -22,12 +22,13 @@
               <div class="mb-3">
                 <label class="form-label"><strong>Environment</strong></label>
                 {% if feature_branch %}
-                <input type="text" class="form-control" name="environment" list="group-environment-options" placeholder="production or feature/my-branch">
+                <input type="text" class="form-control" id="group-environment-input" name="environment" list="group-environment-options" placeholder="production or feature/my-branch">
                 <datalist id="group-environment-options">
                   {% for env in puppet_environments %}
                   <option value="{{ env }}"></option>
                   {% endfor %}
                 </datalist>
+                <div id="group-environment-feedback" class="form-text"></div>
                 <div class="form-text">Suggested environments: {{ puppet_environments|join:", " }}. You can still type any custom branch name.</div>
                 {% else %}
                 <select class="form-select" name="environment">
@@ -105,8 +106,86 @@
         </div>
       </div>
 
+      {{ puppet_environments|json_script:"group-add-puppet-environments" }}
       <script>
         (function() {
+          const featureBranchesEnabled = {{ feature_branch|yesno:"true,false" }};
+          const puppetEnvironments = JSON.parse(document.getElementById('group-add-puppet-environments').textContent);
+
+          function levenshteinDistance(a, b) {
+            const left = String(a || '');
+            const right = String(b || '');
+            const matrix = Array.from({ length: left.length + 1 }, () => []);
+
+            for (let i = 0; i <= left.length; i += 1) matrix[i][0] = i;
+            for (let j = 0; j <= right.length; j += 1) matrix[0][j] = j;
+
+            for (let i = 1; i <= left.length; i += 1) {
+              for (let j = 1; j <= right.length; j += 1) {
+                const cost = left[i - 1].toLowerCase() === right[j - 1].toLowerCase() ? 0 : 1;
+                matrix[i][j] = Math.min(
+                  matrix[i - 1][j] + 1,
+                  matrix[i][j - 1] + 1,
+                  matrix[i - 1][j - 1] + cost,
+                );
+              }
+            }
+
+            return matrix[left.length][right.length];
+          }
+
+          function getClosestEnvironment(value) {
+            const input = String(value || '').trim();
+            if (!input || !Array.isArray(puppetEnvironments) || puppetEnvironments.length === 0) {
+              return { match: null, distance: Number.MAX_SAFE_INTEGER };
+            }
+
+            return puppetEnvironments.reduce((closest, candidate) => {
+              const distance = levenshteinDistance(input, candidate);
+              if (distance < closest.distance) {
+                return { match: candidate, distance };
+              }
+              return closest;
+            }, { match: null, distance: Number.MAX_SAFE_INTEGER });
+          }
+
+          function updateEnvironmentFeedback() {
+            if (!featureBranchesEnabled) return { isDefault: false, shouldWarn: false };
+
+            const input = document.getElementById('group-environment-input');
+            const feedback = document.getElementById('group-environment-feedback');
+            if (!input || !feedback) return { isDefault: false, shouldWarn: false };
+
+            const value = input.value.trim();
+            const isDefault = puppetEnvironments.includes(value);
+
+            input.classList.remove('is-valid', 'border-warning');
+            feedback.classList.remove('text-success', 'text-warning', 'text-muted');
+
+            if (!value) {
+              feedback.textContent = 'Optional. Leave empty to inherit from default group.';
+              feedback.classList.add('text-muted');
+              return { isDefault: false, shouldWarn: false };
+            }
+
+            if (isDefault) {
+              input.classList.add('is-valid');
+              feedback.textContent = `Default environment selected: ${value}`;
+              feedback.classList.add('text-success');
+              return { isDefault: true, shouldWarn: false };
+            }
+
+            const closest = getClosestEnvironment(value);
+            input.classList.add('border-warning');
+            if (closest.match && closest.distance <= 2) {
+              feedback.textContent = `Custom environment: ${value}. Did you mean '${closest.match}'?`;
+            } else {
+              feedback.textContent = `Custom environment: ${value}. This value is not in PUPPET_ENVIRONMENTS.`;
+            }
+            feedback.classList.add('text-warning');
+            return { isDefault: false, shouldWarn: true };
+          }
+
           function initializeHelpPopovers(root = document) {
             if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
 
@@ -121,6 +200,15 @@
           }
 
           initializeHelpPopovers(document);
+
+          if (featureBranchesEnabled) {
+            const environmentInput = document.getElementById('group-environment-input');
+            if (environmentInput) {
+              environmentInput.addEventListener('input', updateEnvironmentFeedback);
+              environmentInput.addEventListener('change', updateEnvironmentFeedback);
+              updateEnvironmentFeedback();
+            }
+          }
 
           function escapeHtml(value) {
             return String(value)
@@ -194,6 +282,15 @@
 
           // Form submission validation
           document.getElementById('addGroupForm').addEventListener('submit', function(e) {
+            const envStatus = updateEnvironmentFeedback();
+            if (featureBranchesEnabled && envStatus.shouldWarn) {
+              const proceed = confirm('The selected environment is not in PUPPET_ENVIRONMENTS. Continue with this custom value?');
+              if (!proceed) {
+                e.preventDefault();
+                return;
+              }
+            }
+
             const classInputs = document.querySelectorAll('#classes-list input[name="classes[]"]');
             const hasValidClass = Array.from(classInputs).some(input => input.value.trim() !== '');
             const groupNameInput = document.getElementById('groupname');
