@@ -1,4 +1,25 @@
-## [unreleased]
+## [0.9.6] - 2026-03-09
+
+### 🚀 Features
+
+- Feat: enhance environment input with feedback and suggestions in group and host forms
+
+### 🚜 Refactor
+
+- Refactor: streamline Dockerfile dependencies and improve entrypoint scripts for encapsule and encompass
+
+### 📚 Documentation
+
+- Docs: add ToDo section with cleanup and UI suggestions
+- Docs: add mermaid diagram
+- Docs: update mermaid diagram for clarity and consistency
+- Docs: update preface to clarify Copilot's role in frontend development
+- Doc: add presentation on site.pp vs enCompass ENC and its operational benefits
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(release): update changelog for 0.9.6
+## [0.9.5] - 2026-03-08
 
 ### 🚀 Features
 
@@ -29,6 +50,7 @@
 - Chore: remove debug mode and fix string comparison in push-artifacts script
 - Chore(release): update changelog for 0.9.5
 - Chore: enable debug mode in push-artifacts script
+- Chore(release): update changelog for 0.9.5
 - Chore(release): update changelog for 0.9.5
 ## [0.9.4] - 2026-03-07
 
