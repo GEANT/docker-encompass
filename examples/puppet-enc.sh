@@ -7,6 +7,13 @@ set -o pipefail
 RED='\033[0;31m'
 NC='\033[0m'
 
+for cmd in dig curl; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo -e "${RED}Error${NC}: $cmd is required but not installed. Please install $cmd and try again."
+        exit 1
+    fi
+done
+
 usage() {
     [[ "$#" -eq 2 ]] && echo -e "$2" # print a message passed as argument
     echo ""
@@ -17,7 +24,7 @@ usage() {
     echo "  -s | --server    Server hostname/IP to connect"
     echo "  -u | --user      Username (jointly required with --password)"
     echo "  -p | --password  Password (jointly required with --user)"
-    echo "  --srv            Resolve endpoint via SRV record _puppet8._tcp.<server>"
+    echo "  --srv            Resolve endpoint via SRV record _enc-server._tcp.example.org"
     echo "  --rrdns          Resolve <server> to multiple A/AAAA records and try each with --port"
     echo "  --port           Static port (required for non-SRV mode)"
     echo ""
