@@ -22,7 +22,26 @@ fi
 
 cd /code/encapsule
 
-# shellcheck disable=SC2016 # variables are like a docstring for envsubst
+# shellcheck disable=SC2016 # variables here are like a docstring for envsubst
 envsubst '${ENCAPSULE_PORT} ${ENC_VIEWER_AUTH}' </root/.templates/nginx.conf.template >/etc/nginx/nginx.conf
 
-exec /usr/bin/supervisord --configuration /etc/supervisor/supervisord.conf
+# Minimal supervision without supervisord: if one service exits, stop the other.
+/usr/local/bin/encapsule.sh &
+ENCAPSULE_PID=$!
+
+/usr/local/bin/nginx.sh &
+NGINX_PID=$!
+
+cleanup() {
+	kill -TERM "$ENCAPSULE_PID" "$NGINX_PID" 2>/dev/null || true
+}
+
+trap cleanup TERM INT
+
+wait -n "$ENCAPSULE_PID" "$NGINX_PID"
+EXIT_CODE=$?
+
+echo "==> One service exited, shutting down the other..."
+cleanup
+wait "$ENCAPSULE_PID" "$NGINX_PID" 2>/dev/null || true
+exit "$EXIT_CODE"

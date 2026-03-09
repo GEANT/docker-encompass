@@ -6,9 +6,15 @@
 #
 set -e
 
+echo "==> Nginx: Waiting for enCapsule server..."
+COUNTER=$SECONDS
+
 until test -S /run/encapsule.sock; do
-    echo "==> Nginx: Waiting for enCapsule server..."
-    sleep .3
+    sleep .1
+    if [ "$SECONDS" -gt "$COUNTER" ]; then
+        COUNTER=$SECONDS
+        echo "==> Nginx: Still waiting for enCapsule server..."
+    fi
 done
 
 echo "==> Nginx: enCapsule server is available"

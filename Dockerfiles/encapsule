@@ -21,7 +21,7 @@ ENV PYTHONUNBUFFERED=1 \
 # Install all dependencies and cleanup the image, if not in debug mode
 COPY files/encapsule/requirements.txt /
 RUN apt update && \
-    apt install -y gettext-base git nginx supervisor && \
+    apt install -y gettext-base git nginx && \
     pip3 install --root-user-action=ignore --disable-pip-version-check --no-compile --upgrade pip setuptools wheel && \
     pip3 install --root-user-action=ignore --no-compile --only-binary=:all: --requirement /requirements.txt && \
     install -d -o root -g root -m 755 /data
@@ -33,9 +33,7 @@ RUN if [ "$APP_DEBUG" = "true" ]; then \
         rm -rf /root/.cache/pip/* /var/lib/apt/lists/*; \
     fi
 
-COPY files/encapsule/supervisord /etc/supervisor/conf.d
-COPY files/shared/supervisord /etc/supervisor/conf.d
-COPY files/root /root
+COPY files/shared/root /root
 COPY files/encapsule/.templates /root/.templates
 COPY --chmod=755 files/encapsule/scripts /usr/local/bin
 COPY --chmod=755 files/shared/scripts /usr/local/bin
@@ -47,7 +45,9 @@ ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/encryptor-l
 ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/SHA256SUMS /tmp/encryptor-SHA256SUMS
 RUN grep -E 'encryptor-linux-amd64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/encapsule/static/encryptor-linux-amd64"}' | sha256sum -c - && \
     grep -E 'encryptor-linux-arm64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/encapsule/static/encryptor-linux-arm64"}' | sha256sum -c - && \
+    mkdir /root/.ssh/cm && \
     chmod 0700 /root/.ssh && \
+    install -m 0600 /dev/null /root/.ssh/known_hosts && \
     chmod 0644 /code/encapsule/static/encryptor-* && \
     rm -f /tmp/encryptor-SHA256SUMS
 

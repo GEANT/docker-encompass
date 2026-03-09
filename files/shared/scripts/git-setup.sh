@@ -66,15 +66,10 @@ true | false) ;;
     ;;
 esac
 
-mkdir -p /root/.ssh /root/.ssh/cm
-chmod 700 /root/.ssh
-
 # inject the SSH key into the container
 printf '%s\n' "$GIT_REPO_PRIVATE_SSH_KEY" >"$KEY_FILE"
 chmod 600 "$KEY_FILE"
 
-touch /root/.ssh/known_hosts
-chmod 600 /root/.ssh/known_hosts
 ssh-keygen -R "$GIT_HOST" -f /root/.ssh/known_hosts >/dev/null 2>&1 || true
 SCANNED_HOST_KEY="$(ssh-keyscan -H -t "$SSH_KEYSCAN_TYPE" "$GIT_HOST" 2>/dev/null | grep -v '^#' || true)"
 if [ -z "$SCANNED_HOST_KEY" ]; then
@@ -147,7 +142,7 @@ else
     git push -u origin "$GIT_BRANCH"
 fi
 
-# we skip enCapsule here since it doesn't have the .templates directory
+# we skip enCapsule here since it doesn't have write permissions to the Git repository
 if [ "$GIT_READ_ONLY" = "true" ]; then
     echo "==> Git-setup: Read-only mode enabled; skipping bootstrap/commit/push steps"
 elif [ -d /root/.templates ]; then

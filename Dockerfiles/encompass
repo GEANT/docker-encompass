@@ -35,8 +35,7 @@ RUN if [ "$APP_DEBUG" = "true" ]; then \
     fi
 
 COPY files/encompass/supervisord /etc/supervisor/conf.d
-COPY files/shared/supervisord /etc/supervisor/conf.d
-COPY files/root /root
+COPY files/shared/root /root
 COPY files/encompass/.templates /root/.templates
 COPY --chmod=755 files/encompass/scripts /usr/local/bin
 COPY --chmod=755 files/shared/scripts /usr/local/bin
@@ -55,7 +54,9 @@ ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/encryptor-l
 ADD https://codeberg.org/api/packages/GEANT/generic/encryptor/latest/SHA256SUMS /tmp/encryptor-SHA256SUMS
 RUN grep -E 'encryptor-linux-amd64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/static/static/encryptor-linux-amd64"}' | sha256sum -c - && \
     grep -E 'encryptor-linux-arm64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"  /code/static/static/encryptor-linux-arm64"}' | sha256sum -c - && \
+    mkdir /root/.ssh/cm && \
     chmod 0700 /root/.ssh && \
+    install -m 0600 /dev/null /root/.ssh/known_hosts && \
     chmod 0644 /code/static/static/encryptor-* && \
     rm -f /tmp/encryptor-SHA256SUMS
 

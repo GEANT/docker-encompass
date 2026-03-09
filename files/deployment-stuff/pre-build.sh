@@ -3,6 +3,8 @@
 set -euo pipefail
 
 if git symbolic-ref --quiet HEAD >/dev/null 2>&1; then
+    # If HEAD is not detached, we are on a branch and we can use the branch name as version. 
+    # We also add a watermark to the UI to avoid confusion with production.
     branch_name="$(git branch --show-current)"
     echo "Running on ${branch_name} branch"
     cat <<'EOF' >files/deployment-stuff/watermark
@@ -12,6 +14,7 @@ if git symbolic-ref --quiet HEAD >/dev/null 2>&1; then
 EOF
     echo "dev-version" >files/deployment-stuff/version
 else
+    # If HEAD is detached, we expect it to be at an exact tag. If not, we error out because we don't want to deploy an unknown commit.
     tag_name="$(git describe --tags --exact-match 2>/dev/null || true)"
     if [ -z "$tag_name" ]; then
         echo "Error: HEAD is detached but no exact tag points to this commit" >&2
