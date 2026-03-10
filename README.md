@@ -72,39 +72,7 @@ auto-signing flows through CSR `challengePassword` generation and validation.
 
 ## Application Flow
 
-```mermaid
-flowchart LR
-  Admin[Admin Operator - Web UI]
-  Puppet[Puppet Server - ENC client]
-  Agent[Puppet Agent - CSR submitter]
-
-  UI[enCompass Django UI]
-  API[enCompass ENC API]
-  Sync[encapsule-sync.sh]
-
-  Git[(Git-backed YAML data)]
-  CSR[(CSR challenge store)]
-
-  Capsule[enCapsule read-only ENC API]
-  Enc[enCryptor]
-  Dec[deCryptor]
-
-  Admin -->|create or update hosts and groups| UI
-  UI -->|write yaml and git commit push| Git
-  UI -->|optional sync trigger| Sync
-  Sync -->|post sync with token| Capsule
-  Capsule -->|git pull read-only| Git
-
-  Puppet -->|get hosts certname| API
-  API -->|read classification| Git
-  Capsule -->|get hosts certname| Git
-
-  Agent -->|request csr attributes| Enc
-  Enc -->|get hosts fqdn csr_attributes| API
-  API -->|read challengePassword| CSR
-  Dec -->|get hosts certname csr_attributes| API
-  Dec -->|allow or deny autosign| Puppet
-```
+![Architecture diagram](https://cds.geant.org/images/encompass-architecture.png)
 
 ## Deployment
 
