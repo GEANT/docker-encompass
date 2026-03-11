@@ -8,10 +8,10 @@ It has been a great help for coding javascript, jquery, as well as testing, debu
 This project is mirrored on [Codeberg](https://codeberg.org/GEANT/docker-encompass) and [Github](https://github.com/GEANT/docker-encompass), and the artifacts are pushed to Codeberg.  
 If Open Source is your thing, please consider starring and contributing on Codeberg: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass).
 
-If you are searching for a **Puppet ENC** implementation, this repository provides a production-oriented  
-**Puppet External Node Classifier** with Docker deployment, host/group classification, and ENC API endpoints.
+If you are searching for an **OpenVox / Puppet ENC** implementation, this repository provides a production-oriented  
+**OpenVox / Puppet External Node Classifier** with Docker deployment, host/group classification, and ENC API endpoints.
 
-enCompass is a Django-based Puppet External Node Classifier (ENC) packaged for Docker.  
+enCompass is a Django-based OpenVox / Puppet External Node Classifier (ENC) packaged for Docker.  
 It provides a web UI to manage hosts and groups, plus read-only ENC endpoints exposed by both enCompass and enCapsule.
 
 enCapsule is an optional agent for enCompass that can be used to provide high availability for the ENC API.  
