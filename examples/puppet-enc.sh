@@ -131,7 +131,7 @@ fi
 
 curl_enc() {
     local target="$1"
-    local url="http://${target}:${port}/enc/hosts/${ENC_NODE}"
+    local url="http://${target}:${port}/hosts/${ENC_NODE}"
     if [ -n "${ENC_USER:-}" ]; then
         curl -fsS --connect-timeout 5 --max-time 20 -u "$ENC_USER:$ENC_PASSWORD" "$url"
     else
