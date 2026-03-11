@@ -982,3 +982,5 @@ def list_unclassified_hosts() -> dict:
         "default_profile": default_profile,
         "puppetdb_url": _puppetdb_nodes_url(),
     }
+
+

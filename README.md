@@ -522,7 +522,12 @@ When the authentication backend is MySQL, the database stores user information. 
 
 ## ToDo
 
-- ¡Nada (at the moment)!
+- remove Hosts from Default profile
+- clarify when a host is not classified, not only showing the default profile.
+- approval flow for host/group changes.
+- add hints in the UI for the classes.
+- check wheter locking is effective in the Git push flow.
+- investigate and implement a Git push flow with with branch merging and error handling.
 
 ## License
 

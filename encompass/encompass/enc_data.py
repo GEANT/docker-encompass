@@ -6,6 +6,7 @@ from enc_core.enc_data import load_map
 from enc_core.enc_data import normalize_group_payload
 from enc_core.enc_data import normalize_host_payload
 from enc_core.enc_data import resolve_host
+from enc_core.enc_data import resolve_host_with_source
 from enc_core.enc_data import save_map
 from enc_core.enc_data import yaml_response_payload
 
@@ -16,6 +17,7 @@ __all__ = [
     "save_map",
     "yaml_response_payload",
     "resolve_host",
+    "resolve_host_with_source",
     "normalize_host_payload",
     "normalize_group_payload",
 ]

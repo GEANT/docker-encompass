@@ -787,6 +787,8 @@ def group_save(request):
         "hosts": payload.get("hosts", []),
         "parameters": payload.get("parameters", {}),
     }
+    if groupname == "default":
+        group_payload["hosts"] = []
 
     try:
         logger.info(
@@ -930,7 +932,7 @@ def group_add(request):
     group_payload = {
         "environment": environment,
         "classes": classes,
-        "hosts": hosts,
+        "hosts": [] if groupname == "default" else hosts,
         "parameters": parameters,
     }
 
@@ -1192,7 +1194,12 @@ def query_host(request):
             return render(request, "query_host.html", context)
 
         try:
-            host_data = tools.get_host_details(hostname)
+            hosts = tools.enc_data.load_map("hosts")
+            groups_map = tools.enc_data.load_map("groups")
+            resolution = tools.enc_data.resolve_host_with_source(
+                hosts, groups_map, hostname
+            )
+            host_data = resolution.get("data")
             if host_data is None:
                 context["error"] = f"Host '{hostname}' not found in ENC"
                 context["hostname"] = hostname
@@ -1206,6 +1213,12 @@ def query_host(request):
             context["hostname"] = hostname
             context["yaml_output"] = yaml_output
             context["host_data"] = host_data
+            context["is_default_fallback"] = bool(
+                resolution.get("is_default_fallback")
+            )
+            context["classification_source"] = str(
+                resolution.get("source", "unknown")
+            )
 
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("Error querying host '%s'", hostname)

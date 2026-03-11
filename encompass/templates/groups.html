@@ -235,6 +235,7 @@
         }
 
         function renderEditor(groupname, groupData) {
+          const isDefaultGroup = groupname === 'default';
           const classes = Array.isArray(groupData.classes)
             ? groupData.classes
             : (groupData.classes && typeof groupData.classes === 'object' ? Object.keys(groupData.classes) : []);
@@ -257,7 +258,7 @@
                   </div>
 
                   <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="${isDefaultGroup ? 'col-md-12' : 'col-md-6'}">
                       <label class="form-label"><strong>Classes</strong></label>
                       <div class="group-classes">
                         ${(classes.length ? classes : ['']).map(className => classRowHtml(className)).join('')}
@@ -265,6 +266,7 @@
                       <button type="button" class="btn btn-outline-primary btn-sm mt-2" data-add-class>Add class</button>
                     </div>
 
+                    ${isDefaultGroup ? '' : `
                     <div class="col-md-6">
                       <label class="form-label">
                         <strong>Hosts</strong>
@@ -289,6 +291,7 @@
                       </div>
                       <button type="button" class="btn btn-outline-primary btn-sm mt-2" data-add-host>Add host</button>
                     </div>
+                    `}
                   </div>
 
                   <div class="row mb-3">
@@ -400,7 +403,7 @@
             groupname,
             environment: environmentInput ? environmentInput.value.trim() : '',
             classes,
-            hosts,
+            hosts: groupname === 'default' ? [] : hosts,
             parameters
           };
         }

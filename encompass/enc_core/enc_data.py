@@ -138,14 +138,15 @@ def yaml_response_payload(data):
     return yaml.dump(data, Dumper=_EncDumper, sort_keys=False)
 
 
-def resolve_host(hosts: dict, groups: dict, fqdn: str):
-    """
-    Resolve a host by its FQDN using the given hosts and groups data.
-    Returns the host data if found, otherwise returns None.
-    """
+def resolve_host_with_source(hosts: dict, groups: dict, fqdn: str) -> dict:
+    """Resolve a host and return both payload and match source metadata."""
     host = hosts.get(fqdn)
     if host:
-        return host
+        return {
+            "data": host,
+            "source": "host",
+            "is_default_fallback": False,
+        }
 
     for group_name, group_data in groups.items():
         if group_name == "default":
@@ -174,15 +175,35 @@ def resolve_host(hosts: dict, groups: dict, fqdn: str):
             if is_match:
                 result = group_data.copy()
                 result.pop("hosts", None)
-                return result
+                return {
+                    "data": result,
+                    "source": "group",
+                    "is_default_fallback": False,
+                }
 
     default_group = groups.get("default")
     if default_group:
         result = default_group.copy()
         result.pop("hosts", None)
-        return result
+        return {
+            "data": result,
+            "source": "default",
+            "is_default_fallback": True,
+        }
 
-    return None
+    return {
+        "data": None,
+        "source": "none",
+        "is_default_fallback": False,
+    }
+
+
+def resolve_host(hosts: dict, groups: dict, fqdn: str):
+    """
+    Resolve a host by its FQDN using the given hosts and groups data.
+    Returns the host data if found, otherwise returns None.
+    """
+    return resolve_host_with_source(hosts, groups, fqdn).get("data")
 
 
 def normalize_host_payload(payload: dict) -> dict:

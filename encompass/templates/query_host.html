@@ -50,8 +50,30 @@
             {% if yaml_output %}
               <hr>
               <h5 class="text-start mb-3">ENC Classification for: <code>{{ hostname }}</code></h5>
+
+              {% if is_default_fallback %}
+              <div class="alert alert-warning text-start" role="alert">
+                <strong>Unclassified host:</strong> no host selector or group rule matched <code>{{ hostname }}</code>.
+                This result is coming from the fallback <code>default</code> profile.
+              </div>
+              {% endif %}
               
               <div class="text-start">
+                {% if classification_source %}
+                <div class="mb-3">
+                  <strong>Classification source:</strong>
+                  {% if classification_source == "host" %}
+                  <span class="badge bg-success">direct host rule</span>
+                  {% elif classification_source == "group" %}
+                  <span class="badge bg-primary">group host selector</span>
+                  {% elif classification_source == "default" %}
+                  <span class="badge bg-warning text-dark">fallback default profile</span>
+                  {% else %}
+                  <span class="badge bg-secondary">unknown</span>
+                  {% endif %}
+                </div>
+                {% endif %}
+
                 <div class="mb-3">
                   <strong>Environment:</strong> 
                   <span class="badge bg-secondary">{{ host_data.environment|default:"(not set)" }}</span>
