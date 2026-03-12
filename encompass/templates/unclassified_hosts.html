@@ -17,6 +17,10 @@
       <div class="alert alert-danger" role="alert">{{ error }}</div>
     {% endif %}
 
+    {% if warning %}
+      <div class="alert alert-warning" role="alert">{{ warning }}</div>
+    {% endif %}
+
     {% if not unclassified_hosts_enabled %}
       <div class="card shadow-sm">
         <div class="card-body text-center">
@@ -26,7 +30,7 @@
       </div>
     {% endif %}
 
-    {% if unclassified_hosts_enabled and unclassified_hosts %}
+    {% if unclassified_hosts_enabled and not warning and unclassified_hosts %}
       <div class="card shadow-sm">
         <div class="card-body p-0">
           <table class="table table-striped table-hover mb-0">
@@ -45,7 +49,7 @@
           </table>
         </div>
       </div>
-    {% elif unclassified_hosts_enabled and not error %}
+    {% elif unclassified_hosts_enabled and not warning and not error %}
       <div class="alert alert-info" role="alert">No unclassified hosts found.</div>
     {% endif %}
 

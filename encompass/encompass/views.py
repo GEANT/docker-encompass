@@ -87,15 +87,21 @@ def get_user_identity(user):
     if _is_ldap_authenticated(user):
         attrs = getattr(user.ldap_user, "attrs", None) or {}
         return {
-            "username": attrs.get("sAMAccountName", [user.get_username()])[0]
-            if isinstance(attrs, dict)
-            else user.get_username(),
-            "display_name": attrs.get("displayName", [settings.UNLOGGED])[0]
-            if isinstance(attrs, dict)
-            else user.get_username() or settings.UNLOGGED,
-            "email": attrs.get("mail", [None])[0]
-            if isinstance(attrs, dict)
-            else (user.email or None),
+            "username": (
+                attrs.get("sAMAccountName", [user.get_username()])[0]
+                if isinstance(attrs, dict)
+                else user.get_username()
+            ),
+            "display_name": (
+                attrs.get("displayName", [settings.UNLOGGED])[0]
+                if isinstance(attrs, dict)
+                else user.get_username() or settings.UNLOGGED
+            ),
+            "email": (
+                attrs.get("mail", [None])[0]
+                if isinstance(attrs, dict)
+                else (user.email or None)
+            ),
             "groups": get_user_groups(user),
         }
 
@@ -222,7 +228,13 @@ def _change_password_ldap(user, current_password: str, new_password: str):
         return False, "Unable to resolve your LDAP identity for password change."
 
     ldap_profile = str(getattr(settings, "LDAP_PROF", "ad")).strip().lower()
-    ldap_proto = str(os.environ.get("LDAP_PROTO", "")).strip().lower()
+    ldap_proto = (
+        runtime_settings.get_text(
+            "LDAP_PROTO", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_PROTO"]
+        )
+        .strip()
+        .lower()
+    )
     if ldap_profile == "ad" and ldap_proto != "ldaps":
         return (
             False,
@@ -1150,6 +1162,499 @@ def about_page(request):
     return render(request, "about.html", context)
 
 
+def _ldap_settings_sections() -> list[dict]:
+    """Return grouped LDAP settings metadata for Global Settings page."""
+    defaults = runtime_settings.LDAP_TEXT_DEFAULTS
+    return [
+        {
+            "title": "Connection",
+            "fields": [
+                {
+                    "key": "LDAP_PROFILE",
+                    "label": "LDAP Profile",
+                    "description": "Supported values: ad, openldap.",
+                    "suggestion": defaults["LDAP_PROFILE"],
+                    "input_type": "select",
+                    "options": ["ad", "openldap"],
+                },
+                {
+                    "key": "LDAP_PROTO",
+                    "label": "LDAP Protocol",
+                    "description": "Supported values: ldap, ldaps.",
+                    "suggestion": defaults["LDAP_PROTO"],
+                    "input_type": "select",
+                    "options": ["ldap", "ldaps"],
+                },
+                {
+                    "key": "LDAP_SERVER",
+                    "label": "LDAP Server",
+                    "description": "Directory server hostname or IP.",
+                    "suggestion": defaults["LDAP_SERVER"],
+                    "input_type": "text",
+                },
+                {
+                    "key": "LDAP_PORT",
+                    "label": "LDAP Port",
+                    "description": "TCP port for LDAP connection.",
+                    "suggestion": defaults["LDAP_PORT"],
+                    "input_type": "number",
+                },
+            ],
+        },
+        {
+            "title": "Search Base DNs",
+            "fields": [
+                {
+                    "key": "LDAP_GROUPS_BASE_DN",
+                    "label": "LDAP Groups Base DN",
+                    "description": "Base DN used for LDAP group search.",
+                    "suggestion": defaults["LDAP_GROUPS_BASE_DN"],
+                    "input_type": "text",
+                },
+                {
+                    "key": "LDAP_USER_BASE_DN",
+                    "label": "LDAP User Base DN",
+                    "description": "Base DN used for LDAP user search.",
+                    "suggestion": defaults["LDAP_USER_BASE_DN"],
+                    "input_type": "text",
+                },
+            ],
+        },
+        {
+            "title": "Bind and Mapping",
+            "fields": [
+                {
+                    "key": "LDAP_BIND_DN",
+                    "label": "LDAP Bind DN",
+                    "description": "Bind DN used by service account.",
+                    "suggestion": defaults["LDAP_BIND_DN"],
+                    "input_type": "text",
+                },
+                {
+                    "key": "LDAP_BIND_PASSWORD",
+                    "label": "LDAP Bind Password",
+                    "description": "Password for LDAP bind DN.",
+                    "suggestion": defaults["LDAP_BIND_PASSWORD"],
+                    "input_type": "password",
+                },
+                {
+                    "key": "LDAP_GROUP_RDN_ATTR",
+                    "label": "LDAP Group RDN Attribute",
+                    "description": "Typically CN for AD, cn for OpenLDAP.",
+                    "suggestion": defaults["LDAP_GROUP_RDN_ATTR"],
+                    "input_type": "text",
+                },
+                {
+                    "key": "LDAP_USER_ATTR_MAP",
+                    "label": "LDAP User Attribute Map",
+                    "description": "JSON object mapping local fields to LDAP attributes.",
+                    "suggestion": defaults["LDAP_USER_ATTR_MAP"],
+                    "input_type": "text",
+                },
+            ],
+        },
+        {
+            "title": "Search Filters and Group Type",
+            "fields": [
+                {
+                    "key": "LDAP_USER_SEARCH_FILTER",
+                    "label": "LDAP User Search Filter",
+                    "description": "Optional LDAP user filter; leave empty for profile default.",
+                    "suggestion": defaults["LDAP_USER_SEARCH_FILTER"],
+                    "input_type": "text",
+                },
+                {
+                    "key": "LDAP_GROUP_SEARCH_FILTER",
+                    "label": "LDAP Group Search Filter",
+                    "description": "Optional LDAP group filter; leave empty for profile default.",
+                    "suggestion": defaults["LDAP_GROUP_SEARCH_FILTER"],
+                    "input_type": "text",
+                },
+                {
+                    "key": "LDAP_GROUP_TYPE",
+                    "label": "LDAP Group Type",
+                    "description": "Optional override: ad_nested, ad, groupofnames, posix.",
+                    "suggestion": defaults["LDAP_GROUP_TYPE"],
+                    "input_type": "select",
+                    "options": ["", "ad_nested", "ad", "groupofnames", "posix"],
+                },
+            ],
+        },
+        {
+            "title": "Login Help",
+            "fields": [
+                {
+                    "key": "LDAP_PASSWORD_RESET_URL",
+                    "label": "LDAP Password Reset URL",
+                    "description": "Optional external reset URL shown on login page.",
+                    "suggestion": defaults["LDAP_PASSWORD_RESET_URL"],
+                    "input_type": "text",
+                },
+                {
+                    "key": "LDAP_PASSWORD_RESET_HELP",
+                    "label": "LDAP Password Reset Help",
+                    "description": "Optional fallback help text when URL is not provided.",
+                    "suggestion": defaults["LDAP_PASSWORD_RESET_HELP"],
+                    "input_type": "text",
+                },
+            ],
+        },
+    ]
+
+
+def _puppetdb_settings_fields() -> list[dict]:
+    """Return PuppetDB settings metadata for Global Settings page."""
+    defaults = runtime_settings.PUPPETDB_TEXT_DEFAULTS
+    return [
+        {
+            "key": "PUPPETDB_SCHEMA",
+            "label": "PuppetDB Schema",
+            "description": "Protocol scheme for PuppetDB endpoint.",
+            "suggestion": defaults["PUPPETDB_SCHEMA"],
+            "input_type": "select",
+            "options": ["http", "https"],
+        },
+        {
+            "key": "PUPPETDB_HOST",
+            "label": "PuppetDB Host",
+            "description": "PuppetDB hostname or IP.",
+            "suggestion": defaults["PUPPETDB_HOST"],
+            "input_type": "text",
+        },
+        {
+            "key": "PUPPETDB_PORT",
+            "label": "PuppetDB Port",
+            "description": "TCP port for PuppetDB endpoint.",
+            "suggestion": defaults["PUPPETDB_PORT"],
+            "input_type": "number",
+        },
+        {
+            "key": "PUPPETDB_TIMEOUT",
+            "label": "PuppetDB Timeout",
+            "description": "HTTP timeout in seconds for PuppetDB calls.",
+            "suggestion": defaults["PUPPETDB_TIMEOUT"],
+            "input_type": "number",
+        },
+    ]
+
+
+def _encapsule_sync_settings_fields() -> list[dict]:
+    """Return enCapsule sync settings metadata for Global Settings page."""
+    defaults = runtime_settings.ENCAPSULE_SYNC_TEXT_DEFAULTS
+    return [
+        {
+            "key": "ENCAPSULE_SYNC_SCHEME",
+            "label": "Sync Scheme",
+            "description": "Protocol for enCapsule sync endpoints.",
+            "suggestion": defaults["ENCAPSULE_SYNC_SCHEME"],
+            "input_type": "select",
+            "options": ["http", "https"],
+        },
+        {
+            "key": "ENCAPSULE_SYNC_TIMEOUT",
+            "label": "Sync Timeout",
+            "description": "Curl timeout in seconds for each sync target.",
+            "suggestion": defaults["ENCAPSULE_SYNC_TIMEOUT"],
+            "input_type": "number",
+        },
+        {
+            "key": "ENCAPSULE_SYNC_PORT",
+            "label": "Sync Port",
+            "description": "Default target port when host entries omit a port.",
+            "suggestion": defaults["ENCAPSULE_SYNC_PORT"],
+            "input_type": "number",
+        },
+        {
+            "key": "ENCAPSULE_SYNC_USE_SRV",
+            "label": "Use SRV Targets",
+            "description": "Use SRV discovery for host entries (true/false).",
+            "suggestion": defaults["ENCAPSULE_SYNC_USE_SRV"],
+            "input_type": "select",
+            "options": ["false", "true"],
+        },
+        {
+            "key": "ENCAPSULE_SYNC_HOST",
+            "label": "Sync Hosts",
+            "description": "Comma-separated targets (hosts, host:port, or URLs; SRV names when Use SRV is true).",  # pylint: disable=line-too-long
+            "suggestion": defaults["ENCAPSULE_SYNC_HOST"],
+            "input_type": "text",
+        },
+    ]
+
+
+def _validate_ldap_settings(values: dict[str, str]) -> list[str]:
+    """Validate LDAP text settings submitted via Global Settings."""
+    errors: list[str] = []
+
+    profile = str(values.get("LDAP_PROFILE", "")).strip().lower()
+    if profile and profile not in {"ad", "openldap"}:
+        errors.append("LDAP Profile must be 'ad' or 'openldap'.")
+
+    proto = str(values.get("LDAP_PROTO", "")).strip().lower()
+    if proto and proto not in {"ldap", "ldaps"}:
+        errors.append("LDAP Protocol must be 'ldap' or 'ldaps'.")
+
+    port = str(values.get("LDAP_PORT", "")).strip()
+    if port:
+        if not port.isdigit():
+            errors.append("LDAP Port must be a numeric value.")
+        else:
+            port_value = int(port)
+            if port_value < 1 or port_value > 65535:
+                errors.append("LDAP Port must be between 1 and 65535.")
+
+    group_type = str(values.get("LDAP_GROUP_TYPE", "")).strip().lower()
+    if group_type and group_type not in {"ad_nested", "ad", "groupofnames", "posix"}:
+        errors.append(
+            "LDAP Group Type must be one of: ad_nested, ad, groupofnames, posix."
+        )
+
+    attr_map_raw = str(values.get("LDAP_USER_ATTR_MAP", "")).strip()
+    if attr_map_raw:
+        try:
+            attr_map = json.loads(attr_map_raw)
+            if not isinstance(attr_map, dict):
+                errors.append("LDAP User Attribute Map must be a JSON object.")
+        except json.JSONDecodeError:
+            errors.append("LDAP User Attribute Map must be valid JSON.")
+
+    return errors
+
+
+def _validate_puppetdb_settings(values: dict[str, str]) -> list[str]:
+    """Validate PuppetDB settings submitted via Global Settings."""
+    return tools.validate_puppetdb_settings(values)
+
+
+def _validate_encapsule_sync_settings(values: dict[str, str]) -> list[str]:
+    """Validate enCapsule sync settings submitted via Global Settings."""
+    errors: list[str] = []
+
+    scheme = str(values.get("ENCAPSULE_SYNC_SCHEME", "")).strip().lower()
+    if not scheme:
+        errors.append("Sync Scheme cannot be empty.")
+    elif scheme not in {"http", "https"}:
+        errors.append("Sync Scheme must be 'http' or 'https'.")
+
+    timeout = str(values.get("ENCAPSULE_SYNC_TIMEOUT", "")).strip()
+    if not timeout:
+        errors.append("Sync Timeout cannot be empty.")
+    elif not timeout.isdigit():
+        errors.append("Sync Timeout must be numeric.")
+    else:
+        timeout_value = int(timeout)
+        if timeout_value < 1 or timeout_value > 300:
+            errors.append("Sync Timeout must be between 1 and 300 seconds.")
+
+    port = str(values.get("ENCAPSULE_SYNC_PORT", "")).strip()
+    if not port:
+        errors.append("Sync Port cannot be empty.")
+    elif not port.isdigit():
+        errors.append("Sync Port must be numeric.")
+    else:
+        port_value = int(port)
+        if port_value < 1 or port_value > 65535:
+            errors.append("Sync Port must be between 1 and 65535.")
+
+    use_srv = str(values.get("ENCAPSULE_SYNC_USE_SRV", "")).strip().lower()
+    if use_srv not in {"true", "false"}:
+        errors.append("Use SRV Targets must be 'true' or 'false'.")
+
+    host = str(values.get("ENCAPSULE_SYNC_HOST", "")).strip()
+    if not host:
+        errors.append("Sync Hosts cannot be empty.")
+
+    return errors
+
+
+def _effective_ldap_values(values: dict[str, str]) -> dict[str, str]:
+    """Build effective LDAP values by applying runtime defaults and profile defaults."""
+    defaults = runtime_settings.LDAP_TEXT_DEFAULTS
+
+    profile = (
+        str(values.get("LDAP_PROFILE", "")).strip().lower()
+        or str(defaults["LDAP_PROFILE"]).strip().lower()
+        or "ad"
+    )
+    if profile not in {"ad", "openldap"}:
+        profile = "ad"
+
+    proto = (
+        str(values.get("LDAP_PROTO", "")).strip().lower()
+        or str(defaults["LDAP_PROTO"]).strip().lower()
+        or "ldaps"
+    )
+    if proto not in {"ldap", "ldaps"}:
+        proto = "ldaps"
+
+    server = str(values.get("LDAP_SERVER", "")).strip() or str(defaults["LDAP_SERVER"])
+    port = str(values.get("LDAP_PORT", "")).strip() or str(defaults["LDAP_PORT"])
+    bind_dn = str(values.get("LDAP_BIND_DN", "")).strip()
+    bind_password = str(values.get("LDAP_BIND_PASSWORD", "")).strip()
+    user_base_dn = str(values.get("LDAP_USER_BASE_DN", "")).strip() or str(
+        defaults["LDAP_USER_BASE_DN"]
+    )
+    groups_base_dn = str(values.get("LDAP_GROUPS_BASE_DN", "")).strip() or str(
+        defaults["LDAP_GROUPS_BASE_DN"]
+    )
+    user_filter = str(values.get("LDAP_USER_SEARCH_FILTER", "")).strip() or (
+        "(sAMAccountName=%(user)s)" if profile == "ad" else "(uid=%(user)s)"
+    )
+    group_filter = str(values.get("LDAP_GROUP_SEARCH_FILTER", "")).strip() or (
+        "(objectClass=group)" if profile == "ad" else "(objectClass=groupOfNames)"
+    )
+
+    return {
+        "LDAP_PROFILE": profile,
+        "LDAP_PROTO": proto,
+        "LDAP_SERVER": server,
+        "LDAP_PORT": port,
+        "LDAP_BIND_DN": bind_dn,
+        "LDAP_BIND_PASSWORD": bind_password,
+        "LDAP_USER_BASE_DN": user_base_dn,
+        "LDAP_GROUPS_BASE_DN": groups_base_dn,
+        "LDAP_USER_SEARCH_FILTER": user_filter,
+        "LDAP_GROUP_SEARCH_FILTER": group_filter,
+    }
+
+
+def _test_ldap_settings(
+    values: dict[str, str], tls_skip_verify: bool
+) -> tuple[bool, list[tuple[str, str]]]:
+    """Probe LDAP connectivity and simple searches using submitted (unsaved) values."""
+    results: list[tuple[str, str]] = []
+    effective = _effective_ldap_values(values)
+    ldap_uri = f"{effective['LDAP_PROTO']}://{effective['LDAP_SERVER']}:{effective['LDAP_PORT']}"
+
+    timeout_raw = str(os.environ.get("LDAP_NETWORK_TIMEOUT", "2")).strip()
+    try:
+        timeout = float(timeout_raw)
+    except (TypeError, ValueError):
+        timeout = 2.0
+
+    conn = None
+    has_error = False
+
+    def _probe_filter(raw_filter: str) -> str:
+        """Convert auth template placeholders into safe LDAP probe values."""
+        probe = str(raw_filter or "").strip()
+        if not probe:
+            return "(objectClass=*)"
+        return (
+            probe.replace("%(user)s", "*")
+            .replace("%(group)s", "*")
+            .replace("{user}", "*")
+            .replace("{group}", "*")
+        )
+
+    try:
+        conn = ldap.initialize(ldap_uri)
+        conn.set_option(LDAP_OPT_PROTOCOL_VERSION, 3)
+        conn.set_option(LDAP_OPT_REFERRALS, 0)
+
+        ldap_opt_network_timeout = getattr(ldap, "OPT_NETWORK_TIMEOUT", None)
+        if ldap_opt_network_timeout is not None:
+            conn.set_option(ldap_opt_network_timeout, timeout)
+        ldap_opt_timeout = getattr(ldap, "OPT_TIMEOUT", None)
+        if ldap_opt_timeout is not None:
+            conn.set_option(ldap_opt_timeout, timeout)
+
+        ldap_opt_x_tls_require_cert = getattr(ldap, "OPT_X_TLS_REQUIRE_CERT", None)
+        ldap_opt_x_tls_never = getattr(ldap, "OPT_X_TLS_NEVER", 0)
+        ldap_opt_x_tls_demand = getattr(ldap, "OPT_X_TLS_DEMAND", 2)
+        ldap_opt_x_tls_newctx = getattr(ldap, "OPT_X_TLS_NEWCTX", None)
+        if ldap_opt_x_tls_require_cert is not None:
+            conn.set_option(
+                ldap_opt_x_tls_require_cert,
+                ldap_opt_x_tls_never if tls_skip_verify else ldap_opt_x_tls_demand,
+            )
+        # Force a fresh TLS context so per-test TLS verification mode is applied.
+        if ldap_opt_x_tls_newctx is not None:
+            conn.set_option(ldap_opt_x_tls_newctx, 0)
+
+        results.append(("info", f"Connecting to {ldap_uri}"))
+        if tls_skip_verify:
+            results.append(
+                ("warning", "TLS certificate verification is currently disabled.")
+            )
+
+        bind_dn = effective["LDAP_BIND_DN"]
+        if bind_dn:
+            conn.simple_bind_s(bind_dn, effective["LDAP_BIND_PASSWORD"])
+            results.append(("success", "Bind succeeded with configured LDAP Bind DN."))
+        else:
+            conn.simple_bind_s()
+            results.append(("success", "Anonymous bind succeeded."))
+
+        scope_subtree = getattr(ldap, "SCOPE_SUBTREE", 2)
+        search_checks = [
+            (
+                "User search",
+                effective["LDAP_USER_BASE_DN"],
+                _probe_filter(effective["LDAP_USER_SEARCH_FILTER"]),
+            ),
+            (
+                "Group search",
+                effective["LDAP_GROUPS_BASE_DN"],
+                _probe_filter(effective["LDAP_GROUP_SEARCH_FILTER"]),
+            ),
+        ]
+
+        for label, base_dn, search_filter in search_checks:
+            if not base_dn:
+                has_error = True
+                results.append(("error", f"{label} failed: base DN is empty."))
+                continue
+
+            try:
+                found = conn.search_ext_s(
+                    base_dn,
+                    scope_subtree,
+                    search_filter,
+                    attrlist=["dn"],
+                    timeout=int(timeout),
+                    sizelimit=1,
+                )
+                if found:
+                    results.append(("success", f"{label} succeeded."))
+                else:
+                    results.append(
+                        ("warning", f"{label} executed but returned no entries.")
+                    )
+            except Exception as err:  # pylint: disable=broad-except
+                if _is_ldap_exception(err, "SIZELIMIT_EXCEEDED"):
+                    results.append(
+                        (
+                            "warning",
+                            f"{label} reached server size limit; search filter/base appears valid.",
+                        )
+                    )
+                    continue
+
+                has_error = True
+                detail = _ldap_error_detail(err)
+                message = f"{label} failed"
+                if detail:
+                    message = f"{message}: {detail}"
+                results.append(("error", message))
+
+    except Exception as err:  # pylint: disable=broad-except
+        has_error = True
+        detail = _ldap_error_detail(err)
+        message = "LDAP test failed"
+        if detail:
+            message = f"{message}: {detail}"
+        results.append(("error", message))
+    finally:
+        if conn is not None:
+            try:
+                conn.unbind_s()
+            except Exception:  # pylint: disable=broad-except
+                pass
+
+    return (not has_error), results
+
+
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def global_settings_page(request):
@@ -1186,20 +1691,201 @@ def global_settings_page(request):
         "AUTH_LDAP_ENABLED",
         "LDAP_TLS_SKIP_VERIFY",
     ]
+    ldap_toggle_keys = ["AUTH_LDAP_ENABLED", "LDAP_TLS_SKIP_VERIFY"]
+    encapsule_toggle_keys = ["USE_ENCAPSULE"]
+    feature_toggle_keys = [
+        key
+        for key in managed_keys
+        if key not in ldap_toggle_keys + encapsule_toggle_keys
+    ]
+    ldap_sections = _ldap_settings_sections()
+    puppetdb_fields = _puppetdb_settings_fields()
+    encapsule_sync_fields = _encapsule_sync_settings_fields()
+    puppetdb_keys = [field["key"] for field in puppetdb_fields]
+    encapsule_sync_keys = [field["key"] for field in encapsule_sync_fields]
+    ldap_keys = [
+        field["key"] for section in ldap_sections for field in section["fields"]
+    ]
+    puppetdb_form_values: dict[str, str] | None = None
+    puppetdb_panel_expanded = False
+    encapsule_sync_form_values: dict[str, str] | None = None
+    encapsule_form_toggles: dict[str, bool] | None = None
+    encapsule_panel_expanded = False
+    ldap_form_values: dict[str, str] | None = None
+    ldap_form_toggles: dict[str, bool] | None = None
+    ldap_panel_expanded = False
 
     if request.method == "POST":
         if settings.DEMO_MODE:
             messages.error(request, "This feature is unavailable on the demo site")
         else:
             actor = request.user.get_username() or "admin"
-            for key in managed_keys:
-                runtime_settings.set_bool(key, key in request.POST, updated_by=actor)
-            runtime_settings.set_puppet_environments(
-                request.POST.getlist("puppet_environments[]"),
-                updated_by=actor,
+            settings_section = (
+                str(request.POST.get("settings_section", "all")).strip().lower()
             )
-            messages.success(request, "Global settings updated")
-        return redirect("/encompass/global_settings/")
+            ldap_values = {
+                key: str(request.POST.get(f"ldap_{key}", "")).strip()
+                for key in ldap_keys
+            }
+            puppetdb_values = {
+                key: str(request.POST.get(f"puppetdb_{key}", "")).strip()
+                for key in puppetdb_keys
+            }
+            encapsule_sync_values = {
+                key: str(request.POST.get(f"encapsule_sync_{key}", "")).strip()
+                for key in encapsule_sync_keys
+            }
+            is_ldap_test = settings_section in ["ldap", "ldap_test"] and (
+                "test_ldap" in request.POST
+            )
+            is_puppetdb_test = settings_section in ["puppetdb", "all"] and (
+                "test_puppetdb" in request.POST
+            )
+
+            if is_ldap_test:
+                ldap_panel_expanded = True
+                ldap_form_values = ldap_values
+                ldap_form_toggles = {
+                    key: key in request.POST for key in ldap_toggle_keys
+                }
+                ldap_errors = _validate_ldap_settings(ldap_values)
+                if ldap_errors:
+                    for error in ldap_errors:
+                        messages.error(request, error)
+                else:
+                    test_ok, test_results = _test_ldap_settings(
+                        ldap_values,
+                        tls_skip_verify=("LDAP_TLS_SKIP_VERIFY" in request.POST),
+                    )
+                    for level, text in test_results:
+                        if level == "success":
+                            messages.success(request, text)
+                        elif level == "warning":
+                            messages.warning(request, text)
+                        elif level == "error":
+                            messages.error(request, text)
+                        else:
+                            messages.info(request, text)
+
+                    if test_ok:
+                        messages.success(
+                            request,
+                            "LDAP test completed. Values look valid; you can now save them.",
+                        )
+            elif is_puppetdb_test:
+                puppetdb_panel_expanded = True
+                puppetdb_form_values = puppetdb_values
+                puppetdb_errors = _validate_puppetdb_settings(puppetdb_values)
+                if puppetdb_errors:
+                    for error in puppetdb_errors:
+                        messages.error(request, error)
+                else:
+                    test_ok, test_results = tools.test_puppetdb_settings(
+                        puppetdb_values
+                    )
+                    for level, text in test_results:
+                        if level == "success":
+                            messages.success(request, text)
+                        elif level == "warning":
+                            messages.warning(request, text)
+                        elif level == "error":
+                            messages.error(request, text)
+                        else:
+                            messages.info(request, text)
+
+                    if test_ok:
+                        messages.success(
+                            request,
+                            "PuppetDB test completed. Values look valid; you can now save them.",
+                        )
+            else:
+                has_errors = False
+                if settings_section in ["all", "feature"]:
+                    for key in feature_toggle_keys:
+                        runtime_settings.set_bool(
+                            key, key in request.POST, updated_by=actor
+                        )
+                    runtime_settings.set_puppet_environments(
+                        request.POST.getlist("puppet_environments[]"),
+                        updated_by=actor,
+                    )
+
+                if settings_section in ["all", "puppetdb"]:
+                    puppetdb_panel_expanded = True
+                    puppetdb_errors = _validate_puppetdb_settings(puppetdb_values)
+                    if puppetdb_errors:
+                        has_errors = True
+                        puppetdb_form_values = puppetdb_values
+                        for error in puppetdb_errors:
+                            messages.error(request, error)
+                    else:
+                        for key, value in puppetdb_values.items():
+                            runtime_settings.set_text(key, value, updated_by=actor)
+
+                if settings_section in ["all", "ldap"]:
+                    ldap_errors = _validate_ldap_settings(ldap_values)
+                    if ldap_errors:
+                        has_errors = True
+                        for error in ldap_errors:
+                            messages.error(request, error)
+                        return redirect("/encompass/global_settings/")
+
+                    for key in ldap_toggle_keys:
+                        runtime_settings.set_bool(
+                            key, key in request.POST, updated_by=actor
+                        )
+                    for key, value in ldap_values.items():
+                        runtime_settings.set_text(key, value, updated_by=actor)
+
+                if settings_section in ["all", "encapsule"]:
+                    encapsule_panel_expanded = True
+                    encapsule_sync_errors = _validate_encapsule_sync_settings(
+                        encapsule_sync_values
+                    )
+                    if encapsule_sync_errors:
+                        has_errors = True
+                        encapsule_panel_expanded = True
+                        encapsule_sync_form_values = encapsule_sync_values
+                        encapsule_form_toggles = {
+                            key: key in request.POST for key in encapsule_toggle_keys
+                        }
+                        for error in encapsule_sync_errors:
+                            messages.error(request, error)
+                    else:
+                        for key, value in encapsule_sync_values.items():
+                            runtime_settings.set_text(key, value, updated_by=actor)
+                        for key in encapsule_toggle_keys:
+                            runtime_settings.set_bool(
+                                key,
+                                key in request.POST,
+                                updated_by=actor,
+                            )
+
+                if not has_errors:
+                    messages.success(request, "Global settings updated")
+                    return redirect("/encompass/global_settings/")
+
+    for section in ldap_sections:
+        for field in section["fields"]:
+            key = field["key"]
+            if ldap_form_values is not None:
+                field["value"] = ldap_form_values.get(key, "")
+            else:
+                field["value"] = runtime_settings.get_text_raw(key)
+
+    for field in puppetdb_fields:
+        key = field["key"]
+        if puppetdb_form_values is not None:
+            field["value"] = puppetdb_form_values.get(key, "")
+        else:
+            field["value"] = runtime_settings.get_text_raw(key)
+
+    for field in encapsule_sync_fields:
+        key = field["key"]
+        if encapsule_sync_form_values is not None:
+            field["value"] = encapsule_sync_form_values.get(key, "")
+        else:
+            field["value"] = runtime_settings.get_text_raw(key)
 
     toggle_items = [
         {
@@ -1220,23 +1906,41 @@ def global_settings_page(request):
             "description": "Allow overlapping ENC definitions and merge results.",
             "enabled": runtime_settings.overlapping_definitions_enabled(),
         },
+    ]
+
+    encapsule_toggle_items = [
         {
             "key": "USE_ENCAPSULE",
             "label": "Use enCapsule",
             "description": "Enable/disable sync fan-out toward enCapsule targets.",
-            "enabled": runtime_settings.encapsule_enabled(),
+            "enabled": (
+                encapsule_form_toggles["USE_ENCAPSULE"]
+                if encapsule_form_toggles is not None
+                else runtime_settings.encapsule_enabled()
+            ),
         },
+    ]
+
+    ldap_toggle_items = [
         {
             "key": "AUTH_LDAP_ENABLED",
             "label": "LDAP Authentication",
-            "description": "Enable/disable LDAP authentication fallback (applies after service restart).",
-            "enabled": runtime_settings.ldap_auth_enabled(),
+            "description": "Enable/disable LDAP authentication fallback.",  # pylint: disable=line-too-long
+            "enabled": (
+                ldap_form_toggles["AUTH_LDAP_ENABLED"]
+                if ldap_form_toggles is not None
+                else runtime_settings.ldap_auth_enabled()
+            ),
         },
         {
             "key": "LDAP_TLS_SKIP_VERIFY",
             "label": "Skip LDAP TLS Certificate Verification",
-            "description": "Allow untrusted/self-signed LDAP certificates (restart required).",
-            "enabled": runtime_settings.ldap_tls_skip_verify_enabled(),
+            "description": "Allow untrusted/self-signed LDAP certificates.",
+            "enabled": (
+                ldap_form_toggles["LDAP_TLS_SKIP_VERIFY"]
+                if ldap_form_toggles is not None
+                else runtime_settings.ldap_tls_skip_verify_enabled()
+            ),
         },
     ]
 
@@ -1245,7 +1949,17 @@ def global_settings_page(request):
         "disp_name": identity["display_name"],
         "group_name": group_name,
         "toggle_items": toggle_items,
+        "encapsule_toggle_items": encapsule_toggle_items,
+        "encapsule_toggle_keys": encapsule_toggle_keys,
+        "ldap_toggle_items": ldap_toggle_items,
+        "ldap_toggle_keys": ldap_toggle_keys,
         "puppet_environments": runtime_settings.puppet_environments(),
+        "puppetdb_fields": puppetdb_fields,
+        "encapsule_sync_fields": encapsule_sync_fields,
+        "ldap_sections": ldap_sections,
+        "puppetdb_panel_expanded": puppetdb_panel_expanded,
+        "encapsule_panel_expanded": encapsule_panel_expanded,
+        "ldap_panel_expanded": ldap_panel_expanded,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }
@@ -1427,12 +2141,8 @@ def query_host(request):
             context["hostname"] = hostname
             context["yaml_output"] = yaml_output
             context["host_data"] = host_data
-            context["is_default_fallback"] = bool(
-                resolution.get("is_default_fallback")
-            )
-            context["classification_source"] = str(
-                resolution.get("source", "unknown")
-            )
+            context["is_default_fallback"] = bool(resolution.get("is_default_fallback"))
+            context["classification_source"] = str(resolution.get("source", "unknown"))
 
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("Error querying host '%s'", hostname)
@@ -1466,6 +2176,15 @@ def unclassified_hosts_page(request):
     }
 
     if not runtime_settings.unclassified_hosts_enabled():
+        return render(request, "unclassified_hosts.html", context)
+
+    puppetdb_issues = tools.validate_puppetdb_settings()
+    if puppetdb_issues:
+        context["warning"] = (
+            "PuppetDB settings are incomplete or invalid. "
+            "Configure PuppetDB Schema, Host, Port, and Timeout in Global Settings."
+        )
+        context["puppetdb_issues"] = puppetdb_issues
         return render(request, "unclassified_hosts.html", context)
 
     try:
@@ -1517,6 +2236,15 @@ def spring_cleaning_page(request):
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }
+
+    puppetdb_issues = tools.validate_puppetdb_settings()
+    if puppetdb_issues:
+        context["warning"] = (
+            "PuppetDB settings are incomplete or invalid. "
+            "Configure PuppetDB Schema, Host, Port, and Timeout in Global Settings."
+        )
+        context["puppetdb_issues"] = puppetdb_issues
+        return render(request, "spring_cleaning.html", context)
 
     try:
         puppetdb_nodes = spring_cleaning.get_puppetdb_nodes()

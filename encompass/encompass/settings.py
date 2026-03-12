@@ -66,14 +66,11 @@ def env_bool(name, default=False):
     raise SystemExit(f"{name} must be a boolean (true/false)")
 
 
-USE_AUTH_LDAP = env_json("AUTH_LDAP_ENABLED", bool(os.environ.get("LDAP_SERVER")))
+USE_AUTH_LDAP = False
 FEATURE_BRANCH = False
 ENC_OVERLAPPING_DEFINITIONS_ENABLED = False
 UNCLASSIFIED_HOSTS_ENABLED = True
 DEMO_MODE = env_json("DEMO_MODE", False)
-if USE_AUTH_LDAP not in [True, False]:
-    print("AUTH_LDAP_ENABLED must be True or False")
-    raise SystemExit(1)
 USE_AUTH_MYSQL = True
 if DEMO_MODE not in [True, False]:
     print("DEMO_MODE must be True or False")
@@ -130,9 +127,7 @@ local_proxy_origins = [
     "https://localhost:8444",
     "https://127.0.0.1:8444",
 ]
-CSRF_TRUSTED_ORIGINS = list(
-    dict.fromkeys(CSRF_TRUSTED_ORIGINS + local_proxy_origins)
-)
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS + local_proxy_origins))
 
 ALLOWED_HOSTS = env_json("ALLOWED_HOSTS", []) + [
     socket.getaddrinfo(socket.getfqdn(), None, socket.AF_INET)[0][4][0],
@@ -212,6 +207,8 @@ DATABASES = {
     }
 }
 
+USE_AUTH_LDAP = runtime_settings.ldap_auth_enabled()
+
 # Logging section
 ENCOMPASS_LOG_LEVEL = env_log_level(
     "ENCOMPASS_LOGGING",
@@ -253,36 +250,61 @@ LOGGING = {
 }
 
 
-AUTHENTICATION_BACKENDS = (
-    "django.contrib.auth.backends.ModelBackend",
-)
+AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
 
 if USE_AUTH_LDAP:
     # LDAP configuration
     #
     # group shuold be added also to AUTH_LDAP_USER_FLAGS_BY_GROUP, AUTH_LDAP_REQUIRE_GROUP
     # and in the function determine_group() in encompass/encompass/tools.py
-    LDAP_PROF = env_choice("LDAP_PROFILE", "ad", {"ad", "openldap"})
-    group_rdn_attr = (
-        os.environ.get("LDAP_GROUP_RDN_ATTR", "").strip()
-        or ("CN" if LDAP_PROF == "ad" else "cn")
+    LDAP_PROF = (
+        runtime_settings.get_text(
+            "LDAP_PROFILE", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_PROFILE"]
+        )
+        .strip()
+        .lower()
+        or "ad"
     )
-    ENC_ADMIN_GROUP = f"{group_rdn_attr}=enc_admin,{os.environ['LDAP_GROUPS_BASE_DN']}"
-    ENC_VIEWER_GROUP = f"{group_rdn_attr}=enc_viewer,{os.environ['LDAP_GROUPS_BASE_DN']}"
+    if LDAP_PROF not in {"ad", "openldap"}:
+        raise SystemExit("LDAP_PROFILE must be one of: ad, openldap")
 
-    user_search_filter = (
-        os.environ.get("LDAP_USER_SEARCH_FILTER", "").strip()
-        or ("(sAMAccountName=%(user)s)" if LDAP_PROF == "ad" else "(uid=%(user)s)")
+    GROUP_RDN_ATTR = runtime_settings.get_text(
+        "LDAP_GROUP_RDN_ATTR",
+        runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_GROUP_RDN_ATTR"],
+    ).strip() or ("CN" if LDAP_PROF == "ad" else "cn")
+    LDAP_GROUPS_BASE_DN = runtime_settings.get_text(
+        "LDAP_GROUPS_BASE_DN",
+        runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_GROUPS_BASE_DN"],
     )
-    group_search_filter = (
-        os.environ.get("LDAP_GROUP_SEARCH_FILTER", "").strip()
-        or ("(objectClass=group)" if LDAP_PROF == "ad" else "(objectClass=groupOfNames)")
+    ENC_ADMIN_GROUP = f"{GROUP_RDN_ATTR}=enc_admin,{LDAP_GROUPS_BASE_DN}"
+    ENC_VIEWER_GROUP = f"{GROUP_RDN_ATTR}=enc_viewer,{LDAP_GROUPS_BASE_DN}"
+
+    USER_SEARCH_FILTER = runtime_settings.get_text(
+        "LDAP_USER_SEARCH_FILTER",
+        runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_USER_SEARCH_FILTER"],
+    ).strip() or (
+        "(sAMAccountName=%(user)s)" if LDAP_PROF == "ad" else "(uid=%(user)s)"
+    )
+    GROUP_SEARCH_FILTER = runtime_settings.get_text(
+        "LDAP_GROUP_SEARCH_FILTER",
+        runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_GROUP_SEARCH_FILTER"],
+    ).strip() or (
+        "(objectClass=group)" if LDAP_PROF == "ad" else "(objectClass=groupOfNames)"
     )
 
     DEFAULT_GOUP_TYPE = "ad_nested" if LDAP_PROF == "ad" else "groupofnames"
-    group_type_name = (os.environ.get("LDAP_GROUP_TYPE", "").strip().lower() or DEFAULT_GOUP_TYPE)
-    if group_type_name not in {"ad_nested", "ad", "groupofnames", "posix"}:
-        raise SystemExit("LDAP_GROUP_TYPE must be one of: ad_nested, ad, groupofnames, posix")
+    GROUP_TYPE_NAME = (
+        runtime_settings.get_text(
+            "LDAP_GROUP_TYPE", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_GROUP_TYPE"]
+        )
+        .strip()
+        .lower()
+        or DEFAULT_GOUP_TYPE
+    )
+    if GROUP_TYPE_NAME not in {"ad_nested", "ad", "groupofnames", "posix"}:
+        raise SystemExit(
+            "LDAP_GROUP_TYPE must be one of: ad_nested, ad, groupofnames, posix"
+        )
     group_type_map = {
         "ad_nested": NestedActiveDirectoryGroupType,
         "ad": ActiveDirectoryGroupType,
@@ -297,13 +319,36 @@ if USE_AUTH_LDAP:
         "is_superuser": [ENC_ADMIN_GROUP],
         "is_viewer": [ENC_VIEWER_GROUP],
     }
-    AUTH_LDAP_REQUIRE_GROUP = (
-        LDAPGroupQuery(ENC_ADMIN_GROUP)
-        | LDAPGroupQuery(ENC_VIEWER_GROUP)
+    AUTH_LDAP_REQUIRE_GROUP = LDAPGroupQuery(ENC_ADMIN_GROUP) | LDAPGroupQuery(
+        ENC_VIEWER_GROUP
     )
-    AUTH_LDAP_SERVER_URI = f"{os.environ['LDAP_PROTO']}://{os.environ['LDAP_SERVER']}:{os.environ['LDAP_PORT']}"  # pylint: disable=line-too-long
-    AUTH_LDAP_BIND_DN = os.environ["LDAP_BIND_DN"]
-    AUTH_LDAP_BIND_PASSWORD = os.environ["LDAP_BIND_PASSWORD"]
+    LDAP_PROTO = (
+        runtime_settings.get_text(
+            "LDAP_PROTO", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_PROTO"]
+        )
+        .strip()
+        .lower()
+    )
+    if LDAP_PROTO not in {"ldap", "ldaps"}:
+        raise SystemExit("LDAP_PROTO must be one of: ldap, ldaps")
+    LDAP_SERVER = runtime_settings.get_text(
+        "LDAP_SERVER", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_SERVER"]
+    ).strip()
+    LDAP_PORT = runtime_settings.get_text(
+        "LDAP_PORT", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_PORT"]
+    ).strip()
+    if not LDAP_PORT.isdigit():
+        raise SystemExit("LDAP_PORT must be numeric")
+
+    AUTH_LDAP_SERVER_URI = (
+        f"{LDAP_PROTO}://{LDAP_SERVER}:{LDAP_PORT}"  # pylint: disable=line-too-long
+    )
+    AUTH_LDAP_BIND_DN = runtime_settings.get_text(
+        "LDAP_BIND_DN", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_BIND_DN"]
+    )
+    AUTH_LDAP_BIND_PASSWORD = runtime_settings.get_text(
+        "LDAP_BIND_PASSWORD", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_BIND_PASSWORD"]
+    )
     ldap_network_timeout = env_float("LDAP_NETWORK_TIMEOUT", "2")
     AUTH_LDAP_CONNECTION_OPTIONS = {
         ldap.OPT_DEBUG_LEVEL: 1,  # pylint: disable=no-member
@@ -314,45 +359,51 @@ if USE_AUTH_LDAP:
     if LDAP_OPT_TIMEOUT is not None:
         AUTH_LDAP_CONNECTION_OPTIONS[LDAP_OPT_TIMEOUT] = ldap_network_timeout
     ldap_tls_skip_verify = runtime_settings.ldap_tls_skip_verify_enabled()
-    ldap_opt_x_tls_require_cert = getattr(ldap, "OPT_X_TLS_REQUIRE_CERT", None)
-    ldap_opt_x_tls_never = getattr(ldap, "OPT_X_TLS_NEVER", 0)
-    ldap_tls_require_cert = getattr(ldap, "OPT_X_TLS_DEMAND", 2)
+    LDAP_OPT_X_TLS_REQUIRE_CERT = getattr(ldap, "OPT_X_TLS_REQUIRE_CERT", None)
+    LDAP_OPT_X_TLS_NEVER = getattr(ldap, "OPT_X_TLS_NEVER", 0)
+    LDAP_OPT_X_TLS_DEMAND = getattr(ldap, "OPT_X_TLS_DEMAND", 2)
     AUTH_LDAP_GLOBAL_OPTIONS = {}
-    if ldap_opt_x_tls_require_cert is not None:
-        AUTH_LDAP_GLOBAL_OPTIONS[ldap_opt_x_tls_require_cert] = (
-            ldap_opt_x_tls_never if ldap_tls_skip_verify else ldap_tls_require_cert
+    if LDAP_OPT_X_TLS_REQUIRE_CERT is not None:
+        AUTH_LDAP_GLOBAL_OPTIONS[LDAP_OPT_X_TLS_REQUIRE_CERT] = (
+            LDAP_OPT_X_TLS_NEVER if ldap_tls_skip_verify else LDAP_OPT_X_TLS_DEMAND
         )
     # User and group search objects and types
     AUTH_LDAP_USER_SEARCH = LDAPSearch(
-        os.environ["LDAP_USER_BASE_DN"],
+        runtime_settings.get_text(
+            "LDAP_USER_BASE_DN",
+            runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_USER_BASE_DN"],
+        ),
         ldap.SCOPE_SUBTREE,  # pylint: disable=no-member
-        user_search_filter,
+        USER_SEARCH_FILTER,
     )
     AUTH_LDAP_GROUP_SEARCH = LDAPSearch(
-        os.environ["LDAP_GROUPS_BASE_DN"],
+        LDAP_GROUPS_BASE_DN,
         ldap.SCOPE_SUBTREE,  # pylint: disable=no-member
-        group_search_filter,
+        GROUP_SEARCH_FILTER,
     )
-    AUTH_LDAP_GROUP_TYPE = group_type_map[group_type_name]()
+    AUTH_LDAP_GROUP_TYPE = group_type_map[GROUP_TYPE_NAME]()
     # Cache settings
     AUTH_LDAP_CACHE_GROUPS = True
     AUTH_LDAP_GROUP_CACHE_TIMEOUT = 300
     AUTH_LDAP_CACHE_TIMEOUT = 3600
     # What to do once the user is authenticated
-    AUTH_LDAP_USER_ATTR_MAP = env_json(
-        "LDAP_USER_ATTR_MAP",
-        {
-            "first_name": "givenName",
-            "last_name": "sn",
-            "email": "mail",
-        },
-    )
+    try:
+        AUTH_LDAP_USER_ATTR_MAP = json.loads(
+            runtime_settings.get_text(
+                "LDAP_USER_ATTR_MAP",
+                runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_USER_ATTR_MAP"],
+            )
+        )
+    except json.JSONDecodeError as err:
+        raise SystemExit("LDAP_USER_ATTR_MAP must be valid JSON") from err
+    if not isinstance(AUTH_LDAP_USER_ATTR_MAP, dict):
+        raise SystemExit("LDAP_USER_ATTR_MAP must be a JSON object")
     AUTH_LDAP_FIND_GROUP_PERMS = True
     AUTH_LDAP_MIRROR_GROUPS = True
     LDAP_DEBUG = env_bool("LDAP_AUTH_DEBUG", False)
-    LOGGING['loggers']['django_auth_ldap'] = {
+    LOGGING["loggers"]["django_auth_ldap"] = {
         "handlers": ["stream_to_console"],
-            "level": "DEBUG" if LDAP_DEBUG else env_log_level("LDAP_LOGGING", "ERROR"),
+        "level": "DEBUG" if LDAP_DEBUG else env_log_level("LDAP_LOGGING", "ERROR"),
         "propagate": False,
     }
 # Internationalization

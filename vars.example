@@ -1,5 +1,11 @@
 # Docker variables
 #
+# Runtime toggles are stored in DB (Global Settings page):
+# UNCLASSIFIED_HOSTS_ENABLED, FEATURE_BRANCH, ENC_OVERLAPPING_DEFINITIONS_ENABLED,
+# USE_ENCAPSULE, AUTH_LDAP_ENABLED, LDAP_TLS_SKIP_VERIFY.
+#
+# PuppetDB, LDAP, and enCapsule routing settings are managed in Global Settings (UI).
+#
 # common variables
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -24,23 +30,15 @@ ENCOMPASS_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ENCAPSULE_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LDAP_LOGGING=ERROR      # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-# Runtime toggles are stored in DB (Global Settings page):
-# UNCLASSIFIED_HOSTS_ENABLED, FEATURE_BRANCH, ENC_OVERLAPPING_DEFINITIONS_ENABLED,
-# USE_ENCAPSULE, AUTH_LDAP_ENABLED, LDAP_TLS_SKIP_VERIFY.
-
 # NGINX variables
 ENC_VIEWER_PASSWORD=""  # leave empty to disable authentication for encompass read-only user.
 USE_SSL=false
 SSL_CERT_PATH="/etc/ssl/private/server.crt"
 SSL_KEY_PATH="/etc/ssl/private/server.key"
 
-# enCapsule sync fan-out variables (used by /usr/local/bin/encapsule-sync.sh)
+# enCapsule shared sync token (must be configured identically on encompass + encapsule)
+# all other enCapsule sync fan-out settings are managed in Global Settings (UI):
 ENCAPSULE_SYNC_TOKEN=""  # required to authenticate against enCapsule /sync endpoints
-ENCAPSULE_SYNC_SCHEME=http
-ENCAPSULE_SYNC_TIMEOUT=5
-ENCAPSULE_SYNC_PORT=8081
-ENCAPSULE_SYNC_USE_SRV=false  # true: ENCAPSULE_SYNC_HOST entries are SRV names; false: host/host:port/full URL
-ENCAPSULE_SYNC_HOST="encapsule.example.org"  # comma-separated targets; with USE_SRV=true use SRV names (canonical or plain)
 
 # MySQL variables
 MYSQL_HOST="mysql.example.org"
@@ -61,6 +59,7 @@ GIT_REPO_PATH="puppet/enc-data.git"
 GIT_REPO_USERNAME="gitlab"
 SSH_KEY_TYPE="ed25519"  # supported values: rsa | ed25519 | ecdsa
 KEY_FILE=/root/.ssh/id_ed25519
+KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
 GIT_REPO_PRIVATE_SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
@@ -69,31 +68,3 @@ wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
 rrrrr=
 -----END OPENSSH PRIVATE KEY-----"
-KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
-
-# PuppetDB settings (used by /encompass/unclassified_hosts/)
-PUPPETDB_SCHEMA="http"
-PUPPETDB_HOST="puppetdb.example.org"
-PUPPETDB_PORT=8080
-PUPPETDB_TIMEOUT=20
-
-# ldap variables
-LDAP_PROTO="ldaps"
-LDAP_PORT=636
-# If using Colima with internal/corporate DNS names (for example *.local),
-# start VPN before starting Colima so containers inherit the correct DNS.
-# If Colima was started before VPN, restart Colima and then restart containers.
-LDAP_SERVER="ad.example.org"
-LDAP_PROFILE="ad"  # ad | openldap
-LDAP_GROUPS_BASE_DN="OU=Groups,OU=IT,OU=EXAMPLE,DC=example,DC=org"
-LDAP_USER_BASE_DN="OU=EXAMPLE,OU=Users,OU=EXAMPLE,DC=example,DC=org"
-LDAP_BIND_DN="CN=binduser ,OU=EXAMPLE,OU=Users,OU=EXAMPLE,DC=example,DC=org" # empty if anonymous bind is allowed
-LDAP_BIND_PASSWORD="binduser" # empty if anonymous bind is allowed
-LDAP_GROUP_RDN_ATTR="CN"  # AD often CN, OpenLDAP often cn
-LDAP_USER_SEARCH_FILTER=""   # optional override, default depends on LDAP_PROFILE
-LDAP_GROUP_SEARCH_FILTER=""  # optional override, default depends on LDAP_PROFILE
-LDAP_GROUP_TYPE=""  # optional: ad_nested|ad|groupofnames|posix
-LDAP_USER_ATTR_MAP='{"first_name": "givenName", "last_name": "sn", "email": "mail"}'
-# optional login hint for expired passwords (for AD setups)
-LDAP_PASSWORD_RESET_URL=""   # optional absolute URL to external reset portal
-LDAP_PASSWORD_RESET_HELP=""  # optional fallback message when no portal URL exists

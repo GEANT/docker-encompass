@@ -2,6 +2,7 @@
 analyzes data received
 """
 
+# pylint: disable=too-many-lines
 import logging
 import os
 import json
@@ -134,7 +135,9 @@ def _commit_message(action: str | None, author: str) -> str:
     return f"{base_message}\n\nActor: {author}"
 
 
-def _run_checked(command, cwd=None, timeout=None) -> subprocess.CompletedProcess:
+def _run_checked(
+    command, cwd=None, timeout=None, env=None
+) -> subprocess.CompletedProcess:
     """Run command and raise EncSyncError with stderr/stdout on failure."""
     try:
         result = subprocess.run(
@@ -144,6 +147,7 @@ def _run_checked(command, cwd=None, timeout=None) -> subprocess.CompletedProcess
             capture_output=True,
             check=False,
             timeout=timeout,
+            env=env,
         )
     except subprocess.TimeoutExpired as err:
         raise EncSyncError(
@@ -153,6 +157,55 @@ def _run_checked(command, cwd=None, timeout=None) -> subprocess.CompletedProcess
         details = (result.stderr or result.stdout or "").strip()
         raise EncSyncError(f"Command failed: {' '.join(command)}; {details}")
     return result
+
+
+def _encapsule_sync_runtime_env() -> dict[str, str]:
+    """Build env overrides for encapsule-sync.sh from runtime settings."""
+    defaults = runtime_settings.ENCAPSULE_SYNC_TEXT_DEFAULTS
+
+    scheme = (
+        runtime_settings.get_text(
+            "ENCAPSULE_SYNC_SCHEME", defaults["ENCAPSULE_SYNC_SCHEME"]
+        )
+        .strip()
+        .lower()
+    )
+    if scheme not in {"http", "https"}:
+        scheme = defaults["ENCAPSULE_SYNC_SCHEME"]
+
+    timeout = runtime_settings.get_text(
+        "ENCAPSULE_SYNC_TIMEOUT", defaults["ENCAPSULE_SYNC_TIMEOUT"]
+    ).strip()
+    if not timeout.isdigit():
+        timeout = defaults["ENCAPSULE_SYNC_TIMEOUT"]
+
+    port = runtime_settings.get_text(
+        "ENCAPSULE_SYNC_PORT", defaults["ENCAPSULE_SYNC_PORT"]
+    ).strip()
+    if not port.isdigit():
+        port = defaults["ENCAPSULE_SYNC_PORT"]
+
+    use_srv = (
+        runtime_settings.get_text(
+            "ENCAPSULE_SYNC_USE_SRV", defaults["ENCAPSULE_SYNC_USE_SRV"]
+        )
+        .strip()
+        .lower()
+    )
+    if use_srv not in {"true", "false"}:
+        use_srv = defaults["ENCAPSULE_SYNC_USE_SRV"]
+
+    host = runtime_settings.get_text(
+        "ENCAPSULE_SYNC_HOST", defaults["ENCAPSULE_SYNC_HOST"]
+    ).strip()
+
+    return {
+        "ENCAPSULE_SYNC_SCHEME": scheme,
+        "ENCAPSULE_SYNC_TIMEOUT": timeout,
+        "ENCAPSULE_SYNC_PORT": port,
+        "ENCAPSULE_SYNC_USE_SRV": use_srv,
+        "ENCAPSULE_SYNC_HOST": host,
+    }
 
 
 def _sync_git_repo(actor: dict | None = None, action: str | None = None) -> bool:
@@ -207,8 +260,12 @@ def _trigger_encapsule_sync() -> None:
         return
 
     timeout = _env_int("GIT_SYNC_TIMEOUT", 30)
+    sync_env = os.environ.copy()
+    sync_env.update(_encapsule_sync_runtime_env())
     try:
-        _run_checked(["/usr/local/bin/encapsule-sync.sh"], timeout=timeout)
+        _run_checked(
+            ["/usr/local/bin/encapsule-sync.sh"], timeout=timeout, env=sync_env
+        )
     except EncSyncError as err:
         logger.warning(
             "encapsule_sync_trigger_failed timeout=%s error=%s",
@@ -437,6 +494,7 @@ def get_groups_info(groups: list, return_all: bool = False) -> str | list:
     Returns the highest privilege group name.
     Possible return values: admin, viewer, not yet known
     """
+
     def _normalize_group_value(value: str) -> str:
         return re.sub(r"\s+", "", str(value or "")).lower()
 
@@ -872,11 +930,109 @@ def validate_group_selector_overlaps(
     )
 
 
+def _puppetdb_runtime_values() -> dict[str, str]:
+    """Return raw PuppetDB runtime settings without implicit defaults."""
+    return {
+        "PUPPETDB_SCHEMA": runtime_settings.get_text_raw("PUPPETDB_SCHEMA"),
+        "PUPPETDB_HOST": runtime_settings.get_text_raw("PUPPETDB_HOST"),
+        "PUPPETDB_PORT": runtime_settings.get_text_raw("PUPPETDB_PORT"),
+        "PUPPETDB_TIMEOUT": runtime_settings.get_text_raw("PUPPETDB_TIMEOUT"),
+    }
+
+
+def validate_puppetdb_settings(values: dict[str, str] | None = None) -> list[str]:
+    """Validate PuppetDB settings. Empty fields are treated as missing configuration."""
+    config = values if values is not None else _puppetdb_runtime_values()
+    errors: list[str] = []
+
+    schema = str(config.get("PUPPETDB_SCHEMA", "")).strip().lower()
+    if not schema:
+        errors.append("PuppetDB Schema is not configured.")
+    elif schema not in {"http", "https"}:
+        errors.append("PuppetDB Schema must be 'http' or 'https'.")
+
+    host = str(config.get("PUPPETDB_HOST", "")).strip()
+    if not host:
+        errors.append("PuppetDB Host is not configured.")
+
+    port = str(config.get("PUPPETDB_PORT", "")).strip()
+    if not port:
+        errors.append("PuppetDB Port is not configured.")
+    elif not port.isdigit():
+        errors.append("PuppetDB Port must be numeric.")
+    else:
+        port_value = int(port)
+        if port_value < 1 or port_value > 65535:
+            errors.append("PuppetDB Port must be between 1 and 65535.")
+
+    timeout = str(config.get("PUPPETDB_TIMEOUT", "")).strip()
+    if not timeout:
+        errors.append("PuppetDB Timeout is not configured.")
+    elif not timeout.isdigit():
+        errors.append("PuppetDB Timeout must be numeric.")
+    else:
+        timeout_value = int(timeout)
+        if timeout_value < 1 or timeout_value > 300:
+            errors.append("PuppetDB Timeout must be between 1 and 300 seconds.")
+
+    return errors
+
+
+def test_puppetdb_settings(
+    values: dict[str, str],
+) -> tuple[bool, list[tuple[str, str]]]:
+    """Test PuppetDB connectivity using submitted (unsaved) values."""
+    errors = validate_puppetdb_settings(values)
+    if errors:
+        return False, [("error", item) for item in errors]
+
+    schema = str(values.get("PUPPETDB_SCHEMA", "")).strip().lower()
+    host = str(values.get("PUPPETDB_HOST", "")).strip()
+    port = str(values.get("PUPPETDB_PORT", "")).strip()
+    timeout = int(str(values.get("PUPPETDB_TIMEOUT", "20")).strip())
+    url = f"{schema}://{host}:{port}/pdb/query/v4/nodes"
+
+    results: list[tuple[str, str]] = [("info", f"Connecting to {url}")]
+
+    try:
+        response = requests.get(url, timeout=timeout, params={"limit": 1})
+    except requests.RequestException as err:
+        return False, [("error", f"Failed to query PuppetDB: {err}")]
+
+    if response.status_code != 200:
+        return False, [
+            (
+                "error",
+                f"PuppetDB query failed ({response.status_code}): {response.text[:200]}",
+            )
+        ]
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return False, [("error", "PuppetDB returned invalid JSON payload")]
+
+    if not isinstance(payload, list):
+        return False, [("error", "PuppetDB nodes payload is not a list")]
+
+    results.append(("success", "PuppetDB query succeeded."))
+    results.append(
+        ("info", f"Received {len(payload)} node record(s) in probe response.")
+    )
+    return True, results
+
+
 def _puppetdb_nodes_url() -> str:
-    """Build PuppetDB nodes URL from split env variables."""
-    schema = str(os.environ.get("PUPPETDB_SCHEMA", "http")).strip()
-    host = str(os.environ.get("PUPPETDB_HOST", "puppetdb.service.ha.geant.net")).strip()
-    port = str(os.environ.get("PUPPETDB_PORT", "8080")).strip()
+    """Build PuppetDB nodes URL from runtime settings."""
+    values = _puppetdb_runtime_values()
+    errors = validate_puppetdb_settings(values)
+    if errors:
+        raise EncSyncError(
+            "PuppetDB settings are incomplete or invalid: " + "; ".join(errors)
+        )
+    schema = str(values["PUPPETDB_SCHEMA"]).strip().lower()
+    host = str(values["PUPPETDB_HOST"]).strip()
+    port = str(values["PUPPETDB_PORT"]).strip()
     return f"{schema}://{host}:{port}/pdb/query/v4/nodes"
 
 
@@ -977,8 +1133,15 @@ def _resolve_group_match(
 
 def get_puppetdb_nodes() -> list[str]:
     """Fetch and return sorted node certnames from PuppetDB."""
+    values = _puppetdb_runtime_values()
+    errors = validate_puppetdb_settings(values)
+    if errors:
+        raise EncSyncError(
+            "PuppetDB settings are incomplete or invalid: " + "; ".join(errors)
+        )
+
     url = _puppetdb_nodes_url()
-    timeout = _env_int("PUPPETDB_TIMEOUT", 20)
+    timeout = int(str(values["PUPPETDB_TIMEOUT"]).strip())
 
     try:
         response = requests.get(url, timeout=timeout)
@@ -1039,5 +1202,3 @@ def list_unclassified_hosts() -> dict:
         "default_profile": default_profile,
         "puppetdb_url": _puppetdb_nodes_url(),
     }
-
-

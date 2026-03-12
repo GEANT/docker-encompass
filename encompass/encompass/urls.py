@@ -15,7 +15,6 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-import os
 from django.conf import settings
 from django.shortcuts import redirect
 from django.urls import path
@@ -25,6 +24,7 @@ from django.views.generic.base import RedirectView
 from django.contrib import admin
 from . import views
 from . import enc_views
+from . import runtime_settings
 from .forms import EncompassAuthenticationForm
 
 
@@ -48,8 +48,14 @@ extra = {
     "is_db_auth": settings.USE_AUTH_MYSQL,
     "is_ldap_auth": settings.USE_AUTH_LDAP,
     "demo_mode": settings.DEMO_MODE,
-    "ldap_password_reset_url": os.environ.get("LDAP_PASSWORD_RESET_URL", "").strip(),
-    "ldap_password_reset_help": os.environ.get("LDAP_PASSWORD_RESET_HELP", "").strip(),
+    "ldap_password_reset_url": runtime_settings.get_text(
+        "LDAP_PASSWORD_RESET_URL",
+        runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_PASSWORD_RESET_URL"],
+    ),
+    "ldap_password_reset_help": runtime_settings.get_text(
+        "LDAP_PASSWORD_RESET_HELP",
+        runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_PASSWORD_RESET_HELP"],
+    ),
 }
 
 urlpatterns = [

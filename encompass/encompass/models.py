@@ -15,6 +15,7 @@ class RuntimeSetting(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        """Meta configuration for RuntimeSetting model."""
         db_table = "runtime_settings"
         verbose_name = "Runtime setting"
         verbose_name_plural = "Runtime settings"

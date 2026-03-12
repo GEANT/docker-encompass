@@ -14,7 +14,11 @@
       <div class="alert alert-danger" role="alert">{{ error }}</div>
     {% endif %}
 
-    {% if not error %}
+    {% if warning %}
+      <div class="alert alert-warning" role="alert">{{ warning }}</div>
+    {% endif %}
+
+    {% if not error and not warning %}
       <div class="row g-4">
         <div class="col-12 col-lg-6">
           <div class="card shadow-sm h-100">

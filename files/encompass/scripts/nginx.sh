@@ -14,7 +14,7 @@ if [ "$DEBUG" = "true" ]; then
         sleep .1
         if [ "$SECONDS" -gt "$COUNTER" ]; then
             COUNTER=$SECONDS
-            echo "==> Nginx: Still waiting for enCapsule server..."
+            echo "==> Nginx: Still waiting for enCompass development server..."
         fi
     done
     echo "==> Nginx: enCompass development server is available"
@@ -24,7 +24,7 @@ else
         sleep .1
         if [ "$SECONDS" -gt "$COUNTER" ]; then
             COUNTER=$SECONDS
-            echo "==> Nginx: Still waiting for enCapsule server..."
+            echo "==> Nginx: Still waiting for enCompass server..."
         fi
     done
     echo "==> Nginx: enCompass server is available"

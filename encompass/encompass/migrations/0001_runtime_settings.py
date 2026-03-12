@@ -1,3 +1,8 @@
+"""
+Initial migration for runtime settings model and seeding.
+"""
+
+# pylint: disable=invalid-name
 from django.db import migrations, models
 
 
@@ -8,7 +13,8 @@ def _env_bool(name, default):
 
 
 def seed_runtime_settings(apps, _schema_editor):
-    RuntimeSetting = apps.get_model("encompass", "RuntimeSetting")
+    """Seed initial runtime settings with environment variable overrides."""
+    runtime_setting = apps.get_model("encompass", "runtime_setting")
     defaults = {
         "UNCLASSIFIED_HOSTS_ENABLED": _env_bool("UNCLASSIFIED_HOSTS_ENABLED", True),
         "FEATURE_BRANCH": _env_bool("FEATURE_BRANCH", False),
@@ -20,17 +26,14 @@ def seed_runtime_settings(apps, _schema_editor):
         "LDAP_TLS_SKIP_VERIFY": _env_bool("LDAP_TLS_SKIP_VERIFY", False),
     }
     for key, value in defaults.items():
-        RuntimeSetting.objects.update_or_create(
+        runtime_setting.objects.update_or_create(
             key=key,
             defaults={"value_bool": value, "updated_by": "migration"},
         )
 
 
-def noop_reverse(_apps, _schema_editor):
-    pass
-
-
 class Migration(migrations.Migration):
+    """Initial migration for runtime settings model and seeding."""
 
     initial = True
 
@@ -38,7 +41,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="RuntimeSetting",
+            name="runtime_setting",
             fields=[
                 (
                     "id",
@@ -63,5 +66,5 @@ class Migration(migrations.Migration):
                 "db_table": "runtime_settings",
             },
         ),
-        migrations.RunPython(seed_runtime_settings, noop_reverse),
+        migrations.RunPython(seed_runtime_settings, migrations.RunPython.noop),
     ]

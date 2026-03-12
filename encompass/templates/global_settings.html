@@ -10,7 +10,7 @@
   <div class="container" style="max-width: 800px; margin-top: 20px;">
     {% if messages %}
       {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'debug' %}alert-secondary{% else %}alert-{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
           {{ message }}
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
@@ -22,6 +22,7 @@
         <h5 class="mb-3">Feature Toggles</h5>
         <form method="post" action="/encompass/global_settings/">
           {% csrf_token %}
+          <input type="hidden" name="settings_section" value="feature">
         {% for item in toggle_items %}
         <div class="form-check form-switch py-2 border-bottom">
           <input class="form-check-input" type="checkbox" role="switch" name="{{ item.key }}" id="toggle-{{ item.key }}" {% if item.enabled %}checked{% endif %}>
@@ -46,10 +47,232 @@
             <button type="button" id="add-environment" class="btn btn-outline-primary btn-sm mt-2">Add environment</button>
           </div>
 
+          <div class="pt-4">
           <div class="d-flex justify-content-end mt-3">
-            <button type="submit" class="btn btn-primary">Save Global Settings</button>
+            <button type="submit" class="btn btn-primary">Save Feature Settings</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body text-start">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+          <h5 class="mb-0">PuppetDB Settings</h5>
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#puppetdb-settings-collapse"
+            aria-expanded="{% if puppetdb_panel_expanded %}true{% else %}false{% endif %}"
+            aria-controls="puppetdb-settings-collapse"
+          >
+            Expand/Collapse
+          </button>
+        </div>
+        <p class="text-muted mb-3">
+          Configure PuppetDB endpoint and timeout used by Unclassified Hosts.
+        </p>
+
+        <div class="collapse {% if puppetdb_panel_expanded %}show{% endif %}" id="puppetdb-settings-collapse">
+          <form method="post" action="/encompass/global_settings/">
+            {% csrf_token %}
+            <input type="hidden" name="settings_section" value="puppetdb">
+
+            {% for field in puppetdb_fields %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="puppetdb-{{ field.key }}">{{ field.label }}</label>
+              {% if field.input_type == 'select' %}
+              <select
+                class="form-select"
+                id="puppetdb-{{ field.key }}"
+                name="puppetdb_{{ field.key }}"
+              >
+                {% for option in field.options %}
+                <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              <input
+                type="{{ field.input_type|default:'text' }}"
+                class="form-control"
+                id="puppetdb-{{ field.key }}"
+                name="puppetdb_{{ field.key }}"
+                value="{{ field.value }}"
+                placeholder="{{ field.suggestion }}"
+                {% if field.key == 'PUPPETDB_PORT' %}min="1" max="65535"{% endif %}
+                {% if field.key == 'PUPPETDB_TIMEOUT' %}min="1" max="300"{% endif %}
+              >
+              {% endif %}
+              <div class="text-muted"><small>{{ field.description }}</small></div>
+            </div>
+            {% endfor %}
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <button type="submit" name="test_puppetdb" value="1" class="btn btn-outline-primary">Test PuppetDB Settings</button>
+              <button type="submit" class="btn btn-primary">Save PuppetDB Settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body text-start">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+          <h5 class="mb-0">enCapsule Settings</h5>
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#encapsule-settings-collapse"
+            aria-expanded="{% if encapsule_panel_expanded %}true{% else %}false{% endif %}"
+            aria-controls="encapsule-settings-collapse"
+          >
+            Expand/Collapse
+          </button>
+        </div>
+        <p class="text-muted mb-2">
+          Configure enCapsule fan-out routing used by save-triggered synchronization
+        </p>
+        <p class="text-danger mb-3">
+          ENCAPSULE_SYNC_TOKEN must be set in the environment variables on both encompass and encapsule
+        </p>
+
+        <div class="collapse {% if encapsule_panel_expanded %}show{% endif %}" id="encapsule-settings-collapse">
+          <form method="post" action="/encompass/global_settings/">
+            {% csrf_token %}
+            <input type="hidden" name="settings_section" value="encapsule">
+
+            <div class="border rounded p-3 mb-3">
+              <h6 class="mb-3">enCapsule Toggles</h6>
+              {% for item in encapsule_toggle_items %}
+              <div class="form-check form-switch py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                <input class="form-check-input" type="checkbox" role="switch" name="{{ item.key }}" id="toggle-{{ item.key }}" {% if item.enabled %}checked{% endif %}>
+                <label class="form-check-label fw-semibold" for="toggle-{{ item.key }}">{{ item.label }}</label>
+                <div class="text-muted"><small>{{ item.description }}</small></div>
+              </div>
+              {% endfor %}
+            </div>
+
+            {% for field in encapsule_sync_fields %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="encapsule-sync-{{ field.key }}">{{ field.label }}</label>
+              {% if field.input_type == 'select' %}
+              <select
+                class="form-select"
+                id="encapsule-sync-{{ field.key }}"
+                name="encapsule_sync_{{ field.key }}"
+              >
+                {% for option in field.options %}
+                <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              <input
+                type="{{ field.input_type|default:'text' }}"
+                class="form-control"
+                id="encapsule-sync-{{ field.key }}"
+                name="encapsule_sync_{{ field.key }}"
+                value="{{ field.value }}"
+                placeholder="{{ field.suggestion }}"
+                {% if field.key == 'ENCAPSULE_SYNC_PORT' %}min="1" max="65535"{% endif %}
+                {% if field.key == 'ENCAPSULE_SYNC_TIMEOUT' %}min="1" max="300"{% endif %}
+              >
+              {% endif %}
+              <div class="text-muted"><small>{{ field.description }}</small></div>
+            </div>
+            {% endfor %}
+
+            <div class="d-flex justify-content-end mt-3">
+              <button type="submit" class="btn btn-primary">Save enCapsule Settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body text-start">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+          <h5 class="mb-0">LDAP Settings</h5>
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#ldap-settings-collapse"
+            aria-expanded="{% if ldap_panel_expanded %}true{% else %}false{% endif %}"
+            aria-controls="ldap-settings-collapse"
+          >
+            Expand/Collapse
+          </button>
+        </div>
+        <p class="text-muted mb-3">
+          Configure LDAP connection and mapping settings. Empty fields use suggested defaults.<br>
+          <span class="text-danger">Changes apply after service restart.</span>
+        </p>
+
+        <div class="collapse {% if ldap_panel_expanded %}show{% endif %}" id="ldap-settings-collapse">
+          <form method="post" action="/encompass/global_settings/">
+            {% csrf_token %}
+            <input type="hidden" name="settings_section" value="ldap">
+
+            <div class="border rounded p-3 mb-3">
+              <h6 class="mb-3">LDAP Toggles</h6>
+              {% for item in ldap_toggle_items %}
+              <div class="form-check form-switch py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                <input class="form-check-input" type="checkbox" role="switch" name="{{ item.key }}" id="toggle-{{ item.key }}" {% if item.enabled %}checked{% endif %}>
+                <label class="form-check-label fw-semibold" for="toggle-{{ item.key }}">{{ item.label }}</label>
+                <div class="{% if 'restart' in item.description|lower %}text-danger{% else %}text-muted{% endif %}"><small>{{ item.description }}</small></div>
+              </div>
+              {% endfor %}
+            </div>
+
+            {% for section in ldap_sections %}
+            <div class="border rounded p-3 mb-3">
+              <h6 class="mb-3">{{ section.title }}</h6>
+              {% for field in section.fields %}
+              <div class="mb-3">
+                <label class="form-label fw-semibold" for="ldap-{{ field.key }}">{{ field.label }}</label>
+                {% if field.input_type == 'select' %}
+                <select
+                  class="form-select"
+                  id="ldap-{{ field.key }}"
+                  name="ldap_{{ field.key }}"
+                >
+                  {% for option in field.options %}
+                  <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>
+                    {% if field.key == 'LDAP_GROUP_TYPE' and option == '' %}
+                    (Use profile default)
+                    {% else %}
+                    {{ option }}
+                    {% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+                {% else %}
+                <input
+                  type="{{ field.input_type|default:'text' }}"
+                  class="form-control"
+                  id="ldap-{{ field.key }}"
+                  name="ldap_{{ field.key }}"
+                  value="{{ field.value }}"
+                  placeholder="{{ field.suggestion }}"
+                  {% if field.key == 'LDAP_PORT' %}min="1" max="65535"{% endif %}
+                >
+                {% endif %}
+                <div class="{% if 'restart' in field.description|lower %}text-danger{% else %}text-muted{% endif %}"><small>{{ field.description }}</small></div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <button type="submit" name="test_ldap" value="1" class="btn btn-outline-primary">Test LDAP Settings</button>
+              <button type="submit" class="btn btn-primary">Save LDAP Settings</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -74,8 +297,11 @@
     <div class="mt-4">
       <a href="/encompass/" class="btn btn-outline-primary">Back to Home</a>
     </div>
+    <div class="pb-4"></div>
   </div>
 </div>
+
+<div class="pb-5"></div>
 
 <script>
   (function() {

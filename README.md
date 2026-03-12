@@ -338,10 +338,11 @@ A node is marked unclassified when its resolved ENC payload (`environment`, `cla
 Configuration:
 
 - `UNCLASSIFIED_HOSTS_ENABLED`: enable/disable the unclassified hosts page logic (`true`/`false`, default: `true`)
-- `PUPPETDB_SCHEMA`: PuppetDB scheme (default: `http`)
-- `PUPPETDB_HOST`: PuppetDB host (default: `puppetdb.service.ha.geant.net`)
-- `PUPPETDB_PORT`: PuppetDB port (default: `8080`)
-- `PUPPETDB_TIMEOUT`: HTTP timeout in seconds for the PuppetDB call (default: `20`)
+- PuppetDB settings are managed in **Global Settings**:
+  - `PUPPETDB_SCHEMA` (`http` or `https`, default: `http`)
+  - `PUPPETDB_HOST` (default: `puppetdb.service.ha.geant.net`)
+  - `PUPPETDB_PORT` (integer, default: `8080`)
+  - `PUPPETDB_TIMEOUT` (integer seconds, default: `20`)
 
 The nodes endpoint is built internally as:
 
@@ -349,15 +350,13 @@ The nodes endpoint is built internally as:
 
 ### Authentication
 
-- `AUTH_LDAP_ENABLED=true|false`
-
 Authentication behavior:
 
 - Local Django/MySQL authentication is always enabled.
-- LDAP is optional and acts as a fallback when `AUTH_LDAP_ENABLED=true`.
+- LDAP is optional and acts as a fallback when enabled in Global Settings.
 - If a username exists in both local DB and LDAP, local DB authentication wins.
 
-LDAP mode requires the `LDAP_*` variables.
+LDAP connection/search settings are managed in **Global Settings**.
 
 Local Django auth mode bootstraps two local users on first start:
 
@@ -470,11 +469,13 @@ Reliability and latency controls:
 
 Common variables:
 
-- `ENCAPSULE_SYNC_TOKEN`: shared token expected by each enCapsule `/sync`
-- `ENCAPSULE_SYNC_SCHEME`: `http` or `https` (default `http`)
-- `ENCAPSULE_SYNC_TIMEOUT`: curl timeout in seconds (default `5`)
-- `ENCAPSULE_SYNC_USE_SRV`: `true` to resolve `ENCAPSULE_SYNC_HOST` entries as SRV names; `false` for direct host targets
-- `ENCAPSULE_SYNC_HOST`: one or more comma-separated entries
+- `ENCAPSULE_SYNC_TOKEN`: shared token expected by each enCapsule `/sync` (must be set in environment on both services)
+- Routing settings are managed in **Global Settings**:
+  - `ENCAPSULE_SYNC_SCHEME`: `http` or `https` (default `http`)
+  - `ENCAPSULE_SYNC_TIMEOUT`: curl timeout in seconds (default `5`)
+  - `ENCAPSULE_SYNC_PORT`: default port for host-only targets (default `8081`)
+  - `ENCAPSULE_SYNC_USE_SRV`: `true` for SRV names, `false` for direct targets
+  - `ENCAPSULE_SYNC_HOST`: one or more comma-separated entries
 
 Accepted `ENCAPSULE_SYNC_HOST` entries:
 

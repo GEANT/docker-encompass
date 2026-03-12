@@ -18,7 +18,7 @@ fi
 
 echo "==> enCompass: Ensuring default local auth groups/users exist..."
 
-# shellcheck disable=SC2140
+# shellcheck disable=SC2140,1078,1079
 python manage.py shell -c "
 from django.contrib.auth.models import User, Group
 

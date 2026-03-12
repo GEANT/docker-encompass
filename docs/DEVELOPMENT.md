@@ -52,10 +52,9 @@ sequenceDiagram
 
 - `USE_ENCAPSULE=true|false`: enables/disables fan-out trigger.
 - `GIT_SYNC_MODE=sync|async`: synchronous vs background retries on enCompass side.
-- `ENCAPSULE_SYNC_TOKEN`: shared token required by enCapsule `/sync` endpoint.
-- `ENCAPSULE_SYNC_USE_SRV=true|false`: strict target mode selection (`true` = SRV names, `false` = direct targets).
-- `ENCAPSULE_SYNC_HOST`: one or more targets, interpreted according to `ENCAPSULE_SYNC_USE_SRV`.
-- `ENCAPSULE_SYNC_SCHEME`, `ENCAPSULE_SYNC_PORT`, `ENCAPSULE_SYNC_TIMEOUT`: fan-out transport settings (`/sync` path is fixed).
+- `ENCAPSULE_SYNC_TOKEN`: shared token required by enCapsule `/sync` endpoint (environment variable on both services).
+- enCapsule fan-out routing settings are runtime-managed in Global Settings (DB/UI):
+  `ENCAPSULE_SYNC_USE_SRV`, `ENCAPSULE_SYNC_HOST`, `ENCAPSULE_SYNC_SCHEME`, `ENCAPSULE_SYNC_PORT`, `ENCAPSULE_SYNC_TIMEOUT`.
 
 ### Read-only behavior in enCapsule
 
@@ -82,7 +81,7 @@ python manage.py runserver
 - `409 Conflict` on `/hosts` or `/groups` writes:
   another write operation currently holds the lock; retry the request.
 - Login issues with LDAP:
-  verify `LDAP_*` values and directory reachability from the container.
+  verify LDAP settings in Global Settings and directory reachability from the container.
 - SSL startup failure:
   confirm certificate/key files exist and are readable in container paths.
 - Nginx error `stat() ... /code/static/static/... failed (13: Permission denied)` and broken CSS:
