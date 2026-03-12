@@ -3,21 +3,22 @@
 # variables:
 # - GIT_BRANCH: branch of the Git repository to use (default: main)
 # - GIT_REPO_URL: URL of the Git repository
+# - GIT_HOST: Git host (used for ssh host key bootstrap)
+# - GIT_REPO_PATH: Git repository path on host
+# - GIT_REPO_USERNAME: username for accessing the Git repository
 # - GIT_READ_ONLY: when true, disallow any git writes (push/commit/branch creation)
 # - SSH_KEY_TYPE: type of the SSH key (rsa, ed25519, ecdsa)
 # - GIT_REPO_PRIVATE_SSH_KEY: SSH key for accessing the Git repository
 # - GIT_REPO_PRIVATE_SSH_KEY_FILE: path to a file containing the SSH key
-# - GIT_REPO_USERNAME: username for accessing the Git repository
 #
 set -e
 
 GIT_BRANCH="${GIT_BRANCH:-main}"
 GIT_READ_ONLY="${GIT_READ_ONLY:-false}"
-GIT_REPO="${GIT_REPO:-}"
-if [ -z "$GIT_REPO" ] && [ -n "${GIT_REPO_URL:-}" ]; then
+GIT_REPO=""
+if [ -n "${GIT_REPO_URL:-}" ]; then
     GIT_REPO="$GIT_REPO_URL"
-fi
-if [ -z "$GIT_REPO" ] && [ -n "${GIT_HOST:-}" ] && [ -n "${GIT_REPO_PATH:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ]; then
+elif [ -n "${GIT_HOST:-}" ] && [ -n "${GIT_REPO_PATH:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ]; then
     GIT_REPO="ssh://${GIT_REPO_USERNAME}@${GIT_HOST}/${GIT_REPO_PATH}"
 fi
 
@@ -36,7 +37,7 @@ if [ -n "$GIT_REPO" ] && [ -n "${SSH_KEY_TYPE:-}" ] && [ -n "${GIT_REPO_PRIVATE_
     echo "==> Git-setup: Setting up Git authentication variables..."
 else
     echo "==> Git-setup: [ERROR] Missing required Git authentication variables"
-    echo "==> Git-setup: [ERROR] Please set SSH_KEY_TYPE, GIT_REPO_USERNAME, GIT_HOST, and either GIT_REPO_PRIVATE_SSH_KEY or GIT_REPO_PRIVATE_SSH_KEY_FILE, plus either GIT_REPO or GIT_REPO_URL (or GIT_REPO_PATH with GIT_HOST and GIT_REPO_USERNAME)"
+    echo "==> Git-setup: [ERROR] Please set SSH_KEY_TYPE, GIT_REPO_USERNAME, GIT_HOST, and either GIT_REPO_PRIVATE_SSH_KEY or GIT_REPO_PRIVATE_SSH_KEY_FILE, plus GIT_REPO_URL or GIT_REPO_PATH"
     exit 1
 fi
 case "$SSH_KEY_TYPE" in

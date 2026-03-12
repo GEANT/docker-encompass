@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Dict, cast
 from django.apps import apps
@@ -29,6 +30,7 @@ DEFAULTS: Dict[str, bool] = {
         os.environ.get("LDAP_TLS_SKIP_VERIFY", "false")
     ).strip().lower() in {"1", "true", "yes", "on"},
 }
+DEFAULT_PUPPET_ENVIRONMENTS = ["production"]
 
 def _runtime_model():
     return apps.get_model("encompass", "RuntimeSetting")
@@ -59,6 +61,54 @@ def set_bool(key: str, value: bool, updated_by: str = "system") -> None:
     )
 
 
+def _normalize_list(values: list[str] | tuple[str, ...] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in values or []:
+        value = str(item).strip()
+        if not value:
+            continue
+        lowered = value.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        normalized.append(value)
+    return normalized
+
+
+def get_list(key: str, default: list[str] | None = None) -> list[str]:
+    """Return runtime list setting from DB with safe fallback."""
+    fallback = _normalize_list(default or [])
+    try:
+        runtime_model = cast(Any, _runtime_model())
+        item = runtime_model.objects.filter(key=key).only("value_text").first()
+        if item is None:
+            return fallback
+        raw = str(getattr(item, "value_text", "") or "").strip()
+        if not raw:
+            return fallback
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            return fallback
+        values = _normalize_list(parsed)
+        return values or fallback
+    except (OperationalError, ProgrammingError, AppRegistryNotReady, LookupError, json.JSONDecodeError):
+        return fallback
+
+
+def set_list(key: str, values: list[str], updated_by: str = "system") -> None:
+    """Persist a runtime list setting as JSON text."""
+    normalized = _normalize_list(values)
+    runtime_model = cast(Any, _runtime_model())
+    runtime_model.objects.update_or_create(
+        key=key,
+        defaults={
+            "value_text": json.dumps(normalized),
+            "updated_by": updated_by or "system",
+        },
+    )
+
+
 def feature_branch_enabled() -> bool:
     return get_bool("FEATURE_BRANCH")
 
@@ -81,3 +131,12 @@ def ldap_auth_enabled() -> bool:
 
 def ldap_tls_skip_verify_enabled() -> bool:
     return get_bool("LDAP_TLS_SKIP_VERIFY")
+
+
+def puppet_environments() -> list[str]:
+    return get_list("PUPPET_ENVIRONMENTS", DEFAULT_PUPPET_ENVIRONMENTS)
+
+
+def set_puppet_environments(values: list[str], updated_by: str = "system") -> None:
+    normalized = _normalize_list(values) or DEFAULT_PUPPET_ENVIRONMENTS
+    set_list("PUPPET_ENVIRONMENTS", normalized, updated_by=updated_by)

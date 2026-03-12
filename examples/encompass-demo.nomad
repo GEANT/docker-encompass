@@ -47,10 +47,8 @@ job "encompass-demo" {
         MYSQL_PORT                    = 3306
         MYSQL_DB                      = "enc_demo"
         MYSQL_USER                    = "enc_demo"
-        ENC_BOOTSTRAP_ADMIN_PASSWORD  = ""
-        ENC_BOOTSTRAP_VIEWER_PASSWORD = ""
         # Git repository variables
-        GIT_HOST                      = "prod-git01.example.net"
+        GIT_HOST                      = "prod-git01.example.org"
         GIT_REPO_PATH                 = "puppet/enc-data.git"
         GIT_REPO_USERNAME             = "gitlab"
         GIT_BRANCH                    = "main"
@@ -59,7 +57,6 @@ job "encompass-demo" {
         GIT_SYNC_RETRIES              = 2
         GIT_SYNC_RETRY_DELAY          = 2
         SSH_KEY_TYPE                  = "ed25519"
-        GIT_REPO                      = "ssh://gitlab@prod-git01.example.net/puppet/enc-data.git"
         GIT_REPO_PRIVATE_SSH_KEY_FILE = "/secrets/git_repo_private_ssh_key"
         KEY_FILE                      = "/root/.ssh/id_ed25519"
         FEATURE_BRANCH                = false

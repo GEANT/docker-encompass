@@ -71,7 +71,6 @@ FEATURE_BRANCH = False
 ENC_OVERLAPPING_DEFINITIONS_ENABLED = False
 UNCLASSIFIED_HOSTS_ENABLED = True
 DEMO_MODE = env_json("DEMO_MODE", False)
-PUPPET_ENVIRONMENTS = env_json("PUPPET_ENVIRONMENTS", ["production"])
 if USE_AUTH_LDAP not in [True, False]:
     print("AUTH_LDAP_ENABLED must be True or False")
     raise SystemExit(1)
@@ -79,10 +78,6 @@ USE_AUTH_MYSQL = True
 if DEMO_MODE not in [True, False]:
     print("DEMO_MODE must be True or False")
     raise SystemExit(1)
-if not isinstance(PUPPET_ENVIRONMENTS, list):
-    print("PUPPET_ENVIRONMENTS must be a JSON list")
-    raise SystemExit(1)
-PUPPET_ENVIRONMENTS = [str(item).strip() for item in PUPPET_ENVIRONMENTS if str(item).strip()]
 
 # Group identifiers used across the app.
 # In MySQL mode these are plain Django group names.

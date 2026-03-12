@@ -169,7 +169,7 @@
             if (closest.match && closest.distance <= 2) {
               feedback.textContent = `Custom environment: ${value}. Did you mean '${closest.match}'?`;
             } else {
-              feedback.textContent = `Custom environment: ${value}. This value is not in PUPPET_ENVIRONMENTS.`;
+              feedback.textContent = `Custom environment: ${value}. This value is not in the predefined environments list.`;
             }
             feedback.classList.add('text-warning');
             return { isDefault: false, shouldWarn: true };
@@ -256,7 +256,7 @@
           document.getElementById('addHostForm').addEventListener('submit', function(event) {
             const status = updateEnvironmentFeedback();
             if (featureBranchesEnabled && status.shouldWarn) {
-              const proceed = confirm('The selected environment is not in PUPPET_ENVIRONMENTS. Continue with this custom value?');
+              const proceed = confirm('The selected environment is not in the predefined environments list. Continue with this custom value?');
               if (!proceed) {
                 event.preventDefault();
               }

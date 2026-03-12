@@ -53,8 +53,9 @@ sequenceDiagram
 - `USE_ENCAPSULE=true|false`: enables/disables fan-out trigger.
 - `GIT_SYNC_MODE=sync|async`: synchronous vs background retries on enCompass side.
 - `ENCAPSULE_SYNC_TOKEN`: shared token required by enCapsule `/sync` endpoint.
-- `ENCAPSULE_SYNC_HOST`: one or more targets (host, host:port, URL, or SRV).
-- `ENCAPSULE_SYNC_SCHEME`, `ENCAPSULE_SYNC_PORT`, `ENCAPSULE_SYNC_PATH`, `ENCAPSULE_SYNC_TIMEOUT`: fan-out transport settings.
+- `ENCAPSULE_SYNC_USE_SRV=true|false`: strict target mode selection (`true` = SRV names, `false` = direct targets).
+- `ENCAPSULE_SYNC_HOST`: one or more targets, interpreted according to `ENCAPSULE_SYNC_USE_SRV`.
+- `ENCAPSULE_SYNC_SCHEME`, `ENCAPSULE_SYNC_PORT`, `ENCAPSULE_SYNC_TIMEOUT`: fan-out transport settings (`/sync` path is fixed).
 
 ### Read-only behavior in enCapsule
 

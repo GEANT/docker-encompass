@@ -670,7 +670,7 @@ def host_add(request):
             "watermark": settings.WATERMARK,
             "current_version": settings.CURRENT_VERSION,
             "feature_branch": runtime_settings.feature_branch_enabled(),
-            "puppet_environments": settings.PUPPET_ENVIRONMENTS,
+            "puppet_environments": runtime_settings.puppet_environments(),
         }
         return render(request, "host_add.html", context)
 
@@ -986,7 +986,7 @@ def group_add(request):
             "watermark": settings.WATERMARK,
             "current_version": settings.CURRENT_VERSION,
             "feature_branch": runtime_settings.feature_branch_enabled(),
-            "puppet_environments": settings.PUPPET_ENVIRONMENTS,
+            "puppet_environments": runtime_settings.puppet_environments(),
         }
         return render(request, "group_add.html", context)
 
@@ -1194,6 +1194,10 @@ def global_settings_page(request):
             actor = request.user.get_username() or "admin"
             for key in managed_keys:
                 runtime_settings.set_bool(key, key in request.POST, updated_by=actor)
+            runtime_settings.set_puppet_environments(
+                request.POST.getlist("puppet_environments[]"),
+                updated_by=actor,
+            )
             messages.success(request, "Global settings updated")
         return redirect("/encompass/global_settings/")
 
@@ -1241,6 +1245,7 @@ def global_settings_page(request):
         "disp_name": identity["display_name"],
         "group_name": group_name,
         "toggle_items": toggle_items,
+        "puppet_environments": runtime_settings.puppet_environments(),
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
     }
@@ -1296,7 +1301,7 @@ def feature_branches_page(request):
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "feature_branch": runtime_settings.feature_branch_enabled(),
-        "predefined_environments": settings.PUPPET_ENVIRONMENTS,
+        "predefined_environments": runtime_settings.puppet_environments(),
         "custom_environment_usage": usage,
     }
     return render(request, "feature_branches.html", context)
@@ -1343,7 +1348,7 @@ def host_list(request):
         "current_version": settings.CURRENT_VERSION,
         "hosts": host_names,
         "feature_branch": runtime_settings.feature_branch_enabled(),
-        "puppet_environments": settings.PUPPET_ENVIRONMENTS,
+        "puppet_environments": runtime_settings.puppet_environments(),
         "can_save_hosts": can_save_hosts,
     }
 
@@ -1368,7 +1373,7 @@ def group_list(request):
         "current_version": settings.CURRENT_VERSION,
         "groups_list": groups_list,
         "feature_branch": runtime_settings.feature_branch_enabled(),
-        "puppet_environments": settings.PUPPET_ENVIRONMENTS,
+        "puppet_environments": runtime_settings.puppet_environments(),
         "can_save_groups": can_save_groups,
     }
 

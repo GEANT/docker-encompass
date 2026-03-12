@@ -10,6 +10,7 @@ class RuntimeSetting(models.Model):
 
     key = models.CharField(max_length=64, unique=True)
     value_bool = models.BooleanField(default=False)
+    value_text = models.TextField(blank=True, default="")
     updated_by = models.CharField(max_length=150, blank=True, default="system")
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -586,7 +586,7 @@ def list_nonstandard_environment_usage() -> list[dict]:
     """
     predefined = {
         str(item).strip().lower()
-        for item in getattr(settings, "PUPPET_ENVIRONMENTS", [])
+        for item in runtime_settings.puppet_environments()
         if str(item).strip()
     }
 

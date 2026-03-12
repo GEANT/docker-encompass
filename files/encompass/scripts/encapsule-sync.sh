@@ -4,16 +4,30 @@ set -euo pipefail
 
 SCHEME="${ENCAPSULE_SYNC_SCHEME:-http}"
 DEFAULT_PORT="${ENCAPSULE_SYNC_PORT:-8081}"
-PATH_SUFFIX="${ENCAPSULE_SYNC_PATH:-/sync}"
+PATH_SUFFIX="/sync"
 TIMEOUT="${ENCAPSULE_SYNC_TIMEOUT:-5}"
 TOKEN="${ENCAPSULE_SYNC_TOKEN:-}"
 HOST_INPUT="${ENCAPSULE_SYNC_HOST:-}"
+USE_SRV="${ENCAPSULE_SYNC_USE_SRV:-false}"
 
 USE_ENCAPSULE="${USE_ENCAPSULE:-true}"
 case "${USE_ENCAPSULE,,}" in
 0|false|no|off)
     echo "[INFO] USE_ENCAPSULE disabled, skipping sync"
     exit 0
+    ;;
+esac
+
+case "${USE_SRV,,}" in
+1|true|yes|on)
+    USE_SRV="true"
+    ;;
+0|false|no|off)
+    USE_SRV="false"
+    ;;
+*)
+    echo "[ERROR] ENCAPSULE_SYNC_USE_SRV must be true or false"
+    exit 1
     ;;
 esac
 
@@ -27,10 +41,6 @@ if [ -z "$HOST_INPUT" ]; then
     exit 0
 fi
 
-if [[ "$PATH_SUFFIX" != /* ]]; then
-    PATH_SUFFIX="/${PATH_SUFFIX}"
-fi
-
 declare -a targets=()
 
 add_target() {
@@ -40,10 +50,41 @@ add_target() {
     fi
 }
 
+add_srv_targets() {
+    local srv_name="$1"
+    while read -r _priority _weight port target; do
+        target="${target%.}"
+        [ -z "$target" ] && continue
+        add_target "${SCHEME}://${target}:${port}${PATH_SUFFIX}"
+    done < <(dig +short SRV "$srv_name")
+}
+
 IFS=',' read -r -a entries <<<"$HOST_INPUT"
 for raw in "${entries[@]}"; do
     entry="$(echo "$raw" | xargs)"
     [ -z "$entry" ] && continue
+
+    if [ "$USE_SRV" = "true" ]; then
+        if ! command -v dig >/dev/null 2>&1; then
+            echo "[ERROR] ENCAPSULE_SYNC_USE_SRV=true requires 'dig'"
+            exit 1
+        fi
+        if [[ "$entry" =~ ^https?:// ]]; then
+            echo "[ERROR] ENCAPSULE_SYNC_USE_SRV=true does not accept full URLs: $entry"
+            exit 1
+        fi
+        if [[ "$entry" == *:* ]]; then
+            echo "[ERROR] ENCAPSULE_SYNC_USE_SRV=true does not accept host:port entries: $entry"
+            exit 1
+        fi
+        before_count="${#targets[@]}"
+        add_srv_targets "$entry"
+        if [ "${#targets[@]}" -eq "$before_count" ]; then
+            echo "[ERROR] No SRV records found for '$entry'"
+            exit 1
+        fi
+        continue
+    fi
 
     if [[ "$entry" =~ ^https?:// ]]; then
         add_target "$entry"
@@ -51,16 +92,8 @@ for raw in "${entries[@]}"; do
     fi
 
     if [[ "$entry" == _* ]]; then
-        if ! command -v dig >/dev/null 2>&1; then
-            echo "[ERROR] SRV-style entry '$entry' requires 'dig'"
-            exit 1
-        fi
-        while read -r _priority _weight port target; do
-            target="${target%.}"
-            [ -z "$target" ] && continue
-            add_target "${SCHEME}://${target}:${port}${PATH_SUFFIX}"
-        done < <(dig +short SRV "$entry")
-        continue
+        echo "[ERROR] SRV-style target '$entry' requires ENCAPSULE_SYNC_USE_SRV=true"
+        exit 1
     fi
 
     if [[ "$entry" == *:* ]]; then

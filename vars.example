@@ -18,11 +18,11 @@ CSR_API_KEY="replace-with-a-dedicated-api-secret"
 
 # either true or false
 DEMO_MODE=false
-LDAP_AUTH_DEBUG=false  # if true, LDAP authentication debug logs are enabled (may include sensitive details)
 DEBUG=false
+LDAP_AUTH_DEBUG=false   # if true, LDAP authentication debug logs are enabled (may include sensitive details)
 ENCOMPASS_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ENCAPSULE_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-LDAP_LOGGING=ERROR  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LDAP_LOGGING=ERROR      # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # Runtime toggles are stored in DB (Global Settings page):
 # UNCLASSIFIED_HOSTS_ENABLED, FEATURE_BRANCH, ENC_OVERLAPPING_DEFINITIONS_ENABLED,
@@ -37,10 +37,10 @@ SSL_KEY_PATH="/etc/ssl/private/server.key"
 # enCapsule sync fan-out variables (used by /usr/local/bin/encapsule-sync.sh)
 ENCAPSULE_SYNC_TOKEN=""  # required to authenticate against enCapsule /sync endpoints
 ENCAPSULE_SYNC_SCHEME=http
-ENCAPSULE_SYNC_PATH=/sync
 ENCAPSULE_SYNC_TIMEOUT=5
 ENCAPSULE_SYNC_PORT=8081
-ENCAPSULE_SYNC_HOST="encapsule.example.org"  # comma-separated: host, host:port, full URL, or SRV record (_service._tcp.domain)
+ENCAPSULE_SYNC_USE_SRV=false  # true: ENCAPSULE_SYNC_HOST entries are SRV names; false: host/host:port/full URL
+ENCAPSULE_SYNC_HOST="encapsule.example.org"  # comma-separated targets; with USE_SRV=true use SRV names (canonical or plain)
 
 # MySQL variables
 MYSQL_HOST="mysql.example.org"
@@ -48,8 +48,34 @@ MYSQL_PORT=3306
 MYSQL_DB="encompass"
 MYSQL_USER="encompass"
 MYSQL_PASSWORD="encompass"
-ENC_BOOTSTRAP_ADMIN_PASSWORD=""   # optional, defaults to "admin" when empty
-ENC_BOOTSTRAP_VIEWER_PASSWORD=""  # optional, defaults to "viewer" when empty
+
+# git settings (only SSH key-based authentication is supported)
+# ssh key must NOT be password-protected
+GIT_BRANCH=main
+GIT_SYNC_MODE=sync  # sync | async
+GIT_SYNC_TIMEOUT=30  # seconds for each git/sync command
+GIT_SYNC_RETRIES=2
+GIT_SYNC_RETRY_DELAY=2  # seconds
+GIT_HOST="prod-git01.example.org"
+GIT_REPO_PATH="puppet/enc-data.git"
+GIT_REPO_USERNAME="gitlab"
+SSH_KEY_TYPE="ed25519"  # supported values: rsa | ed25519 | ecdsa
+KEY_FILE=/root/.ssh/id_ed25519
+GIT_REPO_PRIVATE_SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+rrrrr=
+-----END OPENSSH PRIVATE KEY-----"
+KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
+
+# PuppetDB settings (used by /encompass/unclassified_hosts/)
+PUPPETDB_SCHEMA="http"
+PUPPETDB_HOST="puppetdb.example.org"
+PUPPETDB_PORT=8080
+PUPPETDB_TIMEOUT=20
 
 # ldap variables
 LDAP_PROTO="ldaps"
@@ -71,35 +97,3 @@ LDAP_USER_ATTR_MAP='{"first_name": "givenName", "last_name": "sn", "email": "mai
 # optional login hint for expired passwords (for AD setups)
 LDAP_PASSWORD_RESET_URL=""   # optional absolute URL to external reset portal
 LDAP_PASSWORD_RESET_HELP=""  # optional fallback message when no portal URL exists
-
-# git settings (only SSH key-based authentication is supported)
-# ssh key must NOT be password-protected
-GIT_BRANCH=main
-GIT_SYNC_MODE=sync  # sync | async
-GIT_SYNC_TIMEOUT=30  # seconds for each git/sync command
-GIT_SYNC_RETRIES=2
-GIT_SYNC_RETRY_DELAY=2  # seconds
-GIT_HOST="prod-git01.example.net"
-GIT_REPO_PATH="puppet/enc-data.git"
-GIT_REPO_USERNAME="gitlab"
-SSH_KEY_TYPE="ed25519"  # supported values: rsa | ed25519 | ecdsa
-GIT_REPO_PRIVATE_SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
-qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
-rrrrr=
------END OPENSSH PRIVATE KEY-----"
-# do NOT change the following 2 variables
-GIT_REPO="ssh://$GIT_REPO_USERNAME@$GIT_HOST/$GIT_REPO_PATH"
-KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
-
-# puppet environments
-PUPPET_ENVIRONMENTS='["test", "uat", "production"]'
-
-# PuppetDB settings (used by /encompass/unclassified_hosts/)
-PUPPETDB_SCHEMA="http"
-PUPPETDB_HOST="puppetdb.service.ha.geant.net"
-PUPPETDB_PORT=8080
-PUPPETDB_TIMEOUT=20

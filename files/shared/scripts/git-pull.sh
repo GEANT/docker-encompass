@@ -5,16 +5,16 @@
 #
 # variables:
 # - GIT_BRANCH: branch of the Git repository to sync (default: main)
-# - GIT_REPO / GIT_REPO_URL: optional origin URL override
+# - GIT_REPO_URL: optional origin URL override
+# - GIT_HOST/GIT_REPO_PATH/GIT_REPO_USERNAME: used to compose origin URL when GIT_REPO_URL is not set
 #
 set -e
 
 GIT_BRANCH="${GIT_BRANCH:-main}"
-GIT_REPO="${GIT_REPO:-}"
-if [ -z "$GIT_REPO" ] && [ -n "${GIT_REPO_URL:-}" ]; then
+GIT_REPO=""
+if [ -n "${GIT_REPO_URL:-}" ]; then
     GIT_REPO="$GIT_REPO_URL"
-fi
-if [ -z "$GIT_REPO" ] && [ -n "${GIT_HOST:-}" ] && [ -n "${GIT_REPO_PATH:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ]; then
+elif [ -n "${GIT_HOST:-}" ] && [ -n "${GIT_REPO_PATH:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ]; then
     GIT_REPO="ssh://${GIT_REPO_USERNAME}@${GIT_HOST}/${GIT_REPO_PATH}"
 fi
 

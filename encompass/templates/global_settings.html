@@ -29,6 +29,23 @@
           <div class="text-muted"><small>{{ item.description }}</small></div>
         </div>
         {% endfor %}
+
+          <div class="pt-3">
+            <h5 class="mb-2">Puppet Environments</h5>
+            <p class="text-muted mb-2">
+              Manage predefined environment names used in host/group editors and feature-branch checks.
+            </p>
+            <div id="puppet-environments-list" class="d-flex flex-column gap-2">
+              {% for env in puppet_environments %}
+              <div class="input-group">
+                <input type="text" class="form-control" name="puppet_environments[]" value="{{ env }}" maxlength="100" placeholder="Environment name">
+                <button type="button" class="btn btn-outline-danger" data-remove-environment {% if forloop.first and puppet_environments|length == 1 %}disabled{% endif %}>Remove</button>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="button" id="add-environment" class="btn btn-outline-primary btn-sm mt-2">Add environment</button>
+          </div>
+
           <div class="d-flex justify-content-end mt-3">
             <button type="submit" class="btn btn-primary">Save Global Settings</button>
           </div>
@@ -59,4 +76,54 @@
     </div>
   </div>
 </div>
+
+<script>
+  (function() {
+    const list = document.getElementById('puppet-environments-list');
+    const addButton = document.getElementById('add-environment');
+    if (!list || !addButton) return;
+
+    function updateRemoveButtonsState() {
+      const rows = list.querySelectorAll('.input-group');
+      rows.forEach((row) => {
+        const removeBtn = row.querySelector('[data-remove-environment]');
+        if (removeBtn) {
+          removeBtn.disabled = rows.length <= 1;
+        }
+      });
+    }
+
+    function createRow(value = '') {
+      const row = document.createElement('div');
+      row.className = 'input-group';
+      row.innerHTML = `
+        <input type="text" class="form-control" name="puppet_environments[]" maxlength="100" placeholder="Environment name">
+        <button type="button" class="btn btn-outline-danger" data-remove-environment>Remove</button>
+      `;
+      const input = row.querySelector('input');
+      if (input) input.value = value;
+      return row;
+    }
+
+    addButton.addEventListener('click', () => {
+      list.appendChild(createRow(''));
+      updateRemoveButtonsState();
+    });
+
+    list.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.matches('[data-remove-environment]')) return;
+      const row = target.closest('.input-group');
+      if (!row) return;
+      row.remove();
+      if (list.querySelectorAll('.input-group').length === 0) {
+        list.appendChild(createRow('production'));
+      }
+      updateRemoveButtonsState();
+    });
+
+    updateRemoveButtonsState();
+  })();
+</script>
 {% endblock %}

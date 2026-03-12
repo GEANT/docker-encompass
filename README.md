@@ -301,13 +301,15 @@ python manage.py rotate_csr_challenge --all
 
 ### Puppet environments
 
-- `FEATURE_BRANCH=true|false`
-- `PUPPET_ENVIRONMENTS='["test", "uat", "production"]'`
+- Predefined environments are managed in **Global Settings**.
+- On first boot, the default list is: `["production"]`.
 
 UI behavior:
 
-- When `FEATURE_BRANCH=true`, users can type any environment name in the host/group edit forms (free-text input).
-- When `FEATURE_BRANCH=false`, the environment field is a drop-down populated from `PUPPET_ENVIRONMENTS`.
+Feature Branch can be enabled/disabled by the local Admin in the Global Settings.
+
+- When it's enabled users can type any environment name in the host/group edit forms (free-text input).
+- When disabled, the environment field is a drop-down populated from the predefined environments list.
 
 Host selectors in `groups.yaml` (`hosts` list):
 
@@ -357,12 +359,12 @@ Authentication behavior:
 
 LDAP mode requires the `LDAP_*` variables.
 
-Local Django auth mode supports bootstrap users via:
+Local Django auth mode bootstraps two local users on first start:
 
-- `ENC_BOOTSTRAP_ADMIN_PASSWORD`
-- `ENC_BOOTSTRAP_VIEWER_PASSWORD`
+- `admin` (initial password: `admin`)
+- `viewer` (initial password: `viewer`)
 
-If omitted, defaults (`admin` / `viewer`) are used for first bootstrap; change these immediately in non-development environments.
+Change these initial passwords immediately from the User Settings page.
 
 ### ENC Viewer Basic Auth
 
@@ -393,6 +395,10 @@ If both are set, `GIT_REPO_PRIVATE_SSH_KEY` is used.
 Branch behavior:
 
 - `GIT_BRANCH`: branch used by enCompass for clone/fetch/checkout/commits/pushes.
+- `GIT_HOST`: SSH Git host.
+- `GIT_REPO_PATH`: repository path on the host (for example `puppet/enc-data.git`).
+- `GIT_REPO_USERNAME`: SSH username used for Git operations.
+- `GIT_REPO_URL`: optional full repository URL override. If unset, runtime scripts compose `ssh://<GIT_REPO_USERNAME>@<GIT_HOST>/<GIT_REPO_PATH>`.
 
 Typical setup:
 
@@ -464,19 +470,22 @@ Reliability and latency controls:
 
 Common variables:
 
-- `USE_ENCAPSULE`: `true|false` (when `false`, sync fan-out is skipped)
 - `ENCAPSULE_SYNC_TOKEN`: shared token expected by each enCapsule `/sync`
 - `ENCAPSULE_SYNC_SCHEME`: `http` or `https` (default `http`)
-- `ENCAPSULE_SYNC_PATH`: endpoint path (default `/sync`)
 - `ENCAPSULE_SYNC_TIMEOUT`: curl timeout in seconds (default `5`)
+- `ENCAPSULE_SYNC_USE_SRV`: `true` to resolve `ENCAPSULE_SYNC_HOST` entries as SRV names; `false` for direct host targets
 - `ENCAPSULE_SYNC_HOST`: one or more comma-separated entries
 
 Accepted `ENCAPSULE_SYNC_HOST` entries:
 
-- `enc-a.internal` (uses default port `8081`)
-- `enc-a.internal:9081` (explicit port)
-- `http://enc-a.internal:9081/sync` (full URL)
-- `_encapsule-sync._tcp.enc.example.org` (SRV record, auto-discovered)
+- With `ENCAPSULE_SYNC_USE_SRV=false` (default):
+  - `enc-a.internal` (uses default port `8081`)
+  - `enc-a.internal:9081` (explicit port)
+  - `http://enc-a.internal:9081/sync` (full URL)
+- With `ENCAPSULE_SYNC_USE_SRV=true`:
+  - `encapsule-sync.service.internal` (SRV name)
+  - `_encapsule-sync._tcp.enc.example.org` (SRV name)
+  - Note: host:port and full URLs are rejected in SRV mode.
 
 Example:
 
@@ -516,7 +525,7 @@ When the authentication backend is MySQL, the database stores user information. 
 - Set a strong `SECRET_KEY`
 - Disable `DEBUG` in production
 - Restrict `ALLOWED_HOSTS` and `ALLOWED_CIDR_NETS`
-- Set non-default bootstrap passwords for local auth mode
+- Change initial local user passwords after first startup
 - Enable `USE_SSL` for production exposure
 
 ## Doubts and open questions
@@ -525,9 +534,8 @@ When the authentication backend is MySQL, the database stores user information. 
 
 ## ToDo
 
-- approval flow for host/group changes
-- add hints in the UI for the classes.
-- check wheter locking is effective in the Git push flow.
+- approval flow for host/group changes. It might be a requirement in some environments, but it adds complexity and overhead.
+- add hints in the UI or validation for the classes. This feature is available in Foreman.
 
 ## License
 
