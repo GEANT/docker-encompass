@@ -34,7 +34,9 @@ Login
         {% csrf_token %}
         <!--  <table class="table center-table mx-auto table-sm table_custom" style="width: 500px"> -->
         <table class="table center-table mx-auto" style="width: 500px">
-          {% if is_db_auth %}          
+          {% if is_db_auth and is_ldap_auth %}
+          <caption>Database and LDAP/AD authentication enabled (local users have priority)</caption>
+          {% elif is_db_auth %}
           <caption>DB authentication enabled</caption>
           {% else %}
           <caption>LDAP/AD authentication enabled (username without domain)</caption>

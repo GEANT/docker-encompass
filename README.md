@@ -297,9 +297,7 @@ python manage.py rotate_csr_challenge --all
 
 - `ENCOMPASS_LOGGING`: Django/UI runtime log level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
 - `ENCAPSULE_LOGGING`: enCapsule agent log level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
-- `LDAP_AUTH_DEBUG`: LDAP auth logger level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
-
-Backward compatibility: `AUTH_DEBUG` is still accepted as a fallback for LDAP logging, but `LDAP_AUTH_DEBUG` is preferred.
+- `LDAP_AUTH_DEBUG`: set to `true` to force LDAP auth logger to `DEBUG`; otherwise `LDAP_LOGGING` is used
 
 ### Puppet environments
 
@@ -350,11 +348,16 @@ The nodes endpoint is built internally as:
 ### Authentication
 
 - `AUTH_LDAP_ENABLED=true|false`
-- `AUTH_MYSQL_ENABLED=true|false`
+
+Authentication behavior:
+
+- Local Django/MySQL authentication is always enabled.
+- LDAP is optional and acts as a fallback when `AUTH_LDAP_ENABLED=true`.
+- If a username exists in both local DB and LDAP, local DB authentication wins.
 
 LDAP mode requires the `LDAP_*` variables.
 
-Local Django auth mode (`AUTH_MYSQL_ENABLED=true`) supports bootstrap users via:
+Local Django auth mode supports bootstrap users via:
 
 - `ENC_BOOTSTRAP_ADMIN_PASSWORD`
 - `ENC_BOOTSTRAP_VIEWER_PASSWORD`

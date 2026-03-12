@@ -57,18 +57,20 @@ def _rewrite_relative_markdown_image_src(html: str) -> str:
     return _IMG_SRC_PATTERN.sub(_replace, html)
 
 
+def _is_ldap_authenticated(user) -> bool:
+    """Return True when the current user was authenticated through LDAP."""
+    if not getattr(settings, "USE_AUTH_LDAP", False):
+        return False
+    backend = str(getattr(user, "backend", "")).strip()
+    return backend == "django_auth_ldap.backend.LDAPBackend"
+
+
 def get_user_groups(user):
-    """Return user groups compatible with LDAP and MySQL auth modes."""
+    """Return user groups from local Django group assignments."""
     if not getattr(user, "is_authenticated", False):
         return []
 
-    if getattr(settings, "USE_AUTH_MYSQL", False):
-        return list(user.groups.values_list("name", flat=True))
-
-    if hasattr(user, "ldap_user"):
-        return user.ldap_user.attrs.get("memberOf", [])
-
-    return []
+    return list(user.groups.values_list("name", flat=True))
 
 
 def get_user_identity(user):
@@ -81,21 +83,27 @@ def get_user_identity(user):
             "groups": [],
         }
 
+    if _is_ldap_authenticated(user):
+        attrs = getattr(user.ldap_user, "attrs", None) or {}
+        return {
+            "username": attrs.get("sAMAccountName", [user.get_username()])[0]
+            if isinstance(attrs, dict)
+            else user.get_username(),
+            "display_name": attrs.get("displayName", [settings.UNLOGGED])[0]
+            if isinstance(attrs, dict)
+            else user.get_username() or settings.UNLOGGED,
+            "email": attrs.get("mail", [None])[0]
+            if isinstance(attrs, dict)
+            else (user.email or None),
+            "groups": get_user_groups(user),
+        }
+
     if getattr(settings, "USE_AUTH_MYSQL", False):
         return {
             "username": user.get_username(),
             "display_name": user.get_username() or settings.UNLOGGED,
             "email": user.email or None,
             "groups": get_user_groups(user),
-        }
-
-    if hasattr(user, "ldap_user"):
-        attrs = user.ldap_user.attrs
-        return {
-            "username": attrs.get("sAMAccountName", [user.get_username()])[0],
-            "display_name": attrs.get("displayName", [settings.UNLOGGED])[0],
-            "email": attrs.get("mail", [None])[0],
-            "groups": attrs.get("memberOf", []),
         }
 
     return {
@@ -293,6 +301,8 @@ def user_settings(request):
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
+    auth_backend = str(request.session.get("_auth_user_backend", "")).strip()
+    is_ldap_user = auth_backend == "django_auth_ldap.backend.LDAPBackend"
 
     if request.method == "POST":
         if settings.DEMO_MODE:
@@ -309,7 +319,7 @@ def user_settings(request):
             messages.error(request, "New password cannot be empty")
         elif new_password != confirm_password:
             messages.error(request, "New password and confirmation do not match")
-        elif is_db_auth:
+        elif not is_ldap_user:
             request.user.set_password(new_password)
             request.user.save(update_fields=["password"])
             messages.success(
@@ -331,6 +341,7 @@ def user_settings(request):
         "group_name": group_name,
         "is_db_auth": is_db_auth,
         "is_ldap_auth": is_ldap_auth,
+        "is_ldap_user": is_ldap_user,
         "demo_mode": settings.DEMO_MODE,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,

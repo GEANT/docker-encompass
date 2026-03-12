@@ -15,16 +15,15 @@ else
 fi
 
 # bootstrap local auth users/groups (idempotent)
-if [ "$AUTH_MYSQL_ENABLED" = "true" ]; then
-    ADMIN_BOOTSTRAP_PASSWORD="${ENC_BOOTSTRAP_ADMIN_PASSWORD:-admin}"
-    VIEWER_BOOTSTRAP_PASSWORD="${ENC_BOOTSTRAP_VIEWER_PASSWORD:-viewer}"
-    export ENC_BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_BOOTSTRAP_PASSWORD"
-    export ENC_BOOTSTRAP_VIEWER_PASSWORD="$VIEWER_BOOTSTRAP_PASSWORD"
+ADMIN_BOOTSTRAP_PASSWORD="${ENC_BOOTSTRAP_ADMIN_PASSWORD:-admin}"
+VIEWER_BOOTSTRAP_PASSWORD="${ENC_BOOTSTRAP_VIEWER_PASSWORD:-viewer}"
+export ENC_BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_BOOTSTRAP_PASSWORD"
+export ENC_BOOTSTRAP_VIEWER_PASSWORD="$VIEWER_BOOTSTRAP_PASSWORD"
 
-    echo "==> enCompass: Ensuring default local auth groups/users exist..."
+echo "==> enCompass: Ensuring default local auth groups/users exist..."
 
-    # shellcheck disable=SC2140
-    python manage.py shell -c "
+# shellcheck disable=SC2140
+python manage.py shell -c "
 import os
 from django.contrib.auth.models import User, Group
 
@@ -62,7 +61,6 @@ print(' - viewer user: %s' % ('created' if viewer_created else 'existing'))
 if (admin_created and admin_password == 'admin') or (viewer_created and viewer_password == 'viewer'):
     print('==> WARNING: Set ENC_BOOTSTRAP_ADMIN_PASSWORD and ENC_BOOTSTRAP_VIEWER_PASSWORD in non-dev environments.')
 "
-fi
 
 echo "==> enCompass: Collecting static files..."
 python manage.py collectstatic --noinput

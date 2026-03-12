@@ -35,9 +35,8 @@ job "encompass-demo" {
         SECRET_KEY           = "7544786B-4CB2-4B78-A799-3963D53DAFC5"
         # true/false variables
         AUTH_LDAP_ENABLED  = false
-        AUTH_MYSQL_ENABLED = true
         DEBUG              = true
-        AUTH_DEBUG         = false
+        LDAP_AUTH_DEBUG    = false
         # NGINX variables
         ENC_VIEWER_PASSWORD = ""
         USE_SSL             = false

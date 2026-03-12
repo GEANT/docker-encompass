@@ -37,13 +37,6 @@ def env_log_level(name, default="ERROR"):
     return level if level in valid_levels else default
 
 
-def env_log_level_preferred(preferred_name, fallback_name, default="ERROR"):
-    """Return preferred log level env var, with fallback for backward compatibility."""
-    if os.environ.get(preferred_name):
-        return env_log_level(preferred_name, default)
-    return env_log_level(fallback_name, default)
-
-
 def env_choice(name, default, allowed):
     """Return a validated lowercase choice from environment."""
     value = str(os.environ.get(name, default)).strip().lower()
@@ -53,19 +46,35 @@ def env_choice(name, default, allowed):
     return value
 
 
+def env_float(name, default):
+    """Return a validated float value from environment."""
+    raw = str(os.environ.get(name, default)).strip()
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        raise SystemExit(f"{name} must be a valid number") from None
+
+
+def env_bool(name, default=False):
+    """Return a validated boolean value from environment."""
+    raw = str(os.environ.get(name, str(default))).strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off", ""}:
+        return False
+    raise SystemExit(f"{name} must be a boolean (true/false)")
+
+
 USE_AUTH_LDAP = env_json("AUTH_LDAP_ENABLED", False)
-USE_AUTH_MYSQL = env_json("AUTH_MYSQL_ENABLED", False)
 FEATURE_BRANCH = env_json("FEATURE_BRANCH", False)
 ENC_OVERLAPPING_DEFINITIONS_ENABLED = env_json("ENC_OVERLAPPING_DEFINITIONS_ENABLED", False)
 UNCLASSIFIED_HOSTS_ENABLED = env_json("UNCLASSIFIED_HOSTS_ENABLED", True)
 DEMO_MODE = env_json("DEMO_MODE", False)
 PUPPET_ENVIRONMENTS = env_json("PUPPET_ENVIRONMENTS", ["production"])
-if USE_AUTH_LDAP not in [True, False] or USE_AUTH_MYSQL not in [True, False]:
-    print("Either AUTH_LDAP_ENABLED or AUTH_MYSQL_ENABLED must be True or False")
+if USE_AUTH_LDAP not in [True, False]:
+    print("AUTH_LDAP_ENABLED must be True or False")
     raise SystemExit(1)
-if USE_AUTH_LDAP == USE_AUTH_MYSQL:
-    print("Both AUTH_LDAP_ENABLED and AUTH_MYSQL_ENABLED cannot be the same")
-    raise SystemExit(1)
+USE_AUTH_MYSQL = True
 if FEATURE_BRANCH not in [True, False]:
     print("FEATURE_BRANCH must be True or False")
     raise SystemExit(1)
@@ -257,6 +266,10 @@ LOGGING = {
 }
 
 
+AUTHENTICATION_BACKENDS = (
+    "django.contrib.auth.backends.ModelBackend",
+)
+
 if USE_AUTH_LDAP:
     # LDAP configuration
     #
@@ -290,8 +303,8 @@ if USE_AUTH_LDAP:
         "posix": PosixGroupType,
     }
     AUTHENTICATION_BACKENDS = (
-        "django_auth_ldap.backend.LDAPBackend",
         "django.contrib.auth.backends.ModelBackend",
+        "django_auth_ldap.backend.LDAPBackend",
     )
     AUTH_LDAP_USER_FLAGS_BY_GROUP = {
         "is_superuser": [ENC_ADMIN_GROUP],
@@ -304,13 +317,24 @@ if USE_AUTH_LDAP:
     AUTH_LDAP_SERVER_URI = f"{os.environ['LDAP_PROTO']}://{os.environ['LDAP_SERVER']}:{os.environ['LDAP_PORT']}"  # pylint: disable=line-too-long
     AUTH_LDAP_BIND_DN = os.environ["LDAP_BIND_DN"]
     AUTH_LDAP_BIND_PASSWORD = os.environ["LDAP_BIND_PASSWORD"]
+    ldap_network_timeout = env_float("LDAP_NETWORK_TIMEOUT", "2")
     AUTH_LDAP_CONNECTION_OPTIONS = {
         ldap.OPT_DEBUG_LEVEL: 1,  # pylint: disable=no-member
         ldap.OPT_REFERRALS: 0,  # pylint: disable=no-member
+        ldap.OPT_NETWORK_TIMEOUT: ldap_network_timeout,  # pylint: disable=no-member
     }
-    AUTH_LDAP_GLOBAL_OPTIONS = {
-        ldap.OPT_X_TLS_REQUIRE_CERT: False,  # pylint: disable=no-member
-    }
+    LDAP_OPT_TIMEOUT = getattr(ldap, "OPT_TIMEOUT", None)
+    if LDAP_OPT_TIMEOUT is not None:
+        AUTH_LDAP_CONNECTION_OPTIONS[LDAP_OPT_TIMEOUT] = ldap_network_timeout
+    ldap_tls_skip_verify = env_bool("LDAP_TLS_SKIP_VERIFY", False)
+    ldap_opt_x_tls_require_cert = getattr(ldap, "OPT_X_TLS_REQUIRE_CERT", None)
+    ldap_opt_x_tls_never = getattr(ldap, "OPT_X_TLS_NEVER", 0)
+    ldap_tls_require_cert = getattr(ldap, "OPT_X_TLS_DEMAND", 2)
+    AUTH_LDAP_GLOBAL_OPTIONS = {}
+    if ldap_opt_x_tls_require_cert is not None:
+        AUTH_LDAP_GLOBAL_OPTIONS[ldap_opt_x_tls_require_cert] = (
+            ldap_opt_x_tls_never if ldap_tls_skip_verify else ldap_tls_require_cert
+        )
     # User and group search objects and types
     AUTH_LDAP_USER_SEARCH = LDAPSearch(
         os.environ["LDAP_USER_BASE_DN"],
@@ -337,22 +361,13 @@ if USE_AUTH_LDAP:
         },
     )
     AUTH_LDAP_FIND_GROUP_PERMS = True
+    AUTH_LDAP_MIRROR_GROUPS = True
+    LDAP_DEBUG = env_bool("LDAP_AUTH_DEBUG", False)
     LOGGING['loggers']['django_auth_ldap'] = {
         "handlers": ["stream_to_console"],
-            "level": env_log_level_preferred(
-                "LDAP_AUTH_DEBUG",
-                "LDAP_LOGGING",
-                env_log_level("AUTH_DEBUG", "ERROR"),
-            ),
+            "level": "DEBUG" if LDAP_DEBUG else env_log_level("LDAP_LOGGING", "ERROR"),
         "propagate": False,
     }
-elif USE_AUTH_MYSQL:
-    # Local Django authentication
-    #
-    AUTHENTICATION_BACKENDS = (
-        "django.contrib.auth.backends.ModelBackend",
-    )
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
 LANGUAGE_CODE = os.environ.get("LANGUAGE_CODE", "en-us")

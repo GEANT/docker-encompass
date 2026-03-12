@@ -5,7 +5,9 @@
   <div class="page-header">
     <h2 class="text-primary">User Settings</h2>
     <p class="text-muted">
-      {% if is_db_auth %}
+      {% if is_db_auth and is_ldap_user %}
+      Change your LDAP/AD account password
+      {% elif is_db_auth %}
       Change your local account password
       {% elif is_ldap_auth %}
       Change your LDAP/AD account password
@@ -39,7 +41,7 @@
           <div class="mb-3">
             <label for="current_password" class="form-label">Current Password</label>
             <input type="password" class="form-control" id="current_password" name="current_password" {% if demo_mode %}disabled aria-disabled="true"{% else %}required{% endif %}>
-            {% if is_ldap_auth %}
+            {% if is_ldap_user %}
             <div class="form-text">Use your current LDAP/AD password.</div>
             {% endif %}
           </div>
