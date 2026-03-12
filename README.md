@@ -340,9 +340,12 @@ Configuration:
 - `UNCLASSIFIED_HOSTS_ENABLED`: enable/disable the unclassified hosts page logic (`true`/`false`, default: `true`)
 - PuppetDB settings are managed in **Global Settings**:
   - `PUPPETDB_SCHEMA` (`http` or `https`, default: `http`)
-  - `PUPPETDB_HOST` (default: `puppetdb.service.ha.geant.net`)
+  - `PUPPETDB_HOST` (default: `puppetdb.example.org`)
   - `PUPPETDB_PORT` (integer, default: `8080`)
   - `PUPPETDB_TIMEOUT` (integer seconds, default: `20`)
+  - Optional auth modes: `none`, `token`, `basic`
+  - Optional mTLS: client certificate and key paths
+  - Optional TLS controls: custom CA certificate path or "Skip TLS Verify"
 
 The nodes endpoint is built internally as:
 

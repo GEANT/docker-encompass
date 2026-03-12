@@ -937,6 +937,15 @@ def _puppetdb_runtime_values() -> dict[str, str]:
         "PUPPETDB_HOST": runtime_settings.get_text_raw("PUPPETDB_HOST"),
         "PUPPETDB_PORT": runtime_settings.get_text_raw("PUPPETDB_PORT"),
         "PUPPETDB_TIMEOUT": runtime_settings.get_text_raw("PUPPETDB_TIMEOUT"),
+        "PUPPETDB_AUTH_METHOD": runtime_settings.get_text_raw("PUPPETDB_AUTH_METHOD"),
+        "PUPPETDB_AUTH_HEADER": runtime_settings.get_text_raw("PUPPETDB_AUTH_HEADER"),
+        "PUPPETDB_AUTH_TOKEN": runtime_settings.get_text_raw("PUPPETDB_AUTH_TOKEN"),
+        "PUPPETDB_BASIC_USERNAME": runtime_settings.get_text_raw("PUPPETDB_BASIC_USERNAME"),
+        "PUPPETDB_BASIC_PASSWORD": runtime_settings.get_text_raw("PUPPETDB_BASIC_PASSWORD"),
+        "PUPPETDB_CLIENT_CERT_PATH": runtime_settings.get_text_raw("PUPPETDB_CLIENT_CERT_PATH"),
+        "PUPPETDB_CLIENT_KEY_PATH": runtime_settings.get_text_raw("PUPPETDB_CLIENT_KEY_PATH"),
+        "PUPPETDB_CA_CERT_PATH": runtime_settings.get_text_raw("PUPPETDB_CA_CERT_PATH"),
+        "PUPPETDB_TLS_SKIP_VERIFY": runtime_settings.get_text_raw("PUPPETDB_TLS_SKIP_VERIFY"),
     }
 
 
@@ -975,7 +984,75 @@ def validate_puppetdb_settings(values: dict[str, str] | None = None) -> list[str
         if timeout_value < 1 or timeout_value > 300:
             errors.append("PuppetDB Timeout must be between 1 and 300 seconds.")
 
+    auth_method = str(config.get("PUPPETDB_AUTH_METHOD", "")).strip().lower()
+    if not auth_method:
+        auth_method = runtime_settings.PUPPETDB_TEXT_DEFAULTS["PUPPETDB_AUTH_METHOD"]
+    if auth_method not in {"none", "token", "basic"}:
+        errors.append("PuppetDB Auth Method must be one of: none, token, basic.")
+    elif auth_method == "token":
+        auth_header = str(config.get("PUPPETDB_AUTH_HEADER", "")).strip()
+        auth_token = str(config.get("PUPPETDB_AUTH_TOKEN", "")).strip()
+        if not auth_header:
+            errors.append("PuppetDB Auth Header is required when Auth Method is token.")
+        if not auth_token:
+            errors.append("PuppetDB Auth Token is required when Auth Method is token.")
+    elif auth_method == "basic":
+        username = str(config.get("PUPPETDB_BASIC_USERNAME", "")).strip()
+        password = str(config.get("PUPPETDB_BASIC_PASSWORD", "")).strip()
+        if not username:
+            errors.append(
+                "PuppetDB Basic Username is required when Auth Method is basic."
+            )
+        if not password:
+            errors.append(
+                "PuppetDB Basic Password is required when Auth Method is basic."
+            )
+
+    client_cert = str(config.get("PUPPETDB_CLIENT_CERT_PATH", "")).strip()
+    client_key = str(config.get("PUPPETDB_CLIENT_KEY_PATH", "")).strip()
+    if bool(client_cert) != bool(client_key):
+        errors.append(
+            "PuppetDB client certificate and client key must be set together."
+        )
+
+    tls_skip_verify = str(config.get("PUPPETDB_TLS_SKIP_VERIFY", "")).strip().lower()
+    if tls_skip_verify and tls_skip_verify not in {"true", "false"}:
+        errors.append("PuppetDB TLS Skip Verify must be 'true' or 'false'.")
+
     return errors
+
+
+def _puppetdb_request_kwargs(values: dict[str, str]) -> dict:
+    """Build requests kwargs for PuppetDB connectivity based on runtime settings."""
+    timeout = int(str(values.get("PUPPETDB_TIMEOUT", "20")).strip())
+    kwargs: dict = {"timeout": timeout}
+
+    auth_method = str(values.get("PUPPETDB_AUTH_METHOD", "none")).strip().lower()
+    if auth_method == "token":
+        header_name = str(values.get("PUPPETDB_AUTH_HEADER", "Authorization")).strip()
+        token = str(values.get("PUPPETDB_AUTH_TOKEN", "")).strip()
+        kwargs["headers"] = {header_name: token}
+    elif auth_method == "basic":
+        username = str(values.get("PUPPETDB_BASIC_USERNAME", "")).strip()
+        password = str(values.get("PUPPETDB_BASIC_PASSWORD", "")).strip()
+        kwargs["auth"] = (username, password)
+
+    client_cert = str(values.get("PUPPETDB_CLIENT_CERT_PATH", "")).strip()
+    client_key = str(values.get("PUPPETDB_CLIENT_KEY_PATH", "")).strip()
+    if client_cert and client_key:
+        kwargs["cert"] = (client_cert, client_key)
+
+    tls_skip_verify = (
+        str(values.get("PUPPETDB_TLS_SKIP_VERIFY", "false")).strip().lower()
+        == "true"
+    )
+    ca_cert = str(values.get("PUPPETDB_CA_CERT_PATH", "")).strip()
+    if tls_skip_verify:
+        kwargs["verify"] = False
+    elif ca_cert:
+        kwargs["verify"] = ca_cert
+
+    return kwargs
 
 
 def test_puppetdb_settings(
@@ -989,13 +1066,15 @@ def test_puppetdb_settings(
     schema = str(values.get("PUPPETDB_SCHEMA", "")).strip().lower()
     host = str(values.get("PUPPETDB_HOST", "")).strip()
     port = str(values.get("PUPPETDB_PORT", "")).strip()
-    timeout = int(str(values.get("PUPPETDB_TIMEOUT", "20")).strip())
     url = f"{schema}://{host}:{port}/pdb/query/v4/nodes"
 
     results: list[tuple[str, str]] = [("info", f"Connecting to {url}")]
+    request_kwargs = _puppetdb_request_kwargs(values)
+    if str(values.get("PUPPETDB_TLS_SKIP_VERIFY", "false")).strip().lower() == "true":
+        results.append(("warning", "PuppetDB TLS certificate verification is disabled."))
 
     try:
-        response = requests.get(url, timeout=timeout, params={"limit": 1})
+        response = requests.get(url, params={"limit": 1}, **request_kwargs)
     except requests.RequestException as err:
         return False, [("error", f"Failed to query PuppetDB: {err}")]
 
@@ -1141,10 +1220,10 @@ def get_puppetdb_nodes() -> list[str]:
         )
 
     url = _puppetdb_nodes_url()
-    timeout = int(str(values["PUPPETDB_TIMEOUT"]).strip())
+    request_kwargs = _puppetdb_request_kwargs(values)
 
     try:
-        response = requests.get(url, timeout=timeout)
+        response = requests.get(url, **request_kwargs)
     except requests.RequestException as err:
         raise EncSyncError(f"Failed to query PuppetDB nodes: {err}") from err
 

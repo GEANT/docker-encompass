@@ -57,6 +57,15 @@ PUPPETDB_TEXT_DEFAULTS: Dict[str, str] = {
     "PUPPETDB_HOST": "puppetdb.example.org",
     "PUPPETDB_PORT": "8080",
     "PUPPETDB_TIMEOUT": "20",
+    "PUPPETDB_AUTH_METHOD": "none",
+    "PUPPETDB_AUTH_HEADER": "Authorization",
+    "PUPPETDB_AUTH_TOKEN": "",
+    "PUPPETDB_BASIC_USERNAME": "",
+    "PUPPETDB_BASIC_PASSWORD": "",
+    "PUPPETDB_CLIENT_CERT_PATH": "",
+    "PUPPETDB_CLIENT_KEY_PATH": "",
+    "PUPPETDB_CA_CERT_PATH": "",
+    "PUPPETDB_TLS_SKIP_VERIFY": "false",
 }
 ENCAPSULE_SYNC_TEXT_DEFAULTS: Dict[str, str] = {
     "ENCAPSULE_SYNC_SCHEME": "http",
