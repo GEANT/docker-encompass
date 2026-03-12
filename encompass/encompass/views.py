@@ -1039,6 +1039,78 @@ def about_page(request):
     return render(request, "about.html", context)
 
 
+@login_required(login_url="/encompass/login/")
+@group_required_ldap(settings.ADMIN_ONLY_GROUPS)
+def global_settings_page(request):
+    """Placeholder page for future global settings management."""
+    identity = get_user_identity(request.user)
+    groups = identity["groups"]
+    group_name = tools.get_groups_info(groups)
+    is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
+    is_local_admin = is_db_auth and request.user.get_username() == "admin"
+
+    if not is_local_admin:
+        return render(
+            request,
+            settings.ERROR_HTML,
+            {
+                "results": [
+                    f"Username {identity['username']} is not authorized to access this feature",
+                    "Try with a different user",
+                ],
+                "card_header": "Authorization Error",
+                "disp_name": identity["display_name"],
+                "encompass_email": identity["email"],
+                "group_name": group_name,
+                "watermark": settings.WATERMARK,
+                "current_version": settings.CURRENT_VERSION,
+            },
+        )
+
+    toggle_items = [
+        {
+            "key": "UNCLASSIFIED_HOSTS_ENABLED",
+            "label": "Unclassified Hosts",
+            "description": "Enable/disable the unclassified hosts page and logic.",
+            "enabled": bool(settings.UNCLASSIFIED_HOSTS_ENABLED),
+        },
+        {
+            "key": "FEATURE_BRANCH",
+            "label": "Feature Branch Mode",
+            "description": "Enable custom environment tracking in the UI.",
+            "enabled": bool(settings.FEATURE_BRANCH),
+        },
+        {
+            "key": "ENC_OVERLAPPING_DEFINITIONS_ENABLED",
+            "label": "Overlapping Definitions",
+            "description": "Allow overlapping ENC definitions and merge results.",
+            "enabled": bool(settings.ENC_OVERLAPPING_DEFINITIONS_ENABLED),
+        },
+        {
+            "key": "USE_ENCAPSULE",
+            "label": "Use enCapsule",
+            "description": "Enable/disable sync fan-out toward enCapsule targets.",
+            "enabled": bool(tools.encapsule_sync_enabled()),
+        },
+        {
+            "key": "AUTH_LDAP_ENABLED",
+            "label": "LDAP Authentication",
+            "description": "Enable/disable LDAP authentication fallback.",
+            "enabled": bool(settings.USE_AUTH_LDAP),
+        },
+    ]
+
+    context = {
+        "encompass_email": identity["email"],
+        "disp_name": identity["display_name"],
+        "group_name": group_name,
+        "toggle_items": toggle_items,
+        "watermark": settings.WATERMARK,
+        "current_version": settings.CURRENT_VERSION,
+    }
+    return render(request, "global_settings.html", context)
+
+
 @login_required(login_url="login/")
 @group_required_ldap(settings.READ_ONLY_GROUPS)
 def home_page(request):

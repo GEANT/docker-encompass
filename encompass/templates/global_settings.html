@@ -1,0 +1,51 @@
+{% extends "shared/common.html" %}
+
+{% block content %}
+<div class="text-center">
+  <div class="page-header">
+    <h2 class="text-primary">Global Settings</h2>
+    <p class="text-muted">Preview of runtime feature toggles.</p>
+  </div>
+
+  <div class="container" style="max-width: 800px; margin-top: 20px;">
+    <div class="alert alert-info text-start" role="alert">
+      Toggles are displayed with current runtime values. Save/apply behavior will be added later.
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body text-start">
+        <h5 class="mb-3">Feature Toggles</h5>
+        {% for item in toggle_items %}
+        <div class="form-check form-switch py-2 border-bottom">
+          <input class="form-check-input" type="checkbox" role="switch" id="toggle-{{ item.key }}" {% if item.enabled %}checked{% endif %} disabled aria-disabled="true">
+          <label class="form-check-label fw-semibold" for="toggle-{{ item.key }}">{{ item.label }}</label>
+          <div class="text-muted"><small>{{ item.key }} - {{ item.description }}</small></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body text-start">
+        <h5 class="mb-2">User Management</h5>
+        <p class="text-muted mb-3">
+          Local DB users and groups are managed in Django Admin.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/admin/auth/user/" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer">
+            Manage Users
+          </a>
+          <a href="/admin/auth/group/" class="btn btn-outline-secondary" target="_blank" rel="noopener noreferrer">
+            Manage Groups
+          </a>
+        </div>
+        <p class="text-muted mt-3 mb-0"><small>Opens in a new tab.</small></p>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <a href="/encompass/" class="btn btn-outline-secondary">Back to Home</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

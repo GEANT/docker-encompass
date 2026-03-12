@@ -87,6 +87,7 @@ urlpatterns = [
     re_path(r"^encompass/unclassified_hosts/$", views.unclassified_hosts_page),
     re_path(r"^encompass/spring_cleaning/$", views.spring_cleaning_page),
     re_path(r"^encompass/git_log/$", views.git_log_page),
+    re_path(r"^encompass/global_settings/$", views.global_settings_page),
     re_path(r"^encompass/user_settings/$", views.user_settings),
     re_path(r"^encompass/query_host/$", views.query_host),
     re_path(r"^encompass/logout_confirmation/$", views.logout_confirmation),
