@@ -100,11 +100,14 @@ def get_user_identity(user):
         }
 
     if getattr(settings, "USE_AUTH_MYSQL", False):
+        groups = get_user_groups(user)
+        if user.is_superuser and user.get_username() == "admin":
+            groups = list(groups) + ["__local_superuser__"]
         return {
             "username": user.get_username(),
             "display_name": user.get_username() or settings.UNLOGGED,
             "email": user.email or None,
-            "groups": get_user_groups(user),
+            "groups": groups,
         }
 
     return {
@@ -141,6 +144,56 @@ def _user_in_any_group(groups, expected_groups) -> bool:
         if expected_dn in normalized_user or expected_name in names_user:
             return True
     return False
+
+
+def _is_local_shared_admin(user) -> bool:
+    """Return True for the built-in shared local DB admin account."""
+    if not getattr(settings, "USE_AUTH_MYSQL", False):
+        return False
+    return str(user.get_username()).strip().lower() == "admin"
+
+
+def can_modify_enc_definitions(user) -> bool:
+    """Allow ENC definition writes only for enc_admin users, excluding shared local admin."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if _is_local_shared_admin(user):
+        return False
+    return _user_in_any_group(get_user_groups(user), [settings.ENC_ADMIN_GROUP])
+
+
+def _enc_write_forbidden_page(request):
+    """Render a consistent forbidden page for ENC write operations."""
+    identity = get_user_identity(request.user)
+    group_name = tools.get_groups_info(identity["groups"])
+    return render(
+        request,
+        settings.ERROR_HTML,
+        {
+            "results": [
+                "Only enc_admin users can modify hosts and groups definitions",
+                "Use a dedicated enc_admin account",
+            ],
+            "card_header": "Authorization Error",
+            "disp_name": identity["display_name"],
+            "encompass_email": identity["email"],
+            "group_name": group_name,
+            "watermark": settings.WATERMARK,
+            "current_version": settings.CURRENT_VERSION,
+        },
+        status=403,
+    )
+
+
+def _enc_write_forbidden_json() -> JsonResponse:
+    """Return a JSON forbidden response for ENC write operations."""
+    return JsonResponse(
+        {
+            "error": "Forbidden",
+            "message": "Only enc_admin users can modify hosts and groups definitions",
+        },
+        status=403,
+    )
 
 
 def _ldap_error_detail(err: Exception) -> str:
@@ -400,6 +453,9 @@ def group_details(_request, groupname):
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_purge_confirmation(request):
     """Show delete confirmation for a host."""
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_page(request)
+
     if request.method != "POST":
         return render(
             request,
@@ -442,6 +498,9 @@ def host_purge_confirmation(request):
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_purge_execute(request):
     """Delete a host from ENC and return to hosts list."""
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_page(request)
+
     if request.method != "POST":
         return render(
             request,
@@ -506,6 +565,9 @@ def host_purge_execute(request):
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_save(request):
     """Save a host definition via ENC."""
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_json()
+
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -593,6 +655,9 @@ def host_save(request):
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def host_add(request):
     """Add a new host to ENC."""
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_page(request)
+
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
 
@@ -692,6 +757,9 @@ def host_add(request):
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def group_purge_confirmation(request):
     """Show confirmation page for deleting a group."""
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_page(request)
+
     groupname = request.GET.get("name", "").strip()
     if not groupname:
         return render(
@@ -738,6 +806,9 @@ def group_purge_confirmation(request):
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def group_purge_execute(request):
     """Execute deletion of a group."""
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_page(request)
+
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -797,6 +868,9 @@ def group_save(request):
     """
     Save a group definition via ENC.
     """
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_json()
+
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -897,6 +971,9 @@ def group_save(request):
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def group_add(request):
     """Add a new group to ENC."""
+    if not can_modify_enc_definitions(request.user):
+        return _enc_write_forbidden_page(request)
+
     identity = get_user_identity(request.user)
     group_name = tools.get_groups_info(identity["groups"])
 
@@ -1255,12 +1332,7 @@ def host_list(request):
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
-    is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
-    can_save_hosts = request.user.is_superuser or _user_in_any_group(
-        groups, [settings.ENC_ADMIN_GROUP]
-    )
-    if is_db_auth and not request.user.is_superuser:
-        can_save_hosts = can_save_hosts and request.user.get_username() == "admin"
+    can_save_hosts = can_modify_enc_definitions(request.user)
     host_names = tools.list_hosts()
     context = {
         "groups": groups,
@@ -1285,12 +1357,7 @@ def group_list(request):
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
-    is_db_auth = getattr(settings, "USE_AUTH_MYSQL", False)
-    can_save_groups = request.user.is_superuser or _user_in_any_group(
-        groups, [settings.ENC_ADMIN_GROUP]
-    )
-    if is_db_auth and not request.user.is_superuser:
-        can_save_groups = can_save_groups and request.user.get_username() == "admin"
+    can_save_groups = can_modify_enc_definitions(request.user)
     groups_list = tools.list_groups()
     context = {
         "groups": groups,

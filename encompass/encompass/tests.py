@@ -12,6 +12,7 @@ from django.test import SimpleTestCase, override_settings
 from csr_store import csr_attributes
 from . import enc_views
 from . import tools
+from . import views
 from .urls import _encompass_admin_has_permission
 
 
@@ -96,6 +97,85 @@ class ManualEncapsuleSyncTests(SimpleTestCase):
         """
         tools.trigger_encapsule_sync_now()
         sync_with_retries_mock.assert_not_called()
+
+
+class GroupDisplayResolutionTests(SimpleTestCase):
+    """Tests for navbar/dropdown group label resolution helper."""
+
+    @override_settings(
+        ENC_ADMIN_GROUP="cn=enc_admin,ou=groups,dc=example,dc=org",
+        ENC_VIEWER_GROUP="cn=enc_viewer,ou=groups,dc=example,dc=org",
+    )
+    def test_get_groups_info_matches_cn_names(self):
+        """CN-only values should still resolve to admin/viewer labels."""
+        self.assertEqual(tools.get_groups_info(["enc_admin"]), "admin")
+        self.assertEqual(tools.get_groups_info(["enc_viewer"]), "viewer")
+
+    @override_settings(
+        ENC_ADMIN_GROUP="cn=enc_admin,ou=groups,dc=example,dc=org",
+        ENC_VIEWER_GROUP="cn=enc_viewer,ou=groups,dc=example,dc=org",
+    )
+    def test_get_groups_info_matches_dn_case_insensitively(self):
+        """Full DNs with case/spacing differences should still match."""
+        groups = ["CN=enc_admin, OU=groups, DC=example, DC=org"]
+        self.assertEqual(tools.get_groups_info(groups), "admin")
+
+    @override_settings(
+        ENC_ADMIN_GROUP="cn=enc_admin,ou=groups,dc=example,dc=org",
+        ENC_VIEWER_GROUP="cn=enc_viewer,ou=groups,dc=example,dc=org",
+    )
+    def test_get_groups_info_return_all(self):
+        """return_all should include all matching labels without duplicates."""
+        groups = [
+            "CN=enc_admin,OU=groups,DC=example,DC=org",
+            "enc_viewer",
+        ]
+        self.assertEqual(tools.get_groups_info(groups, return_all=True), ["admin", "viewer"])
+
+    def test_get_groups_info_local_admin_marker_is_superuser(self):
+        """Local DB admin marker should display superuser label."""
+        groups = ["enc_admin", "__local_superuser__"]
+        self.assertEqual(tools.get_groups_info(groups), "superuser")
+
+
+class EncDefinitionWritePermissionTests(SimpleTestCase):
+    """Tests for ENC definitions write access policy."""
+
+    @override_settings(USE_AUTH_MYSQL=True, ENC_ADMIN_GROUP="enc_admin")
+    @patch("encompass.tests.views.get_user_groups", return_value=["enc_admin"])
+    def test_local_shared_admin_is_denied(self, _groups_mock):
+        """Shared local admin should not be allowed to modify ENC definitions."""
+        user = SimpleNamespace(
+            is_authenticated=True,
+            get_username=lambda: "admin",
+        )
+        self.assertFalse(views.can_modify_enc_definitions(user))
+
+    @override_settings(USE_AUTH_MYSQL=True, ENC_ADMIN_GROUP="enc_admin")
+    @patch("encompass.tests.views.get_user_groups", return_value=["enc_admin"])
+    def test_db_enc_admin_user_is_allowed(self, _groups_mock):
+        """Dedicated DB enc_admin users should still be allowed."""
+        user = SimpleNamespace(
+            is_authenticated=True,
+            get_username=lambda: "alice",
+        )
+        self.assertTrue(views.can_modify_enc_definitions(user))
+
+    @override_settings(
+        USE_AUTH_MYSQL=False,
+        ENC_ADMIN_GROUP="cn=enc_admin,ou=groups,dc=example,dc=org",
+    )
+    @patch(
+        "encompass.tests.views.get_user_groups",
+        return_value=["CN=enc_admin, OU=groups, DC=example, DC=org"],
+    )
+    def test_ldap_enc_admin_user_is_allowed(self, _groups_mock):
+        """LDAP enc_admin users should be allowed with DN/CN normalization."""
+        user = SimpleNamespace(
+            is_authenticated=True,
+            get_username=lambda: "ldap-user",
+        )
+        self.assertTrue(views.can_modify_enc_definitions(user))
 
 
 class CSRChallengeStoreTests(SimpleTestCase):

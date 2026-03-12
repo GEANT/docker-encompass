@@ -437,18 +437,44 @@ def get_groups_info(groups: list, return_all: bool = False) -> str | list:
     Returns the highest privilege group name.
     Possible return values: admin, viewer, not yet known
     """
+    def _normalize_group_value(value: str) -> str:
+        return re.sub(r"\s+", "", str(value or "")).lower()
+
+    def _group_name_from_dn(value: str) -> str:
+        token = str(value or "").strip()
+        for part in token.split(","):
+            head = part.strip()
+            if head.lower().startswith("cn="):
+                return head[3:].strip().lower()
+        return token.lower()
+
+    is_local_superuser = "__local_superuser__" in groups
+
+    normalized_user = {_normalize_group_value(item) for item in groups}
+    names_user = {_group_name_from_dn(item) for item in groups}
+    admin_dn = _normalize_group_value(settings.ENC_ADMIN_GROUP)
+    viewer_dn = _normalize_group_value(settings.ENC_VIEWER_GROUP)
+    admin_name = _group_name_from_dn(settings.ENC_ADMIN_GROUP)
+    viewer_name = _group_name_from_dn(settings.ENC_VIEWER_GROUP)
+    is_admin = admin_dn in normalized_user or admin_name in names_user
+    is_viewer = viewer_dn in normalized_user or viewer_name in names_user
+
     if return_all:
         group_names = []
-        if settings.ENC_ADMIN_GROUP in groups:
+        if is_local_superuser:
+            group_names.append("superuser")
+        if is_admin:
             group_names.append("admin")
-        if settings.ENC_VIEWER_GROUP in groups:
+        if is_viewer:
             group_names.append("viewer")
 
         return group_names
 
-    if settings.ENC_ADMIN_GROUP in groups:
+    if is_local_superuser:
+        return "superuser"
+    if is_admin:
         return "admin"
-    if settings.ENC_VIEWER_GROUP in groups:
+    if is_viewer:
         return "viewer"
 
     return "not yet known"
