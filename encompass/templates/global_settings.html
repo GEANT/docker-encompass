@@ -4,24 +4,35 @@
 <div class="text-center">
   <div class="page-header">
     <h2 class="text-primary">Global Settings</h2>
-    <p class="text-muted">Preview of runtime feature toggles.</p>
+    <p class="text-muted">Manage runtime feature toggles.</p>
   </div>
 
   <div class="container" style="max-width: 800px; margin-top: 20px;">
-    <div class="alert alert-info text-start" role="alert">
-      Toggles are displayed with current runtime values. Save/apply behavior will be added later.
-    </div>
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
 
     <div class="card shadow-sm">
       <div class="card-body text-start">
         <h5 class="mb-3">Feature Toggles</h5>
+        <form method="post" action="/encompass/global_settings/">
+          {% csrf_token %}
         {% for item in toggle_items %}
         <div class="form-check form-switch py-2 border-bottom">
-          <input class="form-check-input" type="checkbox" role="switch" id="toggle-{{ item.key }}" {% if item.enabled %}checked{% endif %} disabled aria-disabled="true">
+          <input class="form-check-input" type="checkbox" role="switch" name="{{ item.key }}" id="toggle-{{ item.key }}" {% if item.enabled %}checked{% endif %}>
           <label class="form-check-label fw-semibold" for="toggle-{{ item.key }}">{{ item.label }}</label>
-          <div class="text-muted"><small>{{ item.key }} - {{ item.description }}</small></div>
+          <div class="text-muted"><small>{{ item.description }}</small></div>
         </div>
         {% endfor %}
+          <div class="d-flex justify-content-end mt-3">
+            <button type="submit" class="btn btn-primary">Save Global Settings</button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -35,7 +46,7 @@
           <a href="/admin/auth/user/" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer">
             Manage Users
           </a>
-          <a href="/admin/auth/group/" class="btn btn-outline-secondary" target="_blank" rel="noopener noreferrer">
+          <a href="/admin/auth/group/" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer">
             Manage Groups
           </a>
         </div>
@@ -44,7 +55,7 @@
     </div>
 
     <div class="mt-4">
-      <a href="/encompass/" class="btn btn-outline-secondary">Back to Home</a>
+      <a href="/encompass/" class="btn btn-outline-primary">Back to Home</a>
     </div>
   </div>
 </div>

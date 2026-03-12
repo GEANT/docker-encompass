@@ -18,12 +18,15 @@ CSR_API_KEY="replace-with-a-dedicated-api-secret"
 
 # either true or false
 DEMO_MODE=false
-AUTH_LDAP_ENABLED=false  # optional: enable LDAP as fallback after local auth
 LDAP_AUTH_DEBUG=false  # if true, LDAP authentication debug logs are enabled (may include sensitive details)
 DEBUG=false
 ENCOMPASS_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ENCAPSULE_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LDAP_LOGGING=ERROR  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# Runtime toggles are stored in DB (Global Settings page):
+# UNCLASSIFIED_HOSTS_ENABLED, FEATURE_BRANCH, ENC_OVERLAPPING_DEFINITIONS_ENABLED,
+# USE_ENCAPSULE, AUTH_LDAP_ENABLED, LDAP_TLS_SKIP_VERIFY.
 
 # NGINX variables
 ENC_VIEWER_PASSWORD=""  # leave empty to disable authentication for encompass read-only user.
@@ -32,7 +35,6 @@ SSL_CERT_PATH="/etc/ssl/private/server.crt"
 SSL_KEY_PATH="/etc/ssl/private/server.key"
 
 # enCapsule sync fan-out variables (used by /usr/local/bin/encapsule-sync.sh)
-USE_ENCAPSULE=true  # true|false. If false, sync fan-out is skipped.
 ENCAPSULE_SYNC_TOKEN=""  # required to authenticate against enCapsule /sync endpoints
 ENCAPSULE_SYNC_SCHEME=http
 ENCAPSULE_SYNC_PATH=/sync
@@ -65,7 +67,6 @@ LDAP_GROUP_RDN_ATTR="CN"  # AD often CN, OpenLDAP often cn
 LDAP_USER_SEARCH_FILTER=""   # optional override, default depends on LDAP_PROFILE
 LDAP_GROUP_SEARCH_FILTER=""  # optional override, default depends on LDAP_PROFILE
 LDAP_GROUP_TYPE=""  # optional: ad_nested|ad|groupofnames|posix
-LDAP_TLS_SKIP_VERIFY=false  # set true only for troubleshooting with self-signed/untrusted LDAP certs
 LDAP_USER_ATTR_MAP='{"first_name": "givenName", "last_name": "sn", "email": "mail"}'
 # optional login hint for expired passwords (for AD setups)
 LDAP_PASSWORD_RESET_URL=""   # optional absolute URL to external reset portal
@@ -95,12 +96,9 @@ GIT_REPO="ssh://$GIT_REPO_USERNAME@$GIT_HOST/$GIT_REPO_PATH"
 KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
 
 # puppet environments
-FEATURE_BRANCH=false
-ENC_OVERLAPPING_DEFINITIONS_ENABLED=false  # true|false. If true, overlapping definitions in enCompass are allowed and merged.
 PUPPET_ENVIRONMENTS='["test", "uat", "production"]'
 
 # PuppetDB settings (used by /encompass/unclassified_hosts/)
-UNCLASSIFIED_HOSTS_ENABLED=true
 PUPPETDB_SCHEMA="http"
 PUPPETDB_HOST="puppetdb.service.ha.geant.net"
 PUPPETDB_PORT=8080

@@ -123,7 +123,7 @@
           </div>
           {% endif %}
 
-          {% if is_admin %}
+          {% if is_admin and encapsule_sync_enabled %}
           <div class="col-md-4">
             <div class="card shadow-sm h-100">
               <div class="card-body text-center">
@@ -134,7 +134,7 @@
                 </p>
                 <form method="post" action="/encompass/encapsule_sync/" class="d-grid gap-2">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-primary" {% if not encapsule_sync_enabled %}disabled aria-disabled="true" title="enCapsule synchronization is disabled"{% endif %}>
+                  <button type="submit" class="btn btn-outline-primary">
                     Sync with enCapsule
                   </button>
                 </form>

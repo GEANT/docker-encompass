@@ -23,6 +23,7 @@ from django_auth_ldap.config import (
 )
 from django_auth_ldap.config import LDAPGroupQuery
 from . import tools
+from . import runtime_settings
 
 
 def env_json(name, default):
@@ -65,25 +66,16 @@ def env_bool(name, default=False):
     raise SystemExit(f"{name} must be a boolean (true/false)")
 
 
-USE_AUTH_LDAP = env_json("AUTH_LDAP_ENABLED", False)
-FEATURE_BRANCH = env_json("FEATURE_BRANCH", False)
-ENC_OVERLAPPING_DEFINITIONS_ENABLED = env_json("ENC_OVERLAPPING_DEFINITIONS_ENABLED", False)
-UNCLASSIFIED_HOSTS_ENABLED = env_json("UNCLASSIFIED_HOSTS_ENABLED", True)
+USE_AUTH_LDAP = env_json("AUTH_LDAP_ENABLED", bool(os.environ.get("LDAP_SERVER")))
+FEATURE_BRANCH = False
+ENC_OVERLAPPING_DEFINITIONS_ENABLED = False
+UNCLASSIFIED_HOSTS_ENABLED = True
 DEMO_MODE = env_json("DEMO_MODE", False)
 PUPPET_ENVIRONMENTS = env_json("PUPPET_ENVIRONMENTS", ["production"])
 if USE_AUTH_LDAP not in [True, False]:
     print("AUTH_LDAP_ENABLED must be True or False")
     raise SystemExit(1)
 USE_AUTH_MYSQL = True
-if FEATURE_BRANCH not in [True, False]:
-    print("FEATURE_BRANCH must be True or False")
-    raise SystemExit(1)
-if ENC_OVERLAPPING_DEFINITIONS_ENABLED not in [True, False]:
-    print("ENC_OVERLAPPING_DEFINITIONS_ENABLED must be True or False")
-    raise SystemExit(1)
-if UNCLASSIFIED_HOSTS_ENABLED not in [True, False]:
-    print("UNCLASSIFIED_HOSTS_ENABLED must be True or False")
-    raise SystemExit(1)
 if DEMO_MODE not in [True, False]:
     print("DEMO_MODE must be True or False")
     raise SystemExit(1)
@@ -326,7 +318,7 @@ if USE_AUTH_LDAP:
     LDAP_OPT_TIMEOUT = getattr(ldap, "OPT_TIMEOUT", None)
     if LDAP_OPT_TIMEOUT is not None:
         AUTH_LDAP_CONNECTION_OPTIONS[LDAP_OPT_TIMEOUT] = ldap_network_timeout
-    ldap_tls_skip_verify = env_bool("LDAP_TLS_SKIP_VERIFY", False)
+    ldap_tls_skip_verify = runtime_settings.ldap_tls_skip_verify_enabled()
     ldap_opt_x_tls_require_cert = getattr(ldap, "OPT_X_TLS_REQUIRE_CERT", None)
     ldap_opt_x_tls_never = getattr(ldap, "OPT_X_TLS_NEVER", 0)
     ldap_tls_require_cert = getattr(ldap, "OPT_X_TLS_DEMAND", 2)

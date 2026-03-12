@@ -13,6 +13,7 @@ import requests
 from django.conf import settings
 from csr_store import csr_attributes
 from . import enc_data
+from . import runtime_settings
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +75,7 @@ def sync_runs_async() -> bool:
 
 def encapsule_sync_enabled() -> bool:
     """Return True when enCapsule sync fan-out is enabled."""
-    value = str(os.environ.get("USE_ENCAPSULE", "true")).strip().lower()
-    return value not in {"0", "false", "no", "off"}
+    return runtime_settings.encapsule_enabled()
 
 
 def get_last_sync_result() -> dict:
@@ -190,8 +190,7 @@ def _sync_git_repo(actor: dict | None = None, action: str | None = None) -> bool
 
 def _trigger_encapsule_sync() -> None:
     """Trigger enCapsule sync fan-out unless disabled by USE_ENCAPSULE."""
-    use_encapsule = str(os.environ.get("USE_ENCAPSULE", "true")).strip().lower()
-    if use_encapsule in {"0", "false", "no", "off"}:
+    if not runtime_settings.encapsule_enabled():
         logger.info("USE_ENCAPSULE disabled: skipping enCapsule sync fan-out")
         return
 
@@ -745,7 +744,7 @@ def validate_group_selector_overlaps(
     if not candidate_selectors:
         return
 
-    if settings.ENC_OVERLAPPING_DEFINITIONS_ENABLED:
+    if runtime_settings.overlapping_definitions_enabled():
         return
 
     conflicts = []

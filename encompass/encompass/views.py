@@ -24,6 +24,7 @@ from django.templatetags.static import static
 from . import tools
 from . import user_helpers
 from . import spring_cleaning
+from . import runtime_settings
 
 LDAP_OPT_PROTOCOL_VERSION = getattr(ldap, "OPT_PROTOCOL_VERSION", 3)
 LDAP_OPT_REFERRALS = getattr(ldap, "OPT_REFERRALS", 0)
@@ -584,7 +585,7 @@ def host_add(request):
             "group_name": group_name,
             "watermark": settings.WATERMARK,
             "current_version": settings.CURRENT_VERSION,
-            "feature_branch": settings.FEATURE_BRANCH,
+            "feature_branch": runtime_settings.feature_branch_enabled(),
             "puppet_environments": settings.PUPPET_ENVIRONMENTS,
         }
         return render(request, "host_add.html", context)
@@ -874,7 +875,7 @@ def group_add(request):
             "group_name": group_name,
             "watermark": settings.WATERMARK,
             "current_version": settings.CURRENT_VERSION,
-            "feature_branch": settings.FEATURE_BRANCH,
+            "feature_branch": runtime_settings.feature_branch_enabled(),
             "puppet_environments": settings.PUPPET_ENVIRONMENTS,
         }
         return render(request, "group_add.html", context)
@@ -1042,7 +1043,7 @@ def about_page(request):
 @login_required(login_url="/encompass/login/")
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def global_settings_page(request):
-    """Placeholder page for future global settings management."""
+    """View and update global runtime settings."""
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -1067,36 +1068,61 @@ def global_settings_page(request):
             },
         )
 
+    managed_keys = [
+        "UNCLASSIFIED_HOSTS_ENABLED",
+        "FEATURE_BRANCH",
+        "ENC_OVERLAPPING_DEFINITIONS_ENABLED",
+        "USE_ENCAPSULE",
+        "AUTH_LDAP_ENABLED",
+        "LDAP_TLS_SKIP_VERIFY",
+    ]
+
+    if request.method == "POST":
+        if settings.DEMO_MODE:
+            messages.error(request, "This feature is unavailable on the demo site")
+        else:
+            actor = request.user.get_username() or "admin"
+            for key in managed_keys:
+                runtime_settings.set_bool(key, key in request.POST, updated_by=actor)
+            messages.success(request, "Global settings updated")
+        return redirect("/encompass/global_settings/")
+
     toggle_items = [
         {
             "key": "UNCLASSIFIED_HOSTS_ENABLED",
             "label": "Unclassified Hosts",
             "description": "Enable/disable the unclassified hosts page and logic.",
-            "enabled": bool(settings.UNCLASSIFIED_HOSTS_ENABLED),
+            "enabled": runtime_settings.unclassified_hosts_enabled(),
         },
         {
             "key": "FEATURE_BRANCH",
             "label": "Feature Branch Mode",
             "description": "Enable custom environment tracking in the UI.",
-            "enabled": bool(settings.FEATURE_BRANCH),
+            "enabled": runtime_settings.feature_branch_enabled(),
         },
         {
             "key": "ENC_OVERLAPPING_DEFINITIONS_ENABLED",
             "label": "Overlapping Definitions",
             "description": "Allow overlapping ENC definitions and merge results.",
-            "enabled": bool(settings.ENC_OVERLAPPING_DEFINITIONS_ENABLED),
+            "enabled": runtime_settings.overlapping_definitions_enabled(),
         },
         {
             "key": "USE_ENCAPSULE",
             "label": "Use enCapsule",
             "description": "Enable/disable sync fan-out toward enCapsule targets.",
-            "enabled": bool(tools.encapsule_sync_enabled()),
+            "enabled": runtime_settings.encapsule_enabled(),
         },
         {
             "key": "AUTH_LDAP_ENABLED",
             "label": "LDAP Authentication",
-            "description": "Enable/disable LDAP authentication fallback.",
-            "enabled": bool(settings.USE_AUTH_LDAP),
+            "description": "Enable/disable LDAP authentication fallback (applies after service restart).",
+            "enabled": runtime_settings.ldap_auth_enabled(),
+        },
+        {
+            "key": "LDAP_TLS_SKIP_VERIFY",
+            "label": "Skip LDAP TLS Certificate Verification",
+            "description": "Allow untrusted/self-signed LDAP certificates (restart required).",
+            "enabled": runtime_settings.ldap_tls_skip_verify_enabled(),
         },
     ]
 
@@ -1133,7 +1159,7 @@ def home_page(request):
         "is_db_auth": is_db_auth,
         "is_ldap_auth": is_ldap_auth,
         "is_admin": is_admin,
-        "feature_branch": settings.FEATURE_BRANCH,
+        "feature_branch": runtime_settings.feature_branch_enabled(),
         "encapsule_sync_enabled": tools.encapsule_sync_enabled(),
     }
 
@@ -1149,7 +1175,7 @@ def feature_branches_page(request):
     group_name = tools.get_groups_info(groups)
 
     usage = []
-    if settings.FEATURE_BRANCH:
+    if runtime_settings.feature_branch_enabled():
         usage = tools.list_nonstandard_environment_usage()
 
     context = {
@@ -1159,7 +1185,7 @@ def feature_branches_page(request):
         "group_name": group_name,
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
-        "feature_branch": settings.FEATURE_BRANCH,
+        "feature_branch": runtime_settings.feature_branch_enabled(),
         "predefined_environments": settings.PUPPET_ENVIRONMENTS,
         "custom_environment_usage": usage,
     }
@@ -1211,7 +1237,7 @@ def host_list(request):
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "hosts": host_names,
-        "feature_branch": settings.FEATURE_BRANCH,
+        "feature_branch": runtime_settings.feature_branch_enabled(),
         "puppet_environments": settings.PUPPET_ENVIRONMENTS,
         "can_save_hosts": can_save_hosts,
     }
@@ -1241,7 +1267,7 @@ def group_list(request):
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
         "groups_list": groups_list,
-        "feature_branch": settings.FEATURE_BRANCH,
+        "feature_branch": runtime_settings.feature_branch_enabled(),
         "puppet_environments": settings.PUPPET_ENVIRONMENTS,
         "can_save_groups": can_save_groups,
     }
@@ -1331,10 +1357,10 @@ def unclassified_hosts_page(request):
         "disp_name": identity["display_name"],
         "watermark": settings.WATERMARK,
         "current_version": settings.CURRENT_VERSION,
-        "unclassified_hosts_enabled": settings.UNCLASSIFIED_HOSTS_ENABLED,
+        "unclassified_hosts_enabled": runtime_settings.unclassified_hosts_enabled(),
     }
 
-    if not settings.UNCLASSIFIED_HOSTS_ENABLED:
+    if not runtime_settings.unclassified_hosts_enabled():
         return render(request, "unclassified_hosts.html", context)
 
     try:
