@@ -378,6 +378,7 @@
 
         function collectPayloadFromEditor(editorRoot, groupname) {
           const environmentInput = editorRoot.querySelector('.group-environment');
+          const expectedRevision = (editorRoot.dataset.revision || '').trim();
 
           const classes = Array.from(editorRoot.querySelectorAll('.group-classes .class-item input'))
             .map(input => input.value.trim())
@@ -404,7 +405,8 @@
             environment: environmentInput ? environmentInput.value.trim() : '',
             classes,
             hosts: groupname === 'default' ? [] : hosts,
-            parameters
+            parameters,
+            expected_revision: expectedRevision
           };
         }
 
@@ -565,6 +567,7 @@
             const childContainer = rowApi.child();
             if (childContainer && childContainer.length > 0) {
               const editorRoot = childContainer[0].querySelector('.group-details-content') || childContainer[0];
+              editorRoot.dataset.revision = (groupData && groupData._revision) ? groupData._revision : '';
               bindEditorActions(editorRoot, groupname, rowNode);
               initializeHostHelpPopovers(editorRoot);
             }

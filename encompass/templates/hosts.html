@@ -307,6 +307,7 @@
 
         function collectPayloadFromEditor(editorRoot, hostname) {
           const environmentInput = editorRoot.querySelector('.host-environment');
+          const expectedRevision = (editorRoot.dataset.revision || '').trim();
 
           const classes = Array.from(editorRoot.querySelectorAll('.host-classes .class-item input'))
             .map(input => input.value.trim())
@@ -328,7 +329,8 @@
             hostname,
             environment: environmentInput ? environmentInput.value.trim() : '',
             classes,
-            parameters
+            parameters,
+            expected_revision: expectedRevision
           };
         }
 
@@ -473,6 +475,7 @@
             const childContainer = rowApi.child();
             if (childContainer && childContainer.length > 0) {
               const editorRoot = childContainer[0].querySelector('.host-details-content') || childContainer[0];
+              editorRoot.dataset.revision = (data && data._revision) ? data._revision : '';
               bindEditorActions(editorRoot, hostname, rowNode);
             }
           } catch (error) {

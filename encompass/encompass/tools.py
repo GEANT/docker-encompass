@@ -5,6 +5,7 @@ analyzes data received
 import logging
 import os
 import json
+import hashlib
 import re
 import subprocess
 import threading
@@ -34,6 +35,17 @@ class EncSyncError(Exception):
 
 class EncapsuleTriggerError(EncSyncError):
     """Raised when enCapsule fan-out trigger fails after git push."""
+
+
+class StaleObjectError(Exception):
+    """Raised when a save request uses stale object revision data."""
+
+
+def payload_revision(payload: dict | None) -> str:
+    """Return a stable revision hash for an ENC payload dictionary."""
+    normalized = payload if isinstance(payload, dict) else {}
+    encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def _env_int(name: str, default: int) -> int:
@@ -367,7 +379,12 @@ def delete_host(hostname: str, actor: dict | None = None) -> dict:
     return deleted
 
 
-def update_host(hostname: str, payload: dict, actor: dict | None = None) -> dict:
+def update_host(
+    hostname: str,
+    payload: dict,
+    actor: dict | None = None,
+    expected_revision: str | None = None,
+) -> dict:
     """Update host in ENC from full payload."""
     with enc_data.data_lock("hosts"):
         hosts = enc_data.load_map("hosts")
@@ -375,6 +392,11 @@ def update_host(hostname: str, payload: dict, actor: dict | None = None) -> dict
             # pylint: disable=broad-exception-raised
             raise Exception(f"ENC error for {hostname}: 404")
             # pylint: enable=broad-exception-raised
+        current_revision = payload_revision(hosts.get(hostname))
+        if expected_revision and expected_revision != current_revision:
+            raise StaleObjectError(
+                f"Host '{hostname}' was updated by someone else. Reload and try again."
+            )
         normalized = enc_data.normalize_host_payload(payload)
         hosts[hostname] = normalized
         enc_data.save_map("hosts", hosts)
@@ -462,7 +484,12 @@ def delete_group(groupname: str, actor: dict | None = None) -> dict:
     return deleted
 
 
-def update_group(groupname: str, payload: dict, actor: dict | None = None) -> dict:
+def update_group(
+    groupname: str,
+    payload: dict,
+    actor: dict | None = None,
+    expected_revision: str | None = None,
+) -> dict:
     """Update group in ENC from full payload."""
     with enc_data.data_lock("groups"):
         groups = enc_data.load_map("groups")
@@ -470,6 +497,11 @@ def update_group(groupname: str, payload: dict, actor: dict | None = None) -> di
             # pylint: disable=broad-exception-raised
             raise Exception(f"ENC error for {groupname}: 404")
             # pylint: enable=broad-exception-raised
+        current_revision = payload_revision(groups.get(groupname))
+        if expected_revision and expected_revision != current_revision:
+            raise StaleObjectError(
+                f"Group '{groupname}' was updated by someone else. Reload and try again."
+            )
         normalized = enc_data.normalize_group_payload(payload)
         if groupname != "default" and not normalized.get("hosts", []):
             raise ValueError(

@@ -361,6 +361,9 @@ def host_details(_request, hostname):
     """
     try:
         data = tools.get_host_details(hostname)
+        if isinstance(data, dict):
+            data = dict(data)
+            data["_revision"] = tools.payload_revision(data)
         return JsonResponse(data)
     except Exception as e:  # pylint: disable=broad-except
         logger.exception("host_details failed for host '%s'", hostname)
@@ -385,6 +388,8 @@ def group_details(_request, groupname):
                 type(data).__name__,
             )
             return JsonResponse({"error": "Malformed group data from ENC"}, status=502)
+        data = dict(data)
+        data["_revision"] = tools.payload_revision(data)
         return JsonResponse(data)
     except Exception as e:  # pylint: disable=broad-except
         logger.exception("group_details failed for group '%s'", groupname)
@@ -518,10 +523,16 @@ def host_save(request):
         "classes": payload.get("classes", []),
         "parameters": payload.get("parameters", {}),
     }
+    expected_revision = str(payload.get("expected_revision", "")).strip() or None
 
     try:
         commit_actor = user_helpers.get_user_commit_info(request.user)
-        tools.update_host(hostname, host_payload, actor=commit_actor)
+        tools.update_host(
+            hostname,
+            host_payload,
+            actor=commit_actor,
+            expected_revision=expected_revision,
+        )
     except tools.EncapsuleTriggerError as sync_error:
         logger.warning(
             "Host save completed but enCapsule sync failed for '%s': %s",
@@ -533,6 +544,14 @@ def host_save(request):
                 "status": "ok",
                 "warning": f"{settings.ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
             }
+        )
+    except tools.StaleObjectError as stale_error:
+        return JsonResponse(
+            {
+                "error": str(stale_error),
+                "message": "Conflict",
+            },
+            status=409,
         )
     except tools.enc_data.EncDataLockTimeout:
         return JsonResponse(
@@ -799,6 +818,7 @@ def group_save(request):
         "hosts": payload.get("hosts", []),
         "parameters": payload.get("parameters", {}),
     }
+    expected_revision = str(payload.get("expected_revision", "")).strip() or None
     if groupname == "default":
         group_payload["hosts"] = []
 
@@ -807,7 +827,12 @@ def group_save(request):
             "Calling update_group for '%s' with payload: %s", groupname, group_payload
         )
         commit_actor = user_helpers.get_user_commit_info(request.user)
-        tools.update_group(groupname, group_payload, actor=commit_actor)
+        tools.update_group(
+            groupname,
+            group_payload,
+            actor=commit_actor,
+            expected_revision=expected_revision,
+        )
         logger.info("Successfully updated group '%s'", groupname)
     except tools.EncapsuleTriggerError as sync_error:
         logger.warning(
@@ -820,6 +845,14 @@ def group_save(request):
                 "status": "ok",
                 "warning": f"{settings.ENCAPSULE_SYNC_WARNING_MESSAGE} Details: {str(sync_error)}",
             }
+        )
+    except tools.StaleObjectError as stale_error:
+        return JsonResponse(
+            {
+                "error": str(stale_error),
+                "message": "Conflict",
+            },
+            status=409,
         )
     except tools.enc_data.EncDataLockTimeout:
         return JsonResponse(
