@@ -3,8 +3,8 @@
 # variables:
 # - ENC_VIEWER_PASSWORD: password for optional basic auth on read-only ENC endpoint (user: encompass)
 # - ENC_USE_SSL: either "true" or "false" to enable/disable SSL listeners in Nginx
-# - ENC_ENC_SSL_CERT_PATH: path to the SSL certificate PEM file
-# - SSL_KEY_PATH: path to the SSL private key PEM file
+# - ENC_SSL_CERT_PATH: path to the SSL certificate PEM file
+# - ENC_SSL_KEY_PATH: path to the SSL private key PEM file
 #
 set -e
 
@@ -44,8 +44,8 @@ fi
 if [ "$ENC_USE_SSL" = "true" ]; then
     echo "==> Enabling SSL in Nginx"
 
-    if [ -z "$ENC_ENC_SSL_CERT_PATH" ] || [ -z "$SSL_KEY_PATH" ]; then
-        echo "[ERROR] ENC_USE_SSL=true requires both ENC_ENC_SSL_CERT_PATH and SSL_KEY_PATH to be set"
+    if [ -z "$ENC_SSL_CERT_PATH" ] || [ -z "$ENC_SSL_KEY_PATH" ]; then
+        echo "[ERROR] ENC_USE_SSL=true requires both ENC_SSL_CERT_PATH and ENC_SSL_KEY_PATH to be set"
         exit 1
     fi
 
@@ -58,8 +58,8 @@ if [ "$ENC_USE_SSL" = "true" ]; then
 
     server {
         listen 8443 ssl;
-        ssl_certificate ${ENC_ENC_SSL_CERT_PATH};
-        ssl_certificate_key ${SSL_KEY_PATH};
+        ssl_certificate ${ENC_SSL_CERT_PATH};
+        ssl_certificate_key ${ENC_SSL_KEY_PATH};
 
         location /static/ {
             alias /code/static/static/;
@@ -83,8 +83,8 @@ if [ "$ENC_USE_SSL" = "true" ]; then
 
     server {
         listen 8444 ssl;
-        ssl_certificate ${ENC_ENC_SSL_CERT_PATH};
-        ssl_certificate_key ${SSL_KEY_PATH};
+        ssl_certificate ${ENC_SSL_CERT_PATH};
+        ssl_certificate_key ${ENC_SSL_KEY_PATH};
 
         location = /healthz {
             proxy_set_header Host \$host;
