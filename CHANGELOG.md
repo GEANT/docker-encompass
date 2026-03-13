@@ -16,6 +16,7 @@
 ### 🐛 Bug Fixes
 
 - Fix: correct URL path in curl_enc function for ENC node retrieval
+- Fix: correct variable names for SSL certificate paths in entrypoint.sh
 
 ### 📚 Documentation
 
