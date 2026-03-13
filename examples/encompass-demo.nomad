@@ -34,19 +34,19 @@ job "encompass-demo" {
         CORS_ALLOWED_ORIGINS = "[\"https://encompass-demo.example.org\", \"https://encompass-demo.int.example.org\"]"
         SECRET_KEY           = "7544786B-4CB2-4B78-A799-3963D53DAFC5"
         # true/false variables
-        AUTH_LDAP_ENABLED  = false
-        DEBUG              = true
-        LDAP_AUTH_DEBUG    = false
+        AUTH_LDAP_ENABLED = false
+        DEBUG             = true
+        LDAP_AUTH_DEBUG   = false
         # NGINX variables
         ENC_VIEWER_PASSWORD = ""
-        USE_SSL             = false
-        SSL_CERT_PATH       = ""
-        SSL_KEY_PATH        = ""
+        ENC_USE_SSL         = false
+        ENC_SSL_CERT_PATH   = ""
+        ENC_SSL_KEY_PATH    = ""
         # database variables
-        MYSQL_HOST                    = "haproxy-mariadb.service.consul"
-        MYSQL_PORT                    = 3306
-        MYSQL_DB                      = "enc_demo"
-        MYSQL_USER                    = "enc_demo"
+        MYSQL_HOST = "haproxy-mariadb.service.consul"
+        MYSQL_PORT = 3306
+        MYSQL_DB   = "enc_demo"
+        MYSQL_USER = "enc_demo"
         # Git repository variables
         GIT_HOST                      = "prod-git01.example.org"
         GIT_REPO_PATH                 = "puppet/enc-data.git"
@@ -59,8 +59,6 @@ job "encompass-demo" {
         SSH_KEY_TYPE                  = "ed25519"
         GIT_REPO_PRIVATE_SSH_KEY_FILE = "/secrets/git_repo_private_ssh_key"
         KEY_FILE                      = "/root/.ssh/id_ed25519"
-        FEATURE_BRANCH                = false
-        PUPPET_ENVIRONMENTS           = "[\"test\", \"uat\", \"production\"]"
       }
 
       template {

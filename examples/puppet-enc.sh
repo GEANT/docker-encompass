@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-
+#
+# NOTE: a compiled Go binary (puppet-enc) is available as a faster, dependency-free"
+# drop-in replacement for this script. Pre-built binaries for Linux and macOS can be"
+# fetched from Codeberg:"
+# https://codeberg.org/GEANT/-/packages"
+#
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -27,6 +32,11 @@ usage() {
     echo "  --srv            Resolve endpoint via SRV record _enc-server._tcp.example.org"
     echo "  --rrdns          Resolve <server> to multiple A/AAAA records and try each with --port"
     echo "  --port           Static port (required for non-SRV mode)"
+    echo ""
+    echo "  NOTE: a compiled Go binary (puppet-enc) is available as a faster, dependency-free"
+    echo "  drop-in replacement for this script. Pre-built binaries for Linux and macOS can be"
+    echo "  fetched from Codeberg:"
+    echo "  https://codeberg.org/GEANT/-/packages"
     echo ""
     [[ "$#" -gt 0 ]] && exit "$1"
     exit
@@ -76,11 +86,11 @@ while true; do
     shift
 done
 
-[ -z "$ENC_SERVER" ] && usage 3 "\n${RED}Error${NC}: --server option must be provided"
-[ -z "$ENC_NODE" ] && usage 3 "\n${RED}Error${NC}: --node option must be provided"
+[ -z "${ENC_SERVER:-}" ] && usage 3 "\n${RED}Error${NC}: --server option must be provided"
+[ -z "${ENC_NODE:-}" ] && usage 3 "\n${RED}Error${NC}: --node option must be provided"
 
-if { [ -n "$ENC_USER" ] && [ -z "$ENC_PASSWORD" ]; } || \
-   { [ -z "$ENC_USER" ] && [ -n "$ENC_PASSWORD" ]; }; then
+if { [ -n "${ENC_USER:-}" ] && [ -z "${ENC_PASSWORD:-}" ]; } || \
+    { [ -z "${ENC_USER:-}" ] && [ -n "${ENC_PASSWORD:-}" ]; }; then
     usage 3 "\n${RED}Error${NC}: Both --user and --password options must be provided together"
 fi
 

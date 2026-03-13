@@ -56,3 +56,9 @@ build_decryptor:
   variables:
     TOOL_NAME: decryptor
     TOOL_DIR: cmd/decryptor
+
+build_puppet_enc:
+  extends: .go_binary_build
+  variables:
+    TOOL_NAME: puppet-enc
+    TOOL_DIR: cmd/puppet-enc

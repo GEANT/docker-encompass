@@ -95,3 +95,4 @@ secret_key
 # Local Go build outputs
 cmd/encryptor/encryptor
 cmd/decryptor/decryptor
+cmd/puppet-enc/puppet-enc

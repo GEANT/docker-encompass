@@ -1,4 +1,4 @@
-# enCompass + enCapsule + enCryptor
+# enCompass + enCapsule + enCryptor + puppet-enc
 
 ## preface
 
@@ -20,6 +20,8 @@ It does not depend on a database and boots up in just 1 second, making it ideal 
 This repository also includes optional `enCryptor` and `deCryptor` components that enable certificate  
 auto-signing flows through CSR `challengePassword` generation and validation.
 
+An optional `puppet-enc` Go binary is also provided as a faster, dependency-free drop-in replacement for the `puppet-enc.sh` shell script used to integrate Puppet Server with the ENC API.
+
 **Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)  
 **Repository URL**: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass)  
 **site.pp vs enCompass ENC**: [codeberg.org/GEANT/docker-encompass/docs/SITEPP_VS_ENC.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/SITEPP_VS_ENC.md)  
@@ -38,6 +40,7 @@ auto-signing flows through CSR `challengePassword` generation and validation.
     - [Quick Start (Docker)](#quick-start-docker)
 - [Endpoints](#endpoints)
 - [enCryptor + deCryptor (Optional)](#encryptor--decryptor-optional)
+- [puppet-enc (Optional)](#puppet-enc-optional)
 - [Puppet ENC Integration](#puppet-enc-integration)
 - [Migration Notes](#migration-notes)
 - [Puppet ENC Keywords](#puppet-enc-keywords)
@@ -173,6 +176,17 @@ Full documentation:
 - [docs/DECRYPTOR.md](docs/DECRYPTOR.md)
 - [codeberg.org/GEANT/docker-encompass/docs/DECRYPTOR.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/DECRYPTOR.md)
 
+## puppet-enc (Optional)
+
+`puppet-enc` is a compiled Go binary that calls the ENC API and serves as a
+drop-in replacement for `puppet-enc.sh`. On busy Puppet Servers it is roughly
+2–3× faster and uses 3–4× less CPU per invocation compared to the shell script.
+
+Full documentation:
+
+- [docs/PUPPET-ENC.md](docs/PUPPET-ENC.md)
+- [codeberg.org/GEANT/docker-encompass/docs/PUPPET-ENC.md](https://codeberg.org/GEANT/docker-encompass/src/branch/main/docs/PUPPET-ENC.md)
+
 ## Puppet ENC Keywords
 
 This project is relevant to searches and documentation around:
@@ -191,17 +205,39 @@ In principle you can simply use curl against the ENC endpoint as follows:
 curl -s http://enc.example.org:8081/hosts/\$1
 ```
 
-If you have round-robin DNS, or SRV records, you can place [puppet-enc.sh](examples/puppet-enc.sh) on the Puppet Server host (not inside Puppet agent nodes), for example:
+For production use on a busy Puppet Server, the recommended approach is the
+`puppet-enc` Go binary (see [puppet-enc (Optional)](#puppet-enc-optional) and
+[docs/PUPPET-ENC.md](docs/PUPPET-ENC.md)). If deploying a compiled binary is
+not practical, the shell script `puppet-enc.sh` is available as a fallback.
+
+### Using puppet-enc (recommended)
 
 ```bash
-sudo install -m 0755 puppet-enc.sh /etc/puppetlabs/puppet/enc/puppet-enc.sh
+sudo install -m 0755 puppet-enc /etc/puppetlabs/puppet/enc/puppet-enc
 ```
 
-Required tools on Puppet Server:
+No external dependencies required.
 
-`bash`, `curl`, `dig`, `getopt`
+Create a wrapper so Puppet can pass the node certname (`$1`):
 
-Create a small wrapper so Puppet can pass the node certname (`$1`) to the script:
+```bash
+sudo tee /etc/puppetlabs/puppet/enc/enc-wrapper.sh >/dev/null <<'EOF'
+#!/usr/bin/env bash
+exec /etc/puppetlabs/puppet/enc/puppet-enc \
+  --node "$1" \
+  --server encompass.example.org \
+  --srv
+EOF
+sudo chmod 0755 /etc/puppetlabs/puppet/enc/enc-wrapper.sh
+```
+
+### Using puppet-enc.sh (fallback)
+
+```bash
+sudo install -m 0755 examples/puppet-enc.sh /etc/puppetlabs/puppet/enc/puppet-enc.sh
+```
+
+Required tools on Puppet Server: `bash`, `curl`, `dig`, `getopt`
 
 ```bash
 sudo tee /etc/puppetlabs/puppet/enc/enc-wrapper.sh >/dev/null <<'EOF'
@@ -214,24 +250,24 @@ EOF
 sudo chmod 0755 /etc/puppetlabs/puppet/enc/enc-wrapper.sh
 ```
 
-puppet-enc.sh help:
+Help:
 
-```bash
-bash ./examples/puppet-enc.sh --help
+```
+Usage: puppet-enc --node <node> --server <hostname> [--srv | --rrdns --port <port> | --port <port>] [--user <username> --password <password>]
+       puppet-enc -h | --help
 
-Usage: puppet-enc.sh --node <node> --server <hostname> [--srv | --rrdns --port <port> | --port <port>] [--user <username> --password <password>]
-       puppet-enc.sh -h | --help
-
-  -n | --node      Node to query
-  -s | --server    Server hostname/IP to connect
-  -u | --user      Username (jointly required with --password)
-  -p | --password  Password (jointly required with --user)
-  --srv            Resolve endpoint via SRV record _puppet8._tcp.<server>
-  --rrdns          Resolve <server> to multiple A/AAAA records and try each with --port
-  --port           Static port (required for non-SRV mode)
+  -n, --node      Node to query
+  -s, --server    Server hostname/IP to connect
+  -u, --user      Username (jointly required with --password)
+  -p, --password  Password (jointly required with --user)
+      --srv       Resolve endpoint via SRV record _puppet8._tcp.<server>
+      --rrdns     Resolve <server> to multiple A/AAAA records and try each with --port
+      --port      Static port (required for non-SRV mode)
 ```
 
-Configure Puppet Server in `/etc/puppetlabs/puppet/puppet.conf`:
+### Configure Puppet Server
+
+In `/etc/puppetlabs/puppet/puppet.conf`:
 
 ```ini
 [server]
