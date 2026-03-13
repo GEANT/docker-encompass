@@ -122,10 +122,11 @@ _The following instructions are not intended for a production grade deployment._
 - enCompass
   - `8080`: web UI (HTTP)
   - `8081`: ENC read-only endpoint (HTTP)
-  - `8443`: web UI (HTTPS, when `USE_SSL=true`)
-  - `8444`: ENC read-only endpoint (HTTPS, when `USE_SSL=true`)
+  - `8443`: web UI (HTTPS, when `ENC_USE_SSL=true`)
+  - `8444`: ENC read-only endpoint (HTTPS, when `ENC_USE_SSL=true`)
 - enCapsule (optional profile)
   - `9081`: ENC read-only endpoint (HTTP; container `8081` exposed on host `9081` in Docker Compose)
+  - `9444`: ENC read-only endpoint (HTTPS; container `8444` exposed on host `9444` when `ENC_USE_SSL=true`)
 
 Additional enCompass CSR endpoints (usable for external provisioning):
 
@@ -381,9 +382,9 @@ Leave empty to disable endpoint basic auth.
 
 Enable HTTPS listeners by setting:
 
-- `USE_SSL=true`
-- `SSL_CERT_PATH`
-- `SSL_KEY_PATH`
+- `ENC_USE_SSL=true`
+- `ENC_SSL_CERT_PATH`
+- `ENC_SSL_KEY_PATH`
 
 ### Git settings
 
@@ -433,6 +434,7 @@ docker compose --profile encapsule up --build encapsule
 Default exposed port in compose profile:
 
 - `9081` -> enCapsule read-only ENC API
+- `9444` -> enCapsule read-only ENC API (HTTPS, when `ENC_USE_SSL=true`)
 
 ### Optional Git sync trigger
 

@@ -31,10 +31,10 @@ ENCAPSULE_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LDAP_LOGGING=ERROR      # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # NGINX variables
-ENC_VIEWER_PASSWORD=""  # leave empty to disable authentication for encompass read-only user.
-USE_SSL=false
-SSL_CERT_PATH="/etc/ssl/private/server.crt"
-SSL_KEY_PATH="/etc/ssl/private/server.key"
+ENC_VIEWER_PASSWORD=""  # leave empty to disable authentication for read-only ENC endpoints (enCompass + enCapsule).
+ENC_USE_SSL=false
+ENC_SSL_CERT_PATH="/etc/ssl/private/server.crt"
+ENC_SSL_KEY_PATH="/etc/ssl/private/server.key"
 
 # enCapsule shared sync token (must be configured identically on encompass + encapsule)
 # all other enCapsule sync fan-out settings are managed in Global Settings (UI):

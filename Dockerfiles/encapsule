@@ -52,7 +52,7 @@ RUN grep -E 'encryptor-linux-amd64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"
     rm -f /tmp/encryptor-SHA256SUMS
 
 # port explanations: check docker-compose.yml for details
-EXPOSE 8081
+EXPOSE 8081 8444
 
 # runs the development server in debug mode
 WORKDIR /code/encapsule

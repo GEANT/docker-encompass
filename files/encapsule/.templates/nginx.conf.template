@@ -27,6 +27,7 @@ http {
 
     server {
         listen ${ENCAPSULE_PORT};
+        ${ENC_HTTP_REDIRECT}
         location /static/ {
             alias /code/encapsule/static/;
             try_files $uri =404;
@@ -56,5 +57,5 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_pass http://django_backend;
         }
-    }
+    }${ENC_SSL_SERVER}
 }

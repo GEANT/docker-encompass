@@ -9,6 +9,7 @@ from csr_store import csr_attributes
 
 
 class Command(BaseCommand):
+    """Rotate CSR challengePassword values for host/group entries."""
     help = "Rotate CSR challengePassword values for host/group entries"
 
     def add_arguments(self, parser):
