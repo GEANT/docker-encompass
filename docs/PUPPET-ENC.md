@@ -16,10 +16,10 @@ measurable.
 
 Benchmark on localhost (hyperfine, 169/53 runs):
 
-| Command      | Mean    | Min    |
-|--------------|---------|--------|
+| Command       | Mean    | Min     |
+|---------------|---------|---------|
 | puppet-enc.sh | 37.3 ms | 27.9 ms |
-| puppet-enc   | 13.8 ms | 10.3 ms |
+| puppet-enc    | 13.8 ms | 10.3 ms |
 
 The Go binary is roughly **2–3× faster** and uses **3–4× less CPU time** per
 call in a low-latency environment. On higher-latency network paths the relative
@@ -69,16 +69,16 @@ puppet-enc -n mynode.example.org -s enc.example.org --port 8081
 
 ## Flags
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--node` | `-n` | Node to query (required) |
-| `--server` | `-s` | Server hostname/IP (required) |
-| `--port` | | Static port (required unless `--srv`) |
-| `--srv` | | Resolve via SRV record `_puppet8._tcp.<server>` |
-| `--rrdns` | | Resolve all A/AAAA records and try each in sequence |
-| `--user` | `-u` | Username for basic auth (requires `--password`) |
-| `--password` | `-p` | Password for basic auth (requires `--user`) |
-| `-h`, `--help` | | Show help |
+| Flag           | Short | Description                                         |
+|----------------|-------|-----------------------------------------------------|
+| `--node`       | `-n`  | Node to query (required)                            |
+| `--server`     | `-s`  | Server hostname/IP (required)                       |
+| `--port`       |       | Static port (required unless `--srv`)               |
+| `--srv`        |       | Resolve via SRV record `_puppet8._tcp.<server>`     |
+| `--rrdns`      |       | Resolve all A/AAAA records and try each in sequence |
+| `--user`       | `-u`  | Username for basic auth (requires `--password`)     |
+| `--password`   | `-p`  | Password for basic auth (requires `--user`)         |
+| `-h`, `--help` |       | Show help                                           |
 
 `--srv` and `--rrdns` are mutually exclusive.  
 `--srv` and `--port` are mutually exclusive.
@@ -125,11 +125,11 @@ sudo puppet config print node_terminus external_nodes --section master
 
 ## Exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success, valid YAML printed to stdout |
-| `1` | Runtime error (connection failure, non-2xx response, etc.) |
-| `2` | Argument error |
+| Code | Meaning                                                    |
+|------|------------------------------------------------------------|
+| `0`  | Success, valid YAML printed to stdout                      |
+| `1`  | Runtime error (connection failure, non-2xx response, etc.) |
+| `2`  | Argument error                                             |
 
 ## Relation to puppet-enc.sh
 

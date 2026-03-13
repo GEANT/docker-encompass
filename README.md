@@ -5,14 +5,16 @@
 _I started coding this project alone, but I crossed paths with Copilot and we decided to join forces and work on it together._  
 It has been a great help for coding javascript, jquery, as well as testing, debugging, and documentation.
 
-This project is mirrored on [Codeberg](https://codeberg.org/GEANT/docker-encompass) and [Github](https://github.com/GEANT/docker-encompass), and the artifacts are pushed to Codeberg.  
-If Open Source is your thing, please consider starring and contributing on Codeberg: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass).
+This project is mirrored on [Codeberg](https://codeberg.org/GEANT/docker-encompass) and [Github](https://github.com/GEANT/docker-encompass), and the artifacts are pushed to [Codeberg/GEANT/packages](https://codeberg.org/GEANT/-/packages).  
+If Open Source is your thing, please consider starring and contributing on Codeberg: [codeberg/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass).
 
-If you are searching for an **OpenVox / Puppet ENC** implementation, this repository provides a production-oriented  
-**OpenVox / Puppet External Node Classifier** with Docker deployment, host/group classification, and ENC API endpoints.
+If you are searching for an **OpenVox / Puppet ENC** implementation, this repository provides an  
+**OpenVox / Puppet External Node Classifier** with Docker deployment, host/group classification, and ENC  
+API endpoints.
 
 enCompass is a Django-based OpenVox / Puppet External Node Classifier (ENC) packaged for Docker.  
-It provides a web UI to manage hosts and groups, plus read-only ENC endpoints exposed by both enCompass and enCapsule.
+It provides a web UI to manage hosts and groups, plus read-only ENC endpoints exposed by both enCompass  
+and enCapsule.
 
 enCapsule is an optional agent for enCompass that can be used to provide high availability for the ENC API.  
 It does not depend on a database and boots up in just 1 second, making it ideal for an autoscaling setup.
@@ -20,7 +22,8 @@ It does not depend on a database and boots up in just 1 second, making it ideal 
 This repository also includes optional `enCryptor` and `deCryptor` components that enable certificate  
 auto-signing flows through CSR `challengePassword` generation and validation.
 
-An optional `puppet-enc` Go binary is also provided as a faster, dependency-free drop-in replacement for the `puppet-enc.sh` shell script used to integrate Puppet Server with the ENC API.
+An optional `puppet-enc` Go binary is also provided as a faster, dependency-free drop-in replacement for  
+the `puppet-enc.sh` shell script used to integrate Puppet Server with the ENC API.
 
 **Demo site**: [encompass-demo.geant.org](https://encompass-demo.geant.org/)  
 **Repository URL**: [codeberg.org/GEANT/docker-encompass](https://codeberg.org/GEANT/docker-encompass)  
@@ -252,7 +255,7 @@ sudo chmod 0755 /etc/puppetlabs/puppet/enc/enc-wrapper.sh
 
 Help:
 
-```
+```txt
 Usage: puppet-enc --node <node> --server <hostname> [--srv | --rrdns --port <port> | --port <port>] [--user <username> --password <password>]
        puppet-enc -h | --help
 
