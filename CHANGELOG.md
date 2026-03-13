@@ -1,3 +1,13 @@
+## [0.9.8] - 2026-03-13
+
+### 🚀 Features
+
+- Feat: add puppet-enc Go binary and update documentation
+- Feat: move LDAP logging configuration to UI
+
+### 🐛 Bug Fixes
+
+- Fix: update code formatting to solve linting issues
 ## [0.9.7] - 2026-03-13
 
 ### 🚀 Features
