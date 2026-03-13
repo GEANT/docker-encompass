@@ -1199,6 +1199,14 @@ def _ldap_settings_sections() -> list[dict]:
                     "suggestion": defaults["LDAP_PORT"],
                     "input_type": "number",
                 },
+                {
+                    "key": "LDAP_LOGGING",
+                    "label": "LDAP Logger Level",
+                    "description": "Logger level for django_auth_ldap.",
+                    "suggestion": defaults["LDAP_LOGGING"],
+                    "input_type": "select",
+                    "options": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+                },
             ],
         },
         {
@@ -1458,6 +1466,18 @@ def _validate_ldap_settings(values: dict[str, str]) -> list[str]:
     proto = str(values.get("LDAP_PROTO", "")).strip().lower()
     if proto and proto not in {"ldap", "ldaps"}:
         errors.append("LDAP Protocol must be 'ldap' or 'ldaps'.")
+
+    ldap_logging = str(values.get("LDAP_LOGGING", "")).strip().upper()
+    if ldap_logging and ldap_logging not in {
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL",
+    }:
+        errors.append(
+            "LDAP Logger Level must be one of: DEBUG, INFO, WARNING, ERROR, CRITICAL."
+        )
 
     port = str(values.get("LDAP_PORT", "")).strip()
     if port:
@@ -1936,7 +1956,7 @@ def global_settings_page(request):
             if ldap_form_values is not None:
                 field["value"] = ldap_form_values.get(key, "")
             else:
-                field["value"] = runtime_settings.get_text_raw(key)
+                field["value"] = runtime_settings.get_text(key, field["suggestion"])
 
     for field in puppetdb_fields:
         key = field["key"]

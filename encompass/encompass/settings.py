@@ -400,10 +400,17 @@ if USE_AUTH_LDAP:
         raise SystemExit("LDAP_USER_ATTR_MAP must be a JSON object")
     AUTH_LDAP_FIND_GROUP_PERMS = True
     AUTH_LDAP_MIRROR_GROUPS = True
-    LDAP_DEBUG = env_bool("LDAP_AUTH_DEBUG", False)
+    LDAP_LOGGING_LEVEL = str(
+        runtime_settings.get_text(
+            "LDAP_LOGGING",
+            runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_LOGGING"],
+        )
+    ).strip().upper()
+    if LDAP_LOGGING_LEVEL not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+        LDAP_LOGGING_LEVEL = "ERROR"
     LOGGING["loggers"]["django_auth_ldap"] = {
         "handlers": ["stream_to_console"],
-        "level": "DEBUG" if LDAP_DEBUG else env_log_level("LDAP_LOGGING", "ERROR"),
+        "level": LDAP_LOGGING_LEVEL,
         "propagate": False,
     }
 # Internationalization

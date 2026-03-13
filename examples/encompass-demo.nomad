@@ -36,7 +36,6 @@ job "encompass-demo" {
         # true/false variables
         AUTH_LDAP_ENABLED = false
         DEBUG             = true
-        LDAP_AUTH_DEBUG   = false
         # NGINX variables
         ENC_VIEWER_PASSWORD = ""
         ENC_USE_SSL         = false

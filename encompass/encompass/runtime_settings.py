@@ -49,6 +49,7 @@ LDAP_TEXT_DEFAULTS: Dict[str, str] = {
     "LDAP_GROUP_SEARCH_FILTER": "",
     "LDAP_GROUP_TYPE": "",
     "LDAP_USER_ATTR_MAP": '{"first_name": "givenName", "last_name": "sn", "email": "mail"}',
+    "LDAP_LOGGING": "ERROR",
     "LDAP_PASSWORD_RESET_URL": "",
     "LDAP_PASSWORD_RESET_HELP": "",
 }

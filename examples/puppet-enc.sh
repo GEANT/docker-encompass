@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# NOTE: a compiled Go binary (puppet-enc) is available as a faster, dependency-free"
-# drop-in replacement for this script. Pre-built binaries for Linux and macOS can be"
-# fetched from Codeberg:"
-# https://codeberg.org/GEANT/-/packages"
+# NOTE: a compiled Go binary (puppet-enc) is available as a faster, dependency-free
+# drop-in replacement for this script. Pre-built binaries for Linux and macOS can be
+# fetched from Codeberg:
+# https://codeberg.org/GEANT/-/packages
 #
 set -o errexit
 set -o nounset

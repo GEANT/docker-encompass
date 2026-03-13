@@ -337,7 +337,7 @@ python manage.py rotate_csr_challenge --all
 
 - `ENCOMPASS_LOGGING`: Django/UI runtime log level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
 - `ENCAPSULE_LOGGING`: enCapsule agent log level (`DEBUG|INFO|WARNING|ERROR|CRITICAL`)
-- `LDAP_AUTH_DEBUG`: set to `true` to force LDAP auth logger to `DEBUG`; otherwise `LDAP_LOGGING` is used
+- `LDAP_LOGGING`: runtime dropdown in **Global Settings -> LDAP Settings** (`DEBUG|INFO|WARNING|ERROR|CRITICAL`), default `ERROR` (restart required)
 
 ### Puppet environments
 

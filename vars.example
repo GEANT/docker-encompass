@@ -24,11 +24,9 @@ CSR_API_KEY="replace-with-a-dedicated-api-secret"
 
 # either true or false
 DEMO_MODE=false
-DEBUG=false
-LDAP_AUTH_DEBUG=false   # if true, LDAP authentication debug logs are enabled (may include sensitive details)
+DEBUG=false             # use Django debug mode instead gunicorn
 ENCOMPASS_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ENCAPSULE_LOGGING=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-LDAP_LOGGING=ERROR      # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # NGINX variables
 ENC_VIEWER_PASSWORD=""  # leave empty to disable authentication for read-only ENC endpoints (enCompass + enCapsule).
@@ -59,7 +57,6 @@ GIT_REPO_PATH="puppet/enc-data.git"
 GIT_REPO_USERNAME="gitlab"
 SSH_KEY_TYPE="ed25519"  # supported values: rsa | ed25519 | ecdsa
 KEY_FILE=/root/.ssh/id_ed25519
-KEY_FILE="/root/.ssh/id_$SSH_KEY_TYPE"
 GIT_REPO_PRIVATE_SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
