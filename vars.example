@@ -1,16 +1,12 @@
 # Docker variables
 #
-# Runtime toggles are stored in DB (Global Settings page):
-# UNCLASSIFIED_HOSTS_ENABLED, FEATURE_BRANCH, ENC_OVERLAPPING_DEFINITIONS_ENABLED,
-# USE_ENCAPSULE, AUTH_LDAP_ENABLED, LDAP_TLS_SKIP_VERIFY.
-#
-# PuppetDB, LDAP, and enCapsule routing settings are managed in Global Settings (UI).
+# Several runtime toggles and settings are stored in Global Settings (UI).
 #
 # common variables
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 ALLOWED_HOSTS='[".example.org", "orghost", "127.0.0.1"]'
-ALLOWED_CIDR_NETS='["83.97.92.0/22"]'
+ALLOWED_CIDR_NETS='["192.168.0.0/24"]'
 CSRF_TRUSTED_ORIGINS='["https://*.test-int.example.org", "https://*.uat-int.example.org", "https://*.int.example.org", "https://127.0.0.1"]'
 CORS_ALLOWED_ORIGINS='["https://encompass.test-int.example.org", "https://encompass.uat-int.example.org", "https://encompass.int.example.org"]'
 

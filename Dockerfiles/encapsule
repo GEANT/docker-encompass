@@ -1,13 +1,9 @@
 # Dockerfile
 #
-# https://dockerize.io/guides/python-django-guide
-#
-# The first instruction is what image we want to base our container on
-# We Use an official Python runtime as a parent image
 FROM python:3.14-slim-trixie
 
 LABEL author="Massimiliano Adamo <massimiliano.adamo@geant.org>" \
-      description="enCapsule is an agent for enCompass, a tool to provide high availability for the ENC API." \
+      description="enCapsule is a Highly Available ENC endpoint for enCompass" \
       version="1.0.0"
 
 # Custom cache invalidation: check .gitlab-ci.yml for details
@@ -54,6 +50,6 @@ RUN grep -E 'encryptor-linux-amd64$' /tmp/encryptor-SHA256SUMS | awk '{print $1"
 # port explanations: check docker-compose.yml for details
 EXPOSE 8081 8444
 
-# runs the development server in debug mode
+# runs the entrypoint script, which in turn starts gunicorn and nginx for the enc_core API
 WORKDIR /code/encapsule
 CMD ["/usr/local/bin/entrypoint.sh"]
