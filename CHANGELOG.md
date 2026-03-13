@@ -1,3 +1,30 @@
+## [0.9.7] - 2026-03-13
+
+### 🚀 Features
+
+- Feat(ui): clarify default fallback classification and hide hosts in default group
+- Feat(auth): enforce MySQL authentication, and leave LDAP optional
+- Feat: add global settings card for the admin
+- Feat(ui): move tru false settings to MySQL
+- Feat: implement optimistic concurrency control for host and group updates
+- Feat(tests): ban the superuser from editing profiles as this is a shared account
+- Feat: move Puppet environments to Global Settings with DB-backed default and list editor
+- Feat: move LDAP/PuppetDB/enCapsule config to Global Settings with test actions and stricter runtime validation
+- Feat: add PuppetDB auth and TLS settings to runtime configuration and UI
+- Feat: add SSL support for enCapsule with configurable certificate paths and ports
+
+### 🐛 Bug Fixes
+
+- Fix: correct URL path in curl_enc function for ENC node retrieval
+
+### 📚 Documentation
+
+- Docs: replace mermaid flowchart with architecture diagram in README
+- Doc: mention OpenVox
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore: remove outdated CHANGELOG.md file
 ## [0.9.6] - 2026-03-09
 
 ### 🚀 Features
