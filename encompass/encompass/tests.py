@@ -379,3 +379,60 @@ class CSRAttributesApiTests(SimpleTestCase):
                 "default",
             )
         self.assertEqual(response.status_code, 403)
+
+    @patch("encompass.tests.enc_views._host_matches_default_profile", return_value=True)
+    @patch(
+        "encompass.tests.enc_views.runtime_settings.csr_password_default_profile_enabled",
+        return_value=False,
+    )
+    @patch("encompass.tests.csr_attributes.get_or_create")
+    def test_host_csr_attributes_denies_default_profile_when_toggle_disabled(
+        self,
+        get_or_create_mock,
+        _toggle_mock,
+        _default_profile_mock,
+    ):
+        """Host CSR endpoint denies autosign for default-profile hosts when toggle is off."""
+        with patch.dict("os.environ", {"CSR_API_KEY": "test-token"}):
+            response = enc_views.host_csr_attributes(
+                self.factory.get(
+                    "/hosts/node1.example.org/csr_attributes",
+                    HTTP_X_CSR_API_KEY="test-token",
+                ),
+                "node1.example.org",
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn(
+            "Autosign denied for hosts matching the default profile",
+            response.content.decode("utf-8"),
+        )
+        get_or_create_mock.assert_not_called()
+
+    @patch("encompass.tests.enc_views._host_matches_default_profile", return_value=False)
+    @patch(
+        "encompass.tests.enc_views.runtime_settings.csr_password_default_profile_enabled",
+        return_value=False,
+    )
+    @patch("encompass.tests.csr_attributes.get_or_create")
+    def test_host_csr_attributes_allows_non_default_profile_when_toggle_disabled(
+        self,
+        get_or_create_mock,
+        _toggle_mock,
+        _default_profile_mock,
+    ):
+        """Host CSR endpoint still returns challenge for non-default-profile hosts."""
+        get_or_create_mock.return_value = ("secure_password", False)
+
+        with patch.dict("os.environ", {"CSR_API_KEY": "test-token"}):
+            response = enc_views.host_csr_attributes(
+                self.factory.get(
+                    "/hosts/node2.example.org/csr_attributes",
+                    HTTP_X_CSR_API_KEY="test-token",
+                ),
+                "node2.example.org",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("challengePassword: secure_password", response.content.decode("utf-8"))
+        get_or_create_mock.assert_called_once_with("host/node2.example.org")

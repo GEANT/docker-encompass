@@ -12,6 +12,7 @@ import yaml
 from csr_store import csr_attributes
 
 from . import enc_data
+from . import runtime_settings
 
 
 def _yaml_http_response(data, status=200):
@@ -54,6 +55,14 @@ def _csr_attributes_yaml_response(entity_name: str):
         status=200,
         content_type="text/yaml",
     )
+
+
+def _host_matches_default_profile(fqdn: str) -> bool:
+    """Return True when host resolution falls back to the default group profile."""
+    hosts = enc_data.load_map("hosts")
+    groups = enc_data.load_map("groups")
+    resolution = enc_data.resolve_host_with_source(hosts, groups, fqdn)
+    return bool(resolution.get("is_default_fallback", False))
 
 
 def _require_csr_api_token(request):
@@ -408,6 +417,18 @@ def host_csr_attributes(request, fqdn):
     token_error = _require_csr_api_token(request)
     if token_error:
         return token_error
+
+    if (
+        not runtime_settings.csr_password_default_profile_enabled()
+        and _host_matches_default_profile(fqdn)
+    ):
+        return JsonResponse(
+            {
+                "error": "Forbidden",
+                "message": "Autosign denied for hosts matching the default profile; operator manual signing is required.",
+            },
+            status=403,
+        )
 
     return _csr_attributes_yaml_response(csr_attributes.host_entity_name(fqdn))
 

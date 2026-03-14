@@ -31,6 +31,12 @@ DEFAULTS: Dict[str, bool] = {
     in {"1", "true", "yes", "on"},
     "USE_ENCAPSULE": str(os.environ.get("USE_ENCAPSULE", "true")).strip().lower()
     in {"1", "true", "yes", "on"},
+    "CSR_PASSWORD_DEFAULT_PROFILE_ENABLED": str(
+        os.environ.get("CSR_PASSWORD_DEFAULT_PROFILE_ENABLED", "true")
+    )
+    .strip()
+    .lower()
+    in {"1", "true", "yes", "on"},
     "AUTH_LDAP_ENABLED": False,
     "LDAP_TLS_SKIP_VERIFY": False,
 }
@@ -304,6 +310,11 @@ def overlapping_definitions_enabled() -> bool:
 def encapsule_enabled() -> bool:
     """Return whether enCapsule is enabled."""
     return get_bool("USE_ENCAPSULE")
+
+
+def csr_password_default_profile_enabled() -> bool:
+    """Return whether CSR password is enabled for default profile responses."""
+    return get_bool("CSR_PASSWORD_DEFAULT_PROFILE_ENABLED")
 
 
 def ldap_auth_enabled() -> bool:

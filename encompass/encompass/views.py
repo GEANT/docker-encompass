@@ -1772,6 +1772,7 @@ def global_settings_page(request):
         "UNCLASSIFIED_HOSTS_ENABLED",
         "FEATURE_BRANCH",
         "ENC_OVERLAPPING_DEFINITIONS_ENABLED",
+        "CSR_PASSWORD_DEFAULT_PROFILE_ENABLED",
         "USE_ENCAPSULE",
         "AUTH_LDAP_ENABLED",
         "LDAP_TLS_SKIP_VERIFY",
@@ -1990,6 +1991,12 @@ def global_settings_page(request):
             "label": "Overlapping Definitions",
             "description": "Allow overlapping ENC definitions and merge results.",
             "enabled": runtime_settings.overlapping_definitions_enabled(),
+        },
+        {
+            "key": "CSR_PASSWORD_DEFAULT_PROFILE_ENABLED",
+            "label": "Auto-sign Default Profile",
+            "description": "Enable/disable auto-signing for the default profile.",
+            "enabled": runtime_settings.csr_password_default_profile_enabled(),
         },
     ]
 
