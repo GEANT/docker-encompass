@@ -22,7 +22,7 @@ RUN apt update && \
     pip3 install --root-user-action=ignore --no-compile --only-binary=:all: --requirement /requirements.txt && \
     install -d -o root -g root -m 755 /data
 RUN if [ "$APP_DEBUG" = "true" ]; then \
-        apt install -y vim telnet lsof curl; \
+        apt install -y vim telnet lsof curl procps; \
     else \
         apt full-upgrade -y; \
         apt clean && \

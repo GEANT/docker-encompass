@@ -34,9 +34,24 @@ ENC_SSL_KEY_PATH="/etc/ssl/private/server.key"
 # all other enCapsule sync fan-out settings are managed in Global Settings (UI):
 ENCAPSULE_SYNC_TOKEN=""  # required to authenticate against enCapsule /sync endpoints
 
-# MySQL variables
-MYSQL_HOST="mysql.example.org"
-MYSQL_PORT=3306
+# MySQL variables (Galera cluster or single instance)
+# MYSQL_NODES: 
+# It's possible to use either a single endpoint or a comma-separated list of nodes.
+# Each node can be specified with an optional port (default 3306).
+#
+# Optional health-check controls (only one applies when multi-node):
+#   MYSQL_MONITORING_PORT  - HTTP check port (e.g. 9200 for Galera clustercheck)
+#   MYSQL_HAPROXY_CHECK_USER - MySQL-protocol check (requires a 'haproxy' user on the DB)
+#
+# examples:
+# MYSQL_NODES="mysql.example.org"
+# MYSQL_NODES="192.168.0.1:3306"
+# MYSQL_NODES="10.0.0.10:3306,10.0.0.11:3306,10.0.0.12:3306"
+# MYSQL_MONITORING_PORT=9200
+# MYSQL_HAPROXY_CHECK_USER=haproxy
+MYSQL_NODES="mysql.example.org"
+MYSQL_MONITORING_PORT=""       # mutually exclusive with MYSQL_HAPROXY_CHECK_USER
+MYSQL_HAPROXY_CHECK_USER=""    # mutually exclusive with MYSQL_MONITORING_PORT
 MYSQL_DB="encompass"
 MYSQL_USER="encompass"
 MYSQL_PASSWORD="encompass"

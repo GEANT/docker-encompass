@@ -83,6 +83,83 @@ ENCAPSULE_SYNC_TEXT_DEFAULTS: Dict[str, str] = {
 }
 
 
+def _parse_mysql_node(node: str, default_port: int = 3306) -> tuple[str, int]:
+    """Parse a MySQL node entry in host or host:port form."""
+    token = str(node).strip()
+    if not token:
+        raise ValueError("empty MySQL node")
+
+    # Bracketed IPv6 form: [::1]:3306 or [::1]
+    if token.startswith("[") and "]" in token:
+        closing = token.index("]")
+        host = token[1:closing].strip()
+        remainder = token[closing + 1 :]
+        if remainder:
+            if not remainder.startswith(":"):
+                raise ValueError("invalid bracketed MySQL node format")
+            port_raw = remainder[1:].strip()
+        else:
+            port_raw = str(default_port)
+    elif token.count(":") == 1:
+        host, port_raw = token.rsplit(":", 1)
+        host = host.strip()
+        port_raw = port_raw.strip()
+    elif ":" in token:
+        # Non-bracketed IPv6 without explicit port.
+        host = token
+        port_raw = str(default_port)
+    else:
+        host = token
+        port_raw = str(default_port)
+
+    if not host:
+        raise ValueError("missing MySQL host")
+
+    try:
+        port = int(port_raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid MySQL port") from exc
+
+    return host, port
+
+
+def mysql_nodes_from_env() -> list[str]:
+    """Return sanitized MYSQL_NODES values from environment."""
+    raw = str(os.environ.get("MYSQL_NODES", "")).strip()
+    if not raw:
+        return []
+    return [node.strip() for node in raw.split(",") if node.strip()]
+
+
+HAPROXY_MYSQL_SOCKET = "/run/haproxy-mysql.sock"
+
+
+def mysql_use_socket() -> bool:
+    """Return True when multi-node HAProxy mode is active (connect via Unix socket)."""
+    return len(mysql_nodes_from_env()) > 1
+
+
+def mysql_connection_endpoint() -> tuple[str, int]:
+    """Resolve effective MySQL endpoint for single-node direct connections.
+
+    Only valid when mysql_use_socket() is False.
+    """
+    nodes = mysql_nodes_from_env()
+    if not nodes:
+        raise SystemExit("MYSQL_NODES is required and must contain at least one node")
+
+    if len(nodes) == 1:
+        try:
+            return _parse_mysql_node(nodes[0], default_port=3306)
+        except ValueError as exc:
+            raise SystemExit(f"Invalid MYSQL_NODES entry: {exc}") from None
+
+    # multi-node: callers should use HAPROXY_MYSQL_SOCKET instead
+    raise SystemExit(
+        "mysql_connection_endpoint() called in multi-node mode; use HAPROXY_MYSQL_SOCKET"
+    )
+
+
 def _runtime_model():
     return apps.get_model("encompass", "RuntimeSetting")
 
@@ -92,20 +169,26 @@ def _mysql_runtime_connection():
     if MySQLdb is None:
         return None
 
-    host = str(os.environ.get("MYSQL_HOST", "")).strip()
     user = str(os.environ.get("MYSQL_USER", "")).strip()
     database = str(os.environ.get("MYSQL_DB", "")).strip()
-    if not host or not user or not database:
+    if not user or not database:
         return None
 
     password = str(os.environ.get("MYSQL_PASSWORD", ""))
-    port_raw = str(os.environ.get("MYSQL_PORT", "3306")).strip()
-    try:
-        port = int(port_raw)
-    except ValueError:
-        return None
 
     try:
+        if mysql_use_socket():
+            return MySQLdb.connect(  # type: ignore[union-attr]
+                unix_socket=HAPROXY_MYSQL_SOCKET,
+                user=user,
+                passwd=password,
+                db=database,
+                charset="utf8mb4",
+                connect_timeout=2,
+            )
+        host, port = mysql_connection_endpoint()
+        if not host:
+            return None
         return MySQLdb.connect(  # type: ignore[union-attr]
             host=host,
             user=user,

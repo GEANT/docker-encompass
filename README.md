@@ -49,6 +49,7 @@ the `puppet-enc.sh` shell script used to integrate Puppet Server with the ENC AP
 - [Puppet ENC Keywords](#puppet-enc-keywords)
 - [Configuration](#configuration)
   - [Core settings](#core-settings)
+  - [MySQL endpoint strategy](#mysql-endpoint-strategy)
   - [Puppet environments](#puppet-environments)
   - [Authentication](#authentication)
   - [ENC Viewer Basic Auth](#enc-viewer-basic-auth)
@@ -319,6 +320,50 @@ Main runtime configuration is in `vars` (copied from `vars.example`).
 - `CSR_CHALLENGE_KEY`: dedicated symmetric key for encrypted CSR `challengePassword` storage
 - `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
 - `TIME_ZONE`, `LANGUAGE_CODE`
+
+### MySQL endpoint strategy
+
+`MYSQL_NODES` is the single configuration knob for the database endpoint:
+
+- **One node**: direct connection (single MySQL/MariaDB, external HAProxy, ProxySQL, or any LB).
+- **Multiple nodes**: enCompass generates an internal HAProxy config at startup and routes MySQL traffic through a Unix socket (`/run/haproxy-mysql.sock`).
+
+#### Single-node mode
+
+```env
+MYSQL_NODES=mysql.example.org
+# or with explicit port:
+MYSQL_NODES=192.168.0.1:3306
+```
+
+#### Multi-node Galera mode
+
+```env
+MYSQL_NODES=10.0.0.10:3306,10.0.0.11:3306,10.0.0.12:3306
+```
+
+#### Health-check options (multi-node only, mutually exclusive)
+
+HTTP check against a monitoring port (e.g. Galera clustercheck on 9200):
+
+```env
+MYSQL_NODES=10.0.0.10:3306,10.0.0.11:3306,10.0.0.12:3306
+MYSQL_MONITORING_PORT=9200
+```
+
+MySQL-protocol check (requires a `haproxy` user on the DB with no password):
+
+```env
+MYSQL_NODES=10.0.0.10:3306,10.0.0.11:3306,10.0.0.12:3306
+MYSQL_HAPROXY_CHECK_USER=haproxy
+```
+
+```sql
+-- on each Galera node:
+CREATE USER 'haproxy'@'%';
+```
+
+If neither option is set, plain TCP connection checks are used.
 
 ### CSR challengePassword store
 

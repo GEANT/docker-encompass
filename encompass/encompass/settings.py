@@ -186,12 +186,21 @@ WSGI_APPLICATION = "encompass.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
-required_mysql_env = ("MYSQL_HOST", "MYSQL_DB", "MYSQL_USER")
+required_mysql_env = ("MYSQL_NODES", "MYSQL_DB", "MYSQL_USER")
 missing_mysql_env = [name for name in required_mysql_env if not os.environ.get(name)]
 if missing_mysql_env:
     raise SystemExit(
-        "Missing required MySQL environment variables: " + ", ".join(missing_mysql_env)
+        "Missing required MySQL environment variables: "
+        + ", ".join(missing_mysql_env)
     )
+
+_db_options: dict = {"charset": "utf8mb4"}
+if runtime_settings.mysql_use_socket():
+    _db_options["unix_socket"] = runtime_settings.HAPROXY_MYSQL_SOCKET
+    MYSQL_HOST = ""
+    MYSQL_PORT: int | str = ""
+else:
+    MYSQL_HOST, MYSQL_PORT = runtime_settings.mysql_connection_endpoint()
 
 DATABASES = {
     "default": {
@@ -199,11 +208,9 @@ DATABASES = {
         "NAME": os.environ["MYSQL_DB"],
         "USER": os.environ["MYSQL_USER"],
         "PASSWORD": os.environ.get("MYSQL_PASSWORD", ""),
-        "HOST": os.environ["MYSQL_HOST"],
-        "PORT": int(os.environ.get("MYSQL_PORT", "3306")),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-        },
+        "HOST": MYSQL_HOST,
+        "PORT": MYSQL_PORT,
+        "OPTIONS": _db_options,
     }
 }
 

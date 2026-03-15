@@ -3,7 +3,24 @@
 set -e
 cd /code/encompass
 
-echo "==> enCompass: Using MySQL database backend (${MYSQL_HOST:-undefined}:${MYSQL_PORT:-3306}/${MYSQL_DB:-undefined})"
+# In multi-node Galera mode HAProxy proxies MySQL via a Unix socket.
+# Wait until it is ready before running any Django DB commands.
+trimmed_node_count=$(echo "${MYSQL_NODES:-}" | tr -d '[:space:]' | tr ',' '\n' | grep -c .)
+if [ "$trimmed_node_count" -gt 1 ]; then
+    COUNTER=$SECONDS
+    echo "==> enCompass: Waiting for HAProxy MySQL socket (/run/haproxy-mysql.sock)..."
+    until test -S /run/haproxy-mysql.sock; do
+        sleep .1
+        if [ "$SECONDS" -gt "$COUNTER" ]; then
+            COUNTER=$SECONDS
+            echo "==> enCompass: Still waiting for HAProxy MySQL socket..."
+        fi
+    done
+    echo "==> enCompass: HAProxy MySQL socket is ready"
+    echo "==> enCompass: Using MySQL database backend (socket:/run/haproxy-mysql.sock/${MYSQL_DB:-undefined})"
+else
+    echo "==> enCompass: Using MySQL database backend (${MYSQL_HOST:-undefined}:${MYSQL_PORT:-3306}/${MYSQL_DB:-undefined})"
+fi
 
 # apply migrations if needed
 if python manage.py showmigrations | grep -q '\[ \]'; then
