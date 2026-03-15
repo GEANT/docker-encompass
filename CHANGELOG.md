@@ -1,3 +1,13 @@
+## [0.9.9] - 2026-03-15
+
+### 🚀 Features
+
+- Feat: add CSR password default profile setting and update related views and tests
+- Feat: add support for Galera cluster
+
+### 🚜 Refactor
+
+- Refactor: update Dockerfile and vars.example descriptions and clean up comments
 ## [0.9.8] - 2026-03-13
 
 ### 🚀 Features
