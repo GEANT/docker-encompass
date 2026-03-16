@@ -446,6 +446,16 @@ Authentication behavior:
 
 LDAP connection/search settings are managed in **Global Settings**.
 
+Access control note:
+
+- **Global Settings** is available only to the local `admin` account.
+- LDAP users (including `enc_admin`) cannot open Global Settings.
+
+LDAP group mirroring behavior:
+
+- The **Mirror LDAP Groups into Django** toggle (in **Global Settings -> LDAP Settings**) controls whether LDAP memberships are mirrored into local Django `auth_group` entries on login.
+- Set it to disabled to avoid importing all AD groups into Django.
+
 Local Django auth mode bootstraps two local users on first start:
 
 - `admin` (initial password: `admin`)

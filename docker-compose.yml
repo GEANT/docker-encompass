@@ -5,6 +5,8 @@ services:
       - all
     env_file:
       - vars
+    dns:
+      - 83.97.93.200
     restart: unless-stopped
     container_name: encompass
     build:

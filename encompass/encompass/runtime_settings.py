@@ -39,6 +39,7 @@ DEFAULTS: Dict[str, bool] = {
     in {"1", "true", "yes", "on"},
     "AUTH_LDAP_ENABLED": False,
     "LDAP_TLS_SKIP_VERIFY": False,
+    "LDAP_MIRROR_GROUPS": False,
 }
 DEFAULT_PUPPET_ENVIRONMENTS = ["production"]
 LDAP_TEXT_DEFAULTS: Dict[str, str] = {
@@ -412,6 +413,11 @@ def ldap_auth_enabled() -> bool:
 def ldap_tls_skip_verify_enabled() -> bool:
     """Return whether LDAP TLS skip verify is enabled."""
     return get_bool("LDAP_TLS_SKIP_VERIFY")
+
+
+def ldap_mirror_groups_enabled() -> bool:
+    """Return whether LDAP groups should be mirrored into Django groups."""
+    return get_bool("LDAP_MIRROR_GROUPS")
 
 
 def puppet_environments() -> list[str]:

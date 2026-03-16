@@ -406,7 +406,7 @@ if USE_AUTH_LDAP:
     if not isinstance(AUTH_LDAP_USER_ATTR_MAP, dict):
         raise SystemExit("LDAP_USER_ATTR_MAP must be a JSON object")
     AUTH_LDAP_FIND_GROUP_PERMS = True
-    AUTH_LDAP_MIRROR_GROUPS = True
+    AUTH_LDAP_MIRROR_GROUPS = runtime_settings.ldap_mirror_groups_enabled()
     LDAP_LOGGING_LEVEL = str(
         runtime_settings.get_text(
             "LDAP_LOGGING",

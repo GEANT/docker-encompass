@@ -1776,8 +1776,13 @@ def global_settings_page(request):
         "USE_ENCAPSULE",
         "AUTH_LDAP_ENABLED",
         "LDAP_TLS_SKIP_VERIFY",
+        "LDAP_MIRROR_GROUPS",
     ]
-    ldap_toggle_keys = ["AUTH_LDAP_ENABLED", "LDAP_TLS_SKIP_VERIFY"]
+    ldap_toggle_keys = [
+        "AUTH_LDAP_ENABLED",
+        "LDAP_TLS_SKIP_VERIFY",
+        "LDAP_MIRROR_GROUPS",
+    ]
     encapsule_toggle_keys = ["USE_ENCAPSULE"]
     feature_toggle_keys = [
         key
@@ -2032,6 +2037,16 @@ def global_settings_page(request):
                 ldap_form_toggles["LDAP_TLS_SKIP_VERIFY"]
                 if ldap_form_toggles is not None
                 else runtime_settings.ldap_tls_skip_verify_enabled()
+            ),
+        },
+        {
+            "key": "LDAP_MIRROR_GROUPS",
+            "label": "Mirror LDAP Groups into Django",
+            "description": "Create/update local Django groups from LDAP memberships during login.",
+            "enabled": (
+                ldap_form_toggles["LDAP_MIRROR_GROUPS"]
+                if ldap_form_toggles is not None
+                else runtime_settings.ldap_mirror_groups_enabled()
             ),
         },
     ]
