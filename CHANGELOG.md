@@ -1,9 +1,13 @@
-## [0.9.9] - 2026-03-15
+## [0.9.9] - 2026-03-16
 
 ### 🚀 Features
 
 - Feat: add CSR password default profile setting and update related views and tests
 - Feat: add support for Galera cluster
+
+### 🐛 Bug Fixes
+
+- Fix fix HAProxy script and configuration for single-node mode detection
 
 ### 🚜 Refactor
 
