@@ -150,7 +150,11 @@ def mysql_connection_endpoint() -> tuple[str, int]:
 
     if len(nodes) == 1:
         try:
-            return _parse_mysql_node(nodes[0], default_port=3306)
+            host, port = _parse_mysql_node(nodes[0], default_port=3306)
+            # mysqlclient treats "localhost" as UNIX socket; force TCP in single-node mode.
+            if host.lower() == "localhost":
+                host = "127.0.0.1"
+            return host, port
         except ValueError as exc:
             raise SystemExit(f"Invalid MYSQL_NODES entry: {exc}") from None
 
