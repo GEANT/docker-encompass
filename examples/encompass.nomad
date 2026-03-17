@@ -27,7 +27,7 @@ job "encompass" {
         USE_ENCAPSULE        = false
         LANGUAGE_CODE        = "en-us"
         TIME_ZONE            = "UTC"
-        ALLOWED_HOSTS        = "[\".example.org\", \"localhost\", \"127.0.0.1\"]"
+        ALLOWED_HOSTS        = "[\".example.org\", \".example.net\"]"
         ALLOWED_CIDR_NETS    = "[\"192.168.10.0/24\"]"
         CSRF_TRUSTED_ORIGINS = "[\"https://encompass.example.org\", \"https://*.int.example.org\", \"https://127.0.0.1\"]"
         CORS_ALLOWED_ORIGINS = "[\"https://encompass.example.org\", \"https://encompass.int.example.org\"]"
@@ -125,7 +125,7 @@ EOF
       }
 
       config {
-        image = "artifactory.software.geant.org/geant-devops-docker/encompass:latest"
+        image = "codeberg.org/geant/docker-encompass/encompass:${var.version}"
         ports = ["encompass", "enc"]
       }
       resources {

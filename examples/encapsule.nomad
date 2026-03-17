@@ -10,7 +10,7 @@ variables {
 job "encapsule" {
   name        = "${var.nomad_env}-encapsule"
   region      = "global"
-  datacenters = ["${var.url_prefix_env}geant"]
+  datacenters = ["${var.url_prefix_env}example"]
   type        = "service"
 
   group "encapsule" {
@@ -51,8 +51,8 @@ job "encapsule" {
       env {
         LANGUAGE_CODE            = "en-us"
         TIME_ZONE                = "UTC"
-        ALLOWED_HOSTS            = "[\".geant.org\", \"localhost\", \"127.0.0.1\"]"
-        GIT_HOST                 = "prod-git01.geant.net"
+        ALLOWED_HOSTS            = "[\".example.org\", \".example.net\"]"
+        GIT_HOST                 = "prod-git01.example.org"
         GIT_REPO_PATH            = "puppet/enc-data.git"
         GIT_REPO_USERNAME        = "gitlab"
         GIT_BRANCH               = "${var.nomad_env}"
@@ -100,7 +100,7 @@ EOF
       }
 
       config {
-        image = "docker/encapsule:${var.version}"
+        image = "codeberg.org/geant/docker-encompass/encapsule:${var.version}"
         ports = ["encapsule"]
       }
 

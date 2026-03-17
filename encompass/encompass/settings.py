@@ -129,9 +129,14 @@ local_proxy_origins = [
 ]
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS + local_proxy_origins))
 
-ALLOWED_HOSTS = env_json("ALLOWED_HOSTS", []) + [
-    socket.getaddrinfo(socket.getfqdn(), None, socket.AF_INET)[0][4][0],
-]
+try:
+    LOCAL_ADDR = socket.getaddrinfo(socket.getfqdn(), None, socket.AF_INET)[0][4][0]
+except socket.gaierror:
+    LOCAL_ADDR = "127.0.0.1"
+
+DEFAULT_LOCAL_ALLOWED_HOSTS = list({"localhost", "127.0.0.1", LOCAL_ADDR})
+ALLOWED_HOSTS = env_json("ALLOWED_HOSTS", []) + DEFAULT_LOCAL_ALLOWED_HOSTS
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 # Applications definition
 INSTALLED_APPS = (
@@ -190,8 +195,7 @@ required_mysql_env = ("MYSQL_NODES", "MYSQL_DB", "MYSQL_USER")
 missing_mysql_env = [name for name in required_mysql_env if not os.environ.get(name)]
 if missing_mysql_env:
     raise SystemExit(
-        "Missing required MySQL environment variables: "
-        + ", ".join(missing_mysql_env)
+        "Missing required MySQL environment variables: " + ", ".join(missing_mysql_env)
     )
 
 _db_options: dict = {"charset": "utf8mb4"}
@@ -407,12 +411,16 @@ if USE_AUTH_LDAP:
         raise SystemExit("LDAP_USER_ATTR_MAP must be a JSON object")
     AUTH_LDAP_FIND_GROUP_PERMS = True
     AUTH_LDAP_MIRROR_GROUPS = runtime_settings.ldap_mirror_groups_enabled()
-    LDAP_LOGGING_LEVEL = str(
-        runtime_settings.get_text(
-            "LDAP_LOGGING",
-            runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_LOGGING"],
+    LDAP_LOGGING_LEVEL = (
+        str(
+            runtime_settings.get_text(
+                "LDAP_LOGGING",
+                runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_LOGGING"],
+            )
         )
-    ).strip().upper()
+        .strip()
+        .upper()
+    )
     if LDAP_LOGGING_LEVEL not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
         LDAP_LOGGING_LEVEL = "ERROR"
     LOGGING["loggers"]["django_auth_ldap"] = {
