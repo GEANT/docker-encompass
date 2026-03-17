@@ -1,3 +1,8 @@
+## [1.0.1] - 2026-03-17
+
+### 🚀 Features
+
+- Feat: implement Git sync settings in Global Settings and runtime configuration
 ## [1.0.0] - 2026-03-17
 
 ### 🚀 Features
