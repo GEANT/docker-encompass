@@ -4,6 +4,10 @@
 
 - Feat: add LDAP group mirroring feature and update global settings UI
 - Feat: update secret key references to DJANGO_SECRET_KEY and enhance CSR re-encryption process
+
+### 🐛 Bug Fixes
+
+- Fix: rename GIT_SSH_KEY_FILE to GIT_SSH_PRIVATE_KEY_FILE for consistency
 ## [0.9.9] - 2026-03-16
 
 ### 🚀 Features
