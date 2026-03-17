@@ -111,7 +111,7 @@ NO_CHANGES_INFO_MESSAGE = (
 # SECURITY WARNING: keep the secret key used in production secret!
 # The key can be a secret in Nomad:
 # https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-SECRET_KEY = os.environ["SECRET_KEY"]
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 SECRET_KEY_FALLBACKS = ["w%-5r)w-d!89x94!q8ds_-u6bf*s0!k!-$n*cm6x^-+m#o-t29"]
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 

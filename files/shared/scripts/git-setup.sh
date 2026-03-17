@@ -7,9 +7,9 @@
 # - GIT_REPO_PATH: Git repository path on host
 # - GIT_REPO_USERNAME: username for accessing the Git repository
 # - GIT_READ_ONLY: when true, disallow any git writes (push/commit/branch creation)
-# - SSH_KEY_TYPE: type of the SSH key (rsa, ed25519, ecdsa)
-# - GIT_REPO_PRIVATE_SSH_KEY: SSH key for accessing the Git repository
-# - GIT_REPO_PRIVATE_SSH_KEY_FILE: path to a file containing the SSH key
+# - GIT_SSH_KEY_TYPE: type of the SSH key (rsa, ed25519, ecdsa)
+# - GIT_SSH_PRIVATE_KEY: SSH key for accessing the Git repository
+# - GIT_SSH_PRIVATE_KEY_FILE: path to a file containing the SSH key
 #
 set -e
 
@@ -22,25 +22,30 @@ elif [ -n "${GIT_HOST:-}" ] && [ -n "${GIT_REPO_PATH:-}" ] && [ -n "${GIT_REPO_U
     GIT_REPO="ssh://${GIT_REPO_USERNAME}@${GIT_HOST}/${GIT_REPO_PATH}"
 fi
 
-KEY_FILE="${KEY_FILE:-/root/.ssh/id_${SSH_KEY_TYPE:-}}"
+GIT_SSH_KEY_FILE="${GIT_SSH_KEY_FILE:-/root/.ssh/id_${GIT_SSH_KEY_TYPE:-}}"
 
-if [ -z "${GIT_REPO_PRIVATE_SSH_KEY:-}" ] && [ -n "${GIT_REPO_PRIVATE_SSH_KEY_FILE:-}" ]; then
-    if [ ! -r "$GIT_REPO_PRIVATE_SSH_KEY_FILE" ]; then
-        echo "==> Git-setup: [ERROR] GIT_REPO_PRIVATE_SSH_KEY_FILE is set but not readable: $GIT_REPO_PRIVATE_SSH_KEY_FILE"
+if [ -n "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; then
+    echo "==> Git-setup: [ERROR] GIT_SSH_PRIVATE_KEY and GIT_SSH_PRIVATE_KEY_FILE are mutually exclusive"
+    exit 1
+fi
+
+if [ -z "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; then
+    if [ ! -r "$GIT_SSH_PRIVATE_KEY_FILE" ]; then
+        echo "==> Git-setup: [ERROR] GIT_SSH_PRIVATE_KEY_FILE is set but not readable: $GIT_SSH_PRIVATE_KEY_FILE"
         exit 1
     fi
-    GIT_REPO_PRIVATE_SSH_KEY="$(cat "$GIT_REPO_PRIVATE_SSH_KEY_FILE")"
+    GIT_SSH_PRIVATE_KEY="$(cat "$GIT_SSH_PRIVATE_KEY_FILE")"
 fi
 
 # check that all required variables are set and valid
-if [ -n "$GIT_REPO" ] && [ -n "${SSH_KEY_TYPE:-}" ] && [ -n "${GIT_REPO_PRIVATE_SSH_KEY:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ] && [ -n "${GIT_HOST:-}" ]; then
+if [ -n "$GIT_REPO" ] && [ -n "${GIT_SSH_KEY_TYPE:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ] && [ -n "${GIT_HOST:-}" ]; then
     echo "==> Git-setup: Setting up Git authentication variables..."
 else
     echo "==> Git-setup: [ERROR] Missing required Git authentication variables"
-    echo "==> Git-setup: [ERROR] Please set SSH_KEY_TYPE, GIT_REPO_USERNAME, GIT_HOST, and either GIT_REPO_PRIVATE_SSH_KEY or GIT_REPO_PRIVATE_SSH_KEY_FILE, plus GIT_REPO_URL or GIT_REPO_PATH"
+    echo "==> Git-setup: [ERROR] Please set GIT_SSH_KEY_TYPE, GIT_REPO_USERNAME, GIT_HOST, and one of GIT_SSH_PRIVATE_KEY or GIT_SSH_PRIVATE_KEY_FILE, plus GIT_REPO_URL or GIT_REPO_PATH"
     exit 1
 fi
-case "$SSH_KEY_TYPE" in
+case "$GIT_SSH_KEY_TYPE" in
 rsa)
     SSH_KEYSCAN_TYPE="rsa"
     SSH_HOST_KEY_ALGORITHMS="ssh-rsa"
@@ -54,7 +59,7 @@ ecdsa)
     SSH_HOST_KEY_ALGORITHMS="ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521"
     ;;
 *)
-    echo "==> Git-setup: [ERROR] Unsupported SSH_KEY_TYPE: $SSH_KEY_TYPE. Supported types are: rsa, ed25519, ecdsa"
+    echo "==> Git-setup: [ERROR] Unsupported GIT_SSH_KEY_TYPE: $GIT_SSH_KEY_TYPE. Supported types are: rsa, ed25519, ecdsa"
     exit 1
     ;;
 esac
@@ -68,8 +73,8 @@ true | false) ;;
 esac
 
 # inject the SSH key into the container
-printf '%s\n' "$GIT_REPO_PRIVATE_SSH_KEY" >"$KEY_FILE"
-chmod 600 "$KEY_FILE"
+printf '%s\n' "$GIT_SSH_PRIVATE_KEY" >"$GIT_SSH_KEY_FILE"
+chmod 600 "$GIT_SSH_KEY_FILE"
 
 ssh-keygen -R "$GIT_HOST" -f /root/.ssh/known_hosts >/dev/null 2>&1 || true
 SCANNED_HOST_KEY="$(ssh-keyscan -H -t "$SSH_KEYSCAN_TYPE" "$GIT_HOST" 2>/dev/null | grep -v '^#' || true)"
@@ -85,7 +90,7 @@ cat <<EOF >/root/.ssh/conf.d/git.conf
 Host $GIT_HOST
     HostName $GIT_HOST
     User $GIT_REPO_USERNAME
-    IdentityFile $KEY_FILE
+    IdentityFile $GIT_SSH_KEY_FILE
     HostKeyAlgorithms $SSH_HOST_KEY_ALGORITHMS
 EOF
 chmod 600 /root/.ssh/conf.d/git.conf

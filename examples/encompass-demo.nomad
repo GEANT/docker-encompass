@@ -32,7 +32,7 @@ job "encompass-demo" {
         ALLOWED_CIDR_NETS    = "[\"192.168.10.0/24\"]"
         CSRF_TRUSTED_ORIGINS = "[\"https://encompass-demo.example.org\", \"https://*.int.example.org\", \"https://127.0.0.1\"]"
         CORS_ALLOWED_ORIGINS = "[\"https://encompass-demo.example.org\", \"https://encompass-demo.int.example.org\"]"
-        SECRET_KEY           = "7544786B-4CB2-4B78-A799-3963D53DAFC5"
+        DJANGO_SECRET_KEY    = "7544786B-4CB2-4B78-A799-3963D53DAFC5"
         # true/false variables
         AUTH_LDAP_ENABLED = false
         DEBUG             = true
@@ -55,9 +55,9 @@ job "encompass-demo" {
         GIT_SYNC_TIMEOUT              = 30
         GIT_SYNC_RETRIES              = 2
         GIT_SYNC_RETRY_DELAY          = 2
-        SSH_KEY_TYPE                  = "ed25519"
-        GIT_REPO_PRIVATE_SSH_KEY_FILE = "/secrets/git_repo_private_ssh_key"
-        KEY_FILE                      = "/root/.ssh/id_ed25519"
+        GIT_SSH_KEY_TYPE              = "ed25519"
+        GIT_SSH_PRIVATE_KEY_FILE      = "/secrets/git_repo_private_ssh_key"
+        GIT_SSH_KEY_FILE              = "/root/.ssh/id_ed25519"
       }
 
       template {
@@ -79,7 +79,7 @@ EOF
         perms       = "0600"
         destination = "secrets/secret_key"
         data        = <<EOF
-SECRET_KEY={{ with secret "nomad/common/encompass-demo/secret_key" }}{{ .Data.data.value }}{{ end }}
+DJANGO_SECRET_KEY={{ with secret "nomad/common/encompass-demo/secret_key" }}{{ .Data.data.value }}{{ end }}
 EOF
         env         = true
       }

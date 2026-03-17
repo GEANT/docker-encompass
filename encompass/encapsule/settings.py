@@ -57,7 +57,7 @@ def _sync_target_hosts() -> list[str]:
     return hosts
 
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "encapsule-dev-only-secret")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "encapsule-dev-only-secret")
 DEBUG = env_json("DEBUG", False)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

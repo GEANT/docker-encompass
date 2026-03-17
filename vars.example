@@ -11,7 +11,7 @@ CSRF_TRUSTED_ORIGINS='["https://*.test-int.example.org", "https://*.uat-int.exam
 CORS_ALLOWED_ORIGINS='["https://encompass.test-int.example.org", "https://encompass.uat-int.example.org", "https://encompass.int.example.org"]'
 
 # django secret key
-SECRET_KEY='12345678-1234-1234-1234-1234567890ab'
+DJANGO_SECRET_KEY='12345678-1234-1234-1234-1234567890ab'
 
 # dedicated key used to encrypt CSR challengePassword values
 # can be either a valid Fernet key or any sufficiently random secret string
@@ -34,13 +34,12 @@ ENC_SSL_KEY_PATH="/etc/ssl/private/server.key"
 # all other enCapsule sync fan-out settings are managed in Global Settings (UI):
 ENCAPSULE_SYNC_TOKEN=""  # required to authenticate against enCapsule /sync endpoints
 
-# MySQL variables (Galera cluster or single instance)
-# MYSQL_NODES: 
+# MySQL variables (single instance or Galera cluster)
 # It's possible to use either a single endpoint or a comma-separated list of nodes.
 # Each node can be specified with an optional port (default 3306).
 #
 # Optional health-check controls (only one applies when multi-node):
-#   MYSQL_MONITORING_PORT  - HTTP check port (e.g. 9200 for Galera clustercheck)
+#   MYSQL_MONITORING_PORT - HTTP check port (e.g. 9200 for Galera clustercheck)
 #   MYSQL_HAPROXY_CHECK_USER - MySQL-protocol check (requires a 'haproxy' user on the DB)
 #
 # examples:
@@ -50,8 +49,8 @@ ENCAPSULE_SYNC_TOKEN=""  # required to authenticate against enCapsule /sync endp
 # MYSQL_MONITORING_PORT=9200
 # MYSQL_HAPROXY_CHECK_USER=haproxy
 MYSQL_NODES="mysql.example.org"
-MYSQL_MONITORING_PORT=""       # mutually exclusive with MYSQL_HAPROXY_CHECK_USER
-MYSQL_HAPROXY_CHECK_USER=""    # mutually exclusive with MYSQL_MONITORING_PORT
+MYSQL_MONITORING_PORT=""       # (optional) mutually exclusive with MYSQL_HAPROXY_CHECK_USER
+MYSQL_HAPROXY_CHECK_USER=""    # (optional) mutually exclusive with MYSQL_MONITORING_PORT
 MYSQL_DB="encompass"
 MYSQL_USER="encompass"
 MYSQL_PASSWORD="encompass"
@@ -66,9 +65,10 @@ GIT_SYNC_RETRY_DELAY=2  # seconds
 GIT_HOST="prod-git01.example.org"
 GIT_REPO_PATH="puppet/enc-data.git"
 GIT_REPO_USERNAME="gitlab"
-SSH_KEY_TYPE="ed25519"  # supported values: rsa | ed25519 | ecdsa
-KEY_FILE=/root/.ssh/id_ed25519
-GIT_REPO_PRIVATE_SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
+GIT_SSH_KEY_TYPE="ed25519"  # supported values: rsa | ed25519 | ecdsa
+# GIT_SSH_KEY_FILE and GIT_SSH_PRIVATE_KEY are mutually exclusive.
+GIT_SSH_KEY_FILE=/root/.ssh/id_ed25519
+GIT_SSH_PRIVATE_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
 zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz

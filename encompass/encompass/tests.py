@@ -211,6 +211,33 @@ class CSRChallengeStoreTests(SimpleTestCase):
 
         self.assertNotEqual(initial, rotated)
 
+    @patch("encompass.tests.csr_attributes._db_lock", return_value=nullcontext())
+    def test_reencrypt_many_preserves_plaintext_across_key_rotation(self, _lock_mock):
+        """Re-encrypting with a new key keeps the plaintext challengePassword values."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store_path = Path(temp_dir) / "csr_challenges.yaml"
+            with patch.object(csr_attributes, "CSR_DATA_PATH", store_path):
+                with patch.dict("os.environ", {"CSR_CHALLENGE_KEY": "old-key"}):
+                    expected, created = csr_attributes.get_or_create(
+                        "host/node1.example.org"
+                    )
+
+                reencrypted = csr_attributes.reencrypt_many(
+                    ["host/node1.example.org"],
+                    old_key="old-key",
+                    new_key="new-key",
+                )
+
+                with patch.dict("os.environ", {"CSR_CHALLENGE_KEY": "new-key"}):
+                    actual, created_again = csr_attributes.get_or_create(
+                        "host/node1.example.org"
+                    )
+
+        self.assertTrue(created)
+        self.assertFalse(created_again)
+        self.assertEqual(reencrypted, {"host/node1.example.org": expected})
+        self.assertEqual(actual, expected)
+
 
 class CSRChallengeLifecycleHookTests(SimpleTestCase):
     """Tests ensuring host/group writes create CSR challenge entries."""

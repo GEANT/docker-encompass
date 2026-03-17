@@ -316,7 +316,7 @@ Main runtime configuration is in `vars` (copied from `vars.example`).
 ### Core settings
 
 - `DEBUG`: Django debug mode
-- `SECRET_KEY`: Django secret key (generate a unique value)
+- `DJANGO_SECRET_KEY`: Django secret key (generate a unique value)
 - `CSR_CHALLENGE_KEY`: dedicated symmetric key for encrypted CSR `challengePassword` storage
 - `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
 - `TIME_ZONE`, `LANGUAGE_CODE`
@@ -370,13 +370,16 @@ If neither option is set, plain TCP connection checks are used.
 - enCompass now keeps a dedicated encrypted map for CSR attributes under `/data/csr_challenges.yaml`.
 - Entries are created automatically on host/group save with get-or-create behavior (no overwrite of existing value).
 - Canonical entity names are `host/<fqdn>` and `group/<groupname>`.
-- Rotate values with Django command:
+- Re-encrypt existing values when rotating the CSR encryption token:
 
 ```bash
-python manage.py rotate_csr_challenge --host node1.example.org
-python manage.py rotate_csr_challenge --group default
-python manage.py rotate_csr_challenge --all
+python manage.py rotate_csr_challenge --host node1.example.org --old-token "$OLD_TOKEN" --new-token "$NEW_TOKEN"
+python manage.py rotate_csr_challenge --group default --old-token "$OLD_TOKEN" --new-token "$NEW_TOKEN"
+python manage.py rotate_csr_challenge --all --old-token "$OLD_TOKEN" --new-token "$NEW_TOKEN"
 ```
+
+- `--old-token` defaults to `CSR_CHALLENGE_OLD_KEY` when omitted.
+- `--new-token` defaults to `CSR_CHALLENGE_KEY` when omitted.
 
 ### Logging
 
@@ -484,10 +487,10 @@ Enable HTTPS listeners by setting:
 
 The application accepts the Git SSH private key in either of these forms:
 
-- `GIT_REPO_PRIVATE_SSH_KEY`: inline key content (works well in `docker-compose` env files)
-- `GIT_REPO_PRIVATE_SSH_KEY_FILE`: path to a file containing the key (recommended for Kubernetes/Nomad secrets)
+- `GIT_SSH_PRIVATE_KEY`: inline key content (works well in `docker-compose` env files)
+- `GIT_SSH_PRIVATE_KEY_FILE`: path to a file containing the key (recommended for Kubernetes/Nomad secrets)
 
-If both are set, `GIT_REPO_PRIVATE_SSH_KEY` is used.
+Set only one of the two variables above (they are mutually exclusive).
 
 Branch behavior:
 
@@ -495,6 +498,8 @@ Branch behavior:
 - `GIT_HOST`: SSH Git host.
 - `GIT_REPO_PATH`: repository path on the host (for example `puppet/enc-data.git`).
 - `GIT_REPO_USERNAME`: SSH username used for Git operations.
+- `GIT_SSH_KEY_TYPE`: SSH key algorithm (`rsa`, `ed25519`, `ecdsa`).
+- `GIT_SSH_KEY_FILE`: target path inside the container where the private key is written.
 - `GIT_REPO_URL`: optional full repository URL override. If unset, runtime scripts compose `ssh://<GIT_REPO_USERNAME>@<GIT_HOST>/<GIT_REPO_PATH>`.
 
 Typical setup:
@@ -622,7 +627,7 @@ When the authentication backend is MySQL, the database stores user information. 
 
 ## Security Checklist
 
-- Set a strong `SECRET_KEY`
+- Set a strong `DJANGO_SECRET_KEY`
 - Disable `DEBUG` in production
 - Restrict `ALLOWED_HOSTS` and `ALLOWED_CIDR_NETS`
 - Change initial local user passwords after first startup

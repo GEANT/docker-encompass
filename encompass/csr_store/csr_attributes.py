@@ -40,20 +40,26 @@ def group_entity_name(groupname: str) -> str:
     return f"group/{str(groupname).strip()}"
 
 
-def _load_fernet() -> Fernet:
-    """Build a Fernet instance from a dedicated CSR encryption key."""
-    raw_key = str(os.environ.get("CSR_CHALLENGE_KEY", "")).strip()
-    if not raw_key:
-        raise CSRChallengeStoreError("CSR_CHALLENGE_KEY is required")
+def _build_fernet(raw_key: str, key_name: str = "CSR_CHALLENGE_KEY") -> Fernet:
+    """Build a Fernet instance from a provided CSR encryption key."""
+    key_material = str(raw_key).strip()
+    if not key_material:
+        raise CSRChallengeStoreError(f"{key_name} is required")
 
     try:
         # Accept a raw Fernet key directly when provided.
-        return Fernet(raw_key.encode("utf-8"))
+        return Fernet(key_material.encode("utf-8"))
     except (ValueError, TypeError):
         # Deterministically derive a valid Fernet key from an arbitrary secret.
-        digest = hashlib.sha256(raw_key.encode("utf-8")).digest()
+        digest = hashlib.sha256(key_material.encode("utf-8")).digest()
         derived_key = base64.urlsafe_b64encode(digest)
         return Fernet(derived_key)
+
+
+def _load_fernet() -> Fernet:
+    """Build a Fernet instance from a dedicated CSR encryption key."""
+    raw_key = str(os.environ.get("CSR_CHALLENGE_KEY", "")).strip()
+    return _build_fernet(raw_key, "CSR_CHALLENGE_KEY")
 
 
 @contextmanager
@@ -195,6 +201,30 @@ def rotate_many(entity_names: list[str]) -> dict[str, str]:
             rotated[entity] = challenge_password
         _save_store(store)
     return rotated
+
+
+def reencrypt_many(entity_names: list[str], old_key: str, new_key: str) -> dict[str, str]:
+    """Re-encrypt existing challengePassword values with a rotated key."""
+    old_fernet = _build_fernet(old_key, "old CSR challenge key")
+    new_fernet = _build_fernet(new_key, "new CSR challenge key")
+    entities = [str(name).strip() for name in entity_names if str(name).strip()]
+    if not entities:
+        return {}
+
+    reencrypted = {}
+    with _db_lock():
+        store = _load_store()
+        for entity in entities:
+            encrypted = store.get(entity)
+            if not encrypted:
+                continue
+            challenge_password = _decrypt(old_fernet, encrypted)
+            store[entity] = _encrypt(new_fernet, challenge_password)
+            reencrypted[entity] = challenge_password
+
+        if reencrypted:
+            _save_store(store)
+    return reencrypted
 
 
 def delete(entity_name: str) -> bool:

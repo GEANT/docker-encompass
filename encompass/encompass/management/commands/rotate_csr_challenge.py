@@ -1,6 +1,8 @@
-"""Rotate encrypted CSR challengePassword entries."""
+"""Re-encrypt stored CSR challengePassword entries."""
 
 from __future__ import annotations
+
+import os
 
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
@@ -9,8 +11,8 @@ from csr_store import csr_attributes
 
 
 class Command(BaseCommand):
-    """Rotate CSR challengePassword values for host/group entries."""
-    help = "Rotate CSR challengePassword values for host/group entries"
+    """Re-encrypt CSR challengePassword values for host/group entries."""
+    help = "Re-encrypt CSR challengePassword values for host/group entries"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -34,12 +36,22 @@ class Command(BaseCommand):
         parser.add_argument(
             "--all",
             action="store_true",
-            help="Rotate all existing entries from the encrypted store",
+            help="Re-encrypt all existing entries from the encrypted store",
+        )
+        parser.add_argument(
+            "--old-token",
+            default="",
+            help="Old CSR challenge token (defaults to CSR_CHALLENGE_OLD_KEY)",
+        )
+        parser.add_argument(
+            "--new-token",
+            default="",
+            help="New CSR challenge token (defaults to CSR_CHALLENGE_KEY)",
         )
         parser.add_argument(
             "--show-values",
             action="store_true",
-            help="Print rotated plaintext challengePassword values (use carefully)",
+            help="Print plaintext challengePassword values after re-encryption (use carefully)",
         )
 
     def handle(self, *args, **options):
@@ -58,16 +70,35 @@ class Command(BaseCommand):
                 "No target selected. Use --entity/--host/--group or pass --all."
             )
 
-        rotated = csr_attributes.rotate_many(entities)
-        if not rotated:
-            self.stdout.write("No entries rotated")
+        old_token = str(options.get("old_token") or "").strip() or str(
+            os.environ.get("CSR_CHALLENGE_OLD_KEY", "")
+        ).strip()
+        new_token = str(options.get("new_token") or "").strip() or str(
+            os.environ.get("CSR_CHALLENGE_KEY", "")
+        ).strip()
+        if not old_token:
+            raise CommandError(
+                "Old CSR token is required (use --old-token or CSR_CHALLENGE_OLD_KEY)."
+            )
+        if not new_token:
+            raise CommandError(
+                "New CSR token is required (use --new-token or CSR_CHALLENGE_KEY)."
+            )
+        if old_token == new_token:
+            raise CommandError("Old and new CSR tokens must differ for re-encryption.")
+
+        reencrypted = csr_attributes.reencrypt_many(entities, old_token, new_token)
+        if not reencrypted:
+            self.stdout.write("No entries re-encrypted")
             return
 
-        self.stdout.write(f"Rotated {len(rotated)} CSR challengePassword value(s)")
+        self.stdout.write(
+            f"Re-encrypted {len(reencrypted)} CSR challengePassword value(s)"
+        )
 
         if options["show_values"]:
-            for entity, challenge_password in sorted(rotated.items()):
+            for entity, challenge_password in sorted(reencrypted.items()):
                 self.stdout.write(f"{entity} {challenge_password}")
         else:
-            for entity in sorted(rotated.keys()):
+            for entity in sorted(reencrypted.keys()):
                 self.stdout.write(entity)
