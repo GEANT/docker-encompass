@@ -30,11 +30,20 @@ if [ -n "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; 
 fi
 
 if [ -z "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; then
-    if [ ! -r "$GIT_SSH_PRIVATE_KEY_FILE" ]; then
-        echo "==> Git-setup: [ERROR] GIT_SSH_PRIVATE_KEY_FILE is set but not readable: $GIT_SSH_PRIVATE_KEY_FILE"
-        exit 1
+    source_key_file="$GIT_SSH_PRIVATE_KEY_FILE"
+    if [ ! -r "$source_key_file" ]; then
+        # Handle common Nomad-style relative values like secrets/<file>.
+        if [ "${source_key_file#/}" = "$source_key_file" ] && [ -r "/$source_key_file" ]; then
+            source_key_file="/$source_key_file"
+        elif [ "${source_key_file#/}" = "$source_key_file" ] && [ -r "/secrets/${source_key_file#secrets/}" ]; then
+            source_key_file="/secrets/${source_key_file#secrets/}"
+        else
+            echo "==> Git-setup: [ERROR] GIT_SSH_PRIVATE_KEY_FILE is set but not readable: $GIT_SSH_PRIVATE_KEY_FILE"
+            echo "==> Git-setup: [ERROR] Use an absolute path (for Nomad templates this is usually /secrets/<file>)"
+            exit 1
+        fi
     fi
-    GIT_SSH_PRIVATE_KEY="$(cat "$GIT_SSH_PRIVATE_KEY_FILE")"
+    GIT_SSH_PRIVATE_KEY="$(cat "$source_key_file")"
 fi
 
 # check that all required variables are set and valid

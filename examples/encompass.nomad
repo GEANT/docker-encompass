@@ -41,10 +41,10 @@ job "encompass" {
         ENC_SSL_CERT_PATH   = ""
         ENC_SSL_KEY_PATH    = ""
         # database variables
-        MYSQL_HOST = "haproxy-mariadb.service.consul"
-        MYSQL_PORT = 3306
-        MYSQL_DB   = "enc_demo"
-        MYSQL_USER = "enc_demo"
+        MYSQL_NODES = "haproxy-mariadb.service.consul"
+        MYSQL_PORT  = 3306
+        MYSQL_DB    = "enc_demo"
+        MYSQL_USER  = "enc_demo"
         # Git repository variables
         GIT_HOST                 = "prod-git01.example.org"
         GIT_REPO_PATH            = "puppet/enc-data.git"
