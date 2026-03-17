@@ -4,6 +4,7 @@
 
 - Feat: add LDAP group mirroring feature and update global settings UI
 - Feat: update secret key references to DJANGO_SECRET_KEY and enhance CSR re-encryption process
+- Feat: update Nomad job configurations and improve Git setup script
 
 ### 🐛 Bug Fixes
 
