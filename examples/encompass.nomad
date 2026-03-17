@@ -29,7 +29,7 @@ job "encompass" {
         TIME_ZONE            = "UTC"
         ALLOWED_HOSTS        = "[\".example.org\", \".example.net\"]"
         ALLOWED_CIDR_NETS    = "[\"192.168.10.0/24\"]"
-        CSRF_TRUSTED_ORIGINS = "[\"https://encompass.example.org\", \"https://*.int.example.org\", \"https://127.0.0.1\"]"
+        CSRF_TRUSTED_ORIGINS = "[\"https://encompass.example.org\", \"https://*.int.example.org\"]"
         CORS_ALLOWED_ORIGINS = "[\"https://encompass.example.org\", \"https://encompass.int.example.org\"]"
         # true/false variables
         DEBUG             = true
