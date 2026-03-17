@@ -1,3 +1,8 @@
+## [1.0.2] - 2026-03-17
+
+### 🐛 Bug Fixes
+
+- Fix: update ALLOWED_HOSTS and GIT_HOST in Nomad job configurations
 ## [1.0.1] - 2026-03-17
 
 ### 🚀 Features
