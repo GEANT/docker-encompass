@@ -57,7 +57,7 @@ job "encompass-demo" {
         GIT_SYNC_RETRY_DELAY          = 2
         GIT_SSH_KEY_TYPE              = "ed25519"
         GIT_SSH_PRIVATE_KEY_FILE      = "/secrets/git_repo_private_ssh_key"
-        GIT_SSH_KEY_FILE              = "/root/.ssh/id_ed25519"
+        GIT_SSH_PRIVATE_KEY_FILE              = "/root/.ssh/id_ed25519"
       }
 
       template {
