@@ -1433,7 +1433,7 @@ def _encapsule_sync_settings_fields() -> list[dict]:
         {
             "key": "ENCAPSULE_SYNC_PORT",
             "label": "Sync Port",
-            "description": "Default target port when host entries omit a port.",
+            "description": "Default target port when host entries omit a port (ignored when Use SRV Targets is true).",
             "suggestion": defaults["ENCAPSULE_SYNC_PORT"],
             "input_type": "number",
         },
@@ -1448,7 +1448,7 @@ def _encapsule_sync_settings_fields() -> list[dict]:
         {
             "key": "ENCAPSULE_SYNC_HOST",
             "label": "Sync Hosts",
-            "description": "Comma-separated targets (hosts, host:port, or URLs; SRV names when Use SRV is true).",  # pylint: disable=line-too-long
+            "description": "Comma-separated targets. Supports multiple hosts (e.g. enc1.example.org,enc2.example.org:9092); use SRV names when Use SRV is true.",  # pylint: disable=line-too-long
             "suggestion": defaults["ENCAPSULE_SYNC_HOST"],
             "input_type": "text",
         },
@@ -1531,19 +1531,22 @@ def _validate_encapsule_sync_settings(values: dict[str, str]) -> list[str]:
         if timeout_value < 1 or timeout_value > 300:
             errors.append("Sync Timeout must be between 1 and 300 seconds.")
 
-    port = str(values.get("ENCAPSULE_SYNC_PORT", "")).strip()
-    if not port:
-        errors.append("Sync Port cannot be empty.")
-    elif not port.isdigit():
-        errors.append("Sync Port must be numeric.")
-    else:
-        port_value = int(port)
-        if port_value < 1 or port_value > 65535:
-            errors.append("Sync Port must be between 1 and 65535.")
-
     use_srv = str(values.get("ENCAPSULE_SYNC_USE_SRV", "")).strip().lower()
     if use_srv not in {"true", "false"}:
         errors.append("Use SRV Targets must be 'true' or 'false'.")
+
+    port = str(values.get("ENCAPSULE_SYNC_PORT", "")).strip()
+    if use_srv != "true":
+        if not port:
+            errors.append("Sync Port cannot be empty.")
+        elif not port.isdigit():
+            errors.append("Sync Port must be numeric.")
+        else:
+            port_value = int(port)
+            if port_value < 1 or port_value > 65535:
+                errors.append("Sync Port must be between 1 and 65535.")
+    elif port and not port.isdigit():
+        errors.append("Sync Port must be numeric when provided.")
 
     host = str(values.get("ENCAPSULE_SYNC_HOST", "")).strip()
     if not host:
