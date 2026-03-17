@@ -499,7 +499,6 @@ Branch behavior:
 - `GIT_REPO_PATH`: repository path on the host (for example `puppet/enc-data.git`).
 - `GIT_REPO_USERNAME`: SSH username used for Git operations.
 - `GIT_SSH_KEY_TYPE`: SSH key algorithm (`rsa`, `ed25519`, `ecdsa`).
-- `GIT_SSH_KEY_FILE`: target path inside the container where the private key is written.
 - `GIT_REPO_URL`: optional full repository URL override. If unset, runtime scripts compose `ssh://<GIT_REPO_USERNAME>@<GIT_HOST>/<GIT_REPO_PATH>`.
 
 Typical setup:

@@ -22,7 +22,7 @@ elif [ -n "${GIT_HOST:-}" ] && [ -n "${GIT_REPO_PATH:-}" ] && [ -n "${GIT_REPO_U
     GIT_REPO="ssh://${GIT_REPO_USERNAME}@${GIT_HOST}/${GIT_REPO_PATH}"
 fi
 
-GIT_SSH_PRIVATE_KEY_FILE="${GIT_SSH_PRIVATE_KEY_FILE:-/root/.ssh/id_${GIT_SSH_KEY_TYPE:-}}"
+KEY_FILE="${GIT_SSH_PRIVATE_KEY_FILE:-/root/.ssh/id_${GIT_SSH_KEY_TYPE:-}}"
 
 if [ -n "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; then
     echo "==> Git-setup: [ERROR] GIT_SSH_PRIVATE_KEY and GIT_SSH_PRIVATE_KEY_FILE are mutually exclusive"
@@ -73,8 +73,8 @@ true | false) ;;
 esac
 
 # inject the SSH key into the container
-printf '%s\n' "$GIT_SSH_PRIVATE_KEY" >"$GIT_SSH_PRIVATE_KEY_FILE"
-chmod 600 "$GIT_SSH_PRIVATE_KEY_FILE"
+printf '%s\n' "$GIT_SSH_PRIVATE_KEY" >"$KEY_FILE"
+chmod 600 "$KEY_FILE"
 
 ssh-keygen -R "$GIT_HOST" -f /root/.ssh/known_hosts >/dev/null 2>&1 || true
 SCANNED_HOST_KEY="$(ssh-keyscan -H -t "$SSH_KEYSCAN_TYPE" "$GIT_HOST" 2>/dev/null | grep -v '^#' || true)"
@@ -90,7 +90,7 @@ cat <<EOF >/root/.ssh/conf.d/git.conf
 Host $GIT_HOST
     HostName $GIT_HOST
     User $GIT_REPO_USERNAME
-    IdentityFile $GIT_SSH_PRIVATE_KEY_FILE
+    IdentityFile $KEY_FILE
     HostKeyAlgorithms $SSH_HOST_KEY_ALGORITHMS
 EOF
 chmod 600 /root/.ssh/conf.d/git.conf

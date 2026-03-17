@@ -66,8 +66,8 @@ GIT_HOST="prod-git01.example.org"
 GIT_REPO_PATH="puppet/enc-data.git"
 GIT_REPO_USERNAME="gitlab"
 GIT_SSH_KEY_TYPE="ed25519"  # supported values: rsa | ed25519 | ecdsa
-# GIT_SSH_KEY_FILE and GIT_SSH_PRIVATE_KEY are mutually exclusive.
-GIT_SSH_KEY_FILE=/root/.ssh/id_ed25519
+# GIT_SSH_PRIVATE_KEY_FILE and GIT_SSH_PRIVATE_KEY are mutually exclusive.
+GIT_SSH_PRIVATE_KEY_FILE=/root/.ssh/id_ed25519
 GIT_SSH_PRIVATE_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
