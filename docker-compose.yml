@@ -32,9 +32,6 @@ services:
       dockerfile: Dockerfiles/encapsule
       args:
         APP_DEBUG: "true"
-    environment:
-      DJANGO_SETTINGS_MODULE: encapsule.settings
-      ENCAPSULE_PORT: 8081
     ports:
       - "9081:8081"  # enCapsule ENC API
       - "9444:8444"  # enCapsule ENC API SSL

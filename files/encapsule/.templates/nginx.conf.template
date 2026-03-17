@@ -26,7 +26,7 @@ http {
     }
 
     server {
-        listen ${ENCAPSULE_PORT};
+        listen 8081;
         ${ENC_HTTP_REDIRECT}
         location /static/ {
             alias /code/encapsule/static/;

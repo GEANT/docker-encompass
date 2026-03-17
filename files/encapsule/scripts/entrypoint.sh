@@ -85,7 +85,7 @@ fi
 cd /code/encapsule
 
 # shellcheck disable=SC2016 # variables here are like a docstring for envsubst
-envsubst '${ENCAPSULE_PORT} ${ENC_VIEWER_AUTH} ${ENC_HTTP_REDIRECT} ${ENC_SSL_SERVER}' </root/.templates/nginx.conf.template >/etc/nginx/nginx.conf
+envsubst '${ENC_VIEWER_AUTH} ${ENC_HTTP_REDIRECT} ${ENC_SSL_SERVER}' </root/.templates/nginx.conf.template >/etc/nginx/nginx.conf
 
 # Minimal supervision without supervisord: if one service exits, stop the other.
 /usr/local/bin/encapsule.sh &
