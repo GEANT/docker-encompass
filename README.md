@@ -85,7 +85,7 @@ the `puppet-enc.sh` shell script used to integrate Puppet Server with the ENC AP
 
 ### Nomad Deployment
 
-You can use [encompass-demo.nomad](https://codeberg.org/GEANT/docker-encompass/src/branch/main/examples/encompass-demo.nomad) and adjust it to your needs.
+You can use [encompass.nomad](https://codeberg.org/GEANT/docker-encompass/src/branch/main/examples/encompass.nomad) and [encapsule.nomad](https://codeberg.org/GEANT/docker-encompass/src/branch/main/examples/encapsule.nomad) and adjust them to your needs.
 
 The job contains:
 

@@ -68,7 +68,6 @@ except socket.gaierror:
     LOCAL_ADDR = "127.0.0.1"
 
 DEFAULT_LOCAL_ALLOWED_HOSTS = list({"localhost", "127.0.0.1", LOCAL_ADDR})
-
 ALLOWED_HOSTS = (
     env_json("ALLOWED_HOSTS", [])
     + DEFAULT_LOCAL_ALLOWED_HOSTS

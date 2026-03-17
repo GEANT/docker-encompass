@@ -22,7 +22,7 @@ elif [ -n "${GIT_HOST:-}" ] && [ -n "${GIT_REPO_PATH:-}" ] && [ -n "${GIT_REPO_U
     GIT_REPO="ssh://${GIT_REPO_USERNAME}@${GIT_HOST}/${GIT_REPO_PATH}"
 fi
 
-KEY_FILE="${GIT_SSH_PRIVATE_KEY_FILE:-/root/.ssh/id_${GIT_SSH_KEY_TYPE:-}}"
+KEY_FILE="/root/.ssh/id_${GIT_SSH_KEY_TYPE:-}"
 
 if [ -n "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; then
     echo "==> Git-setup: [ERROR] GIT_SSH_PRIVATE_KEY and GIT_SSH_PRIVATE_KEY_FILE are mutually exclusive"
@@ -38,7 +38,7 @@ if [ -z "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; 
 fi
 
 # check that all required variables are set and valid
-if [ -n "$GIT_REPO" ] && [ -n "${GIT_SSH_KEY_TYPE:-}" ] && [ -n "${GIT_SSH_PRIVATE_KEY:-}" ] && [ -n "${GIT_REPO_USERNAME:-}" ] && [ -n "${GIT_HOST:-}" ]; then
+if [ -n "$GIT_REPO" ] && [ -n "${GIT_SSH_KEY_TYPE:-}" ] && { [ -n "${GIT_SSH_PRIVATE_KEY:-}" ] || [ -n "${GIT_SSH_PRIVATE_KEY_FILE:-}" ]; } && [ -n "${GIT_REPO_USERNAME:-}" ] && [ -n "${GIT_HOST:-}" ]; then
     echo "==> Git-setup: Setting up Git authentication variables..."
 else
     echo "==> Git-setup: [ERROR] Missing required Git authentication variables"
@@ -72,7 +72,8 @@ true | false) ;;
     ;;
 esac
 
-# inject the SSH key into the container
+# inject the SSH key into the container only when inline content is provided
+install -d -m 700 /root/.ssh
 printf '%s\n' "$GIT_SSH_PRIVATE_KEY" >"$KEY_FILE"
 chmod 600 "$KEY_FILE"
 

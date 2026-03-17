@@ -1,12 +1,11 @@
 # Nomad jobs for encompass
 #
-job "encompass-demo" {
-  name        = "encompass-demo"
+job "encompass" {
   region      = "global"
   datacenters = ["example"]
   type        = "service"
 
-  group "encompass-demo" {
+  group "encompass" {
     vault {
       policies    = ["nomad-server"]
       change_mode = "restart"
@@ -21,7 +20,7 @@ job "encompass-demo" {
       }
     }
 
-    task "encompass-demo" {
+    task "encompass" {
       driver = "docker"
       env {
         DEMO_MODE            = true
@@ -30,8 +29,8 @@ job "encompass-demo" {
         TIME_ZONE            = "UTC"
         ALLOWED_HOSTS        = "[\".example.org\", \"localhost\", \"127.0.0.1\"]"
         ALLOWED_CIDR_NETS    = "[\"192.168.10.0/24\"]"
-        CSRF_TRUSTED_ORIGINS = "[\"https://encompass-demo.example.org\", \"https://*.int.example.org\", \"https://127.0.0.1\"]"
-        CORS_ALLOWED_ORIGINS = "[\"https://encompass-demo.example.org\", \"https://encompass-demo.int.example.org\"]"
+        CSRF_TRUSTED_ORIGINS = "[\"https://encompass.example.org\", \"https://*.int.example.org\", \"https://127.0.0.1\"]"
+        CORS_ALLOWED_ORIGINS = "[\"https://encompass.example.org\", \"https://encompass.int.example.org\"]"
         DJANGO_SECRET_KEY    = "7544786B-4CB2-4B78-A799-3963D53DAFC5"
         # true/false variables
         AUTH_LDAP_ENABLED = false
@@ -47,29 +46,29 @@ job "encompass-demo" {
         MYSQL_DB   = "enc_demo"
         MYSQL_USER = "enc_demo"
         # Git repository variables
-        GIT_HOST                      = "prod-git01.example.org"
-        GIT_REPO_PATH                 = "puppet/enc-data.git"
-        GIT_REPO_USERNAME             = "gitlab"
-        GIT_BRANCH                    = "main"
-        GIT_SYNC_MODE                 = sync
-        GIT_SYNC_TIMEOUT              = 30
-        GIT_SYNC_RETRIES              = 2
-        GIT_SYNC_RETRY_DELAY          = 2
-        GIT_SSH_KEY_TYPE              = "ed25519"
-        GIT_SSH_PRIVATE_KEY_FILE      = "/secrets/git_repo_private_ssh_key"
+        GIT_HOST                 = "prod-git01.example.org"
+        GIT_REPO_PATH            = "puppet/enc-data.git"
+        GIT_REPO_USERNAME        = "gitlab"
+        GIT_BRANCH               = "main"
+        GIT_SYNC_MODE            = sync
+        GIT_SYNC_TIMEOUT         = 30
+        GIT_SYNC_RETRIES         = 2
+        GIT_SYNC_RETRY_DELAY     = 2
+        GIT_SSH_KEY_TYPE         = "ed25519"
+        GIT_SSH_PRIVATE_KEY_FILE = "/secrets/git_repo_private_ssh_key"
       }
 
       template {
         perms       = "0600"
         destination = "secrets/git_repo_private_ssh_key"
-        data        = "{{ with secret \"nomad/common/encompass-demo/git_repo_private_ssh_key\" }}{{ .Data.data.value }}{{ end }}"
+        data        = "{{ with secret \"nomad/common/encompass/git_repo_private_ssh_key\" }}{{ .Data.data.value }}{{ end }}"
       }
 
       template {
         perms       = "0600"
         destination = "secrets/mysql_password"
         data        = <<EOF
-MYSQL_PASSWORD={{ with secret "nomad/common/encompass-demo/mysql_password" }}{{ .Data.data.value }}{{ end }}
+MYSQL_PASSWORD={{ with secret "nomad/common/encompass/mysql_password" }}{{ .Data.data.value }}{{ end }}
 EOF
         env         = true
       }
@@ -78,27 +77,27 @@ EOF
         perms       = "0600"
         destination = "secrets/secret_key"
         data        = <<EOF
-DJANGO_SECRET_KEY={{ with secret "nomad/common/encompass-demo/secret_key" }}{{ .Data.data.value }}{{ end }}
+DJANGO_SECRET_KEY={{ with secret "nomad/common/encompass/secret_key" }}{{ .Data.data.value }}{{ end }}
 EOF
         env         = true
       }
 
       service {
-        name = "encompass-demo"
+        name = "encompass"
         tags = [
           "traefik",
           "traefik.enable=true",
           # HTTP config
-          "traefik.http.routers.encompass-demo.entrypoints=web",
-          "traefik.http.routers.encompass-demo.rule=Host(`encompass-demo.int.example.org`) || Host(`encompass-demo.example.org`)",
+          "traefik.http.routers.encompass.entrypoints=web",
+          "traefik.http.routers.encompass.rule=Host(`encompass.int.example.org`) || Host(`encompass.example.org`)",
           # TLS config
           "traefik.http.routers.encompass-demo_tls.entrypoints=websecure",
-          "traefik.http.routers.encompass-demo_tls.rule=Host(`encompass-demo.int.example.org`) || Host(`encompass-demo.example.org`)",
+          "traefik.http.routers.encompass-demo_tls.rule=Host(`encompass.int.example.org`) || Host(`encompass.example.org`)",
           "traefik.http.routers.encompass-demo_tls.tls=true",
           # ACME config
           "traefik.http.routers.encompass-demo_tls.tls.certresolver=example_certresolver",
-          "traefik.http.routers.encompass-demo_tls.tls.domains[0].main=encompass-demo.int.example.org",
-          "traefik.http.routers.encompass-demo_tls.tls.domains[0].sans=encompass-demo.example.org",
+          "traefik.http.routers.encompass-demo_tls.tls.domains[0].main=encompass.int.example.org",
+          "traefik.http.routers.encompass-demo_tls.tls.domains[0].sans=encompass.example.org",
         ]
         port = "encompass"
         check {
@@ -115,7 +114,7 @@ EOF
         }
       }
       service {
-        name = "enc-demo"
+        name = "enc"
         port = "enc"
         check {
           type     = "http"
