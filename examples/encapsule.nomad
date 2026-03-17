@@ -53,9 +53,9 @@ job "encapsule" {
         TIME_ZONE                = "UTC"
         ALLOWED_HOSTS            = "[\".example.org\", \".example.net\"]"
         GIT_HOST                 = "prod-git01.example.org"
+        GIT_BRANCH               = "${var.nomad_env}"
         GIT_REPO_PATH            = "puppet/enc-data.git"
         GIT_REPO_USERNAME        = "gitlab"
-        GIT_BRANCH               = "${var.nomad_env}"
         GIT_SSH_KEY_TYPE         = "ed25519" # rsa, ed25519, ecdsa, etc.
         GIT_SSH_PRIVATE_KEY_FILE = "/secrets/git_ssh_private_key_file"
       }

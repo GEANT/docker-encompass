@@ -45,9 +45,9 @@ job "encompass" {
         MYSQL_USER  = "enc_demo"
         # Git repository variables
         GIT_HOST                 = "prod-git01.example.org"
+        GIT_BRANCH               = "main"
         GIT_REPO_PATH            = "puppet/enc-data.git"
         GIT_REPO_USERNAME        = "gitlab"
-        GIT_BRANCH               = "main"
         GIT_SSH_KEY_TYPE         = "ed25519"
         GIT_SSH_PRIVATE_KEY_FILE = "/secrets/git_repo_private_ssh_key"
       }
