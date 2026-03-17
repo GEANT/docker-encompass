@@ -76,6 +76,68 @@
     <div class="card shadow-sm mt-4">
       <div class="card-body text-start">
         <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+          <h5 class="mb-0">Git Sync Settings</h5>
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#git-sync-settings-collapse"
+            aria-expanded="{% if git_sync_panel_expanded %}true{% else %}false{% endif %}"
+            aria-controls="git-sync-settings-collapse"
+          >
+            Expand/Collapse
+          </button>
+        </div>
+        <p class="text-muted mb-3">
+          Configure how git commit/push and enCapsule sync retries are executed after ENC writes.
+        </p>
+
+        <div class="collapse {% if git_sync_panel_expanded %}show{% endif %}" id="git-sync-settings-collapse">
+          <form method="post" action="/encompass/global_settings/">
+            {% csrf_token %}
+            <input type="hidden" name="settings_section" value="git_sync">
+
+            {% for field in git_sync_fields %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="git-sync-{{ field.key }}">{{ field.label }}</label>
+              {% if field.input_type == 'select' %}
+              <select
+                class="form-select"
+                id="git-sync-{{ field.key }}"
+                name="git_sync_{{ field.key }}"
+              >
+                {% for option in field.options %}
+                <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              <input
+                type="{{ field.input_type|default:'text' }}"
+                class="form-control"
+                id="git-sync-{{ field.key }}"
+                name="git_sync_{{ field.key }}"
+                value="{{ field.value }}"
+                placeholder="{{ field.suggestion }}"
+                {% if field.key == 'GIT_SYNC_TIMEOUT' %}min="1" max="3600"{% endif %}
+                {% if field.key == 'GIT_SYNC_RETRIES' %}min="0" max="100"{% endif %}
+                {% if field.key == 'GIT_SYNC_RETRY_DELAY' %}min="0" max="3600" step="0.1"{% endif %}
+              >
+              {% endif %}
+              <div class="text-muted"><small>{{ field.description }}</small></div>
+            </div>
+            {% endfor %}
+
+            <div class="d-flex justify-content-end mt-3">
+              <button type="submit" class="btn btn-primary">Save Git Sync Settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body text-start">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
           <h5 class="mb-0">PuppetDB Settings</h5>
           <button
             class="btn btn-outline-secondary btn-sm"

@@ -51,9 +51,9 @@ sequenceDiagram
 ### Runtime controls
 
 - `USE_ENCAPSULE=true|false`: enables/disables fan-out trigger.
-- `GIT_SYNC_MODE=sync|async`: synchronous vs background retries on enCompass side.
 - `ENCAPSULE_SYNC_TOKEN`: shared token required by enCapsule `/sync` endpoint (environment variable on both services).
-- enCapsule fan-out routing settings are runtime-managed in Global Settings (DB/UI):
+- Runtime-managed in Global Settings (DB/UI):
+  `GIT_SYNC_MODE`, `GIT_SYNC_TIMEOUT`, `GIT_SYNC_RETRIES`, `GIT_SYNC_RETRY_DELAY`,
   `ENCAPSULE_SYNC_USE_SRV`, `ENCAPSULE_SYNC_HOST`, `ENCAPSULE_SYNC_SCHEME`, `ENCAPSULE_SYNC_PORT`, `ENCAPSULE_SYNC_TIMEOUT`.
 
 ### Read-only behavior in enCapsule

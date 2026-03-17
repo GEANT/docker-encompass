@@ -82,6 +82,12 @@ ENCAPSULE_SYNC_TEXT_DEFAULTS: Dict[str, str] = {
     "ENCAPSULE_SYNC_USE_SRV": "false",
     "ENCAPSULE_SYNC_HOST": "encapsule.example.org",
 }
+GIT_SYNC_TEXT_DEFAULTS: Dict[str, str] = {
+    "GIT_SYNC_MODE": "sync",
+    "GIT_SYNC_TIMEOUT": "30",
+    "GIT_SYNC_RETRIES": "2",
+    "GIT_SYNC_RETRY_DELAY": "2",
+}
 
 
 def _parse_mysql_node(node: str, default_port: int = 3306) -> tuple[str, int]:

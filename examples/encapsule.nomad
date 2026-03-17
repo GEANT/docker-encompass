@@ -56,10 +56,6 @@ job "encapsule" {
         GIT_REPO_PATH            = "puppet/enc-data.git"
         GIT_REPO_USERNAME        = "gitlab"
         GIT_BRANCH               = "${var.nomad_env}"
-        GIT_SYNC_MODE            = sync # sync | async
-        GIT_SYNC_TIMEOUT         = 30   # seconds for each git/sync command
-        GIT_SYNC_RETRIES         = 2
-        GIT_SYNC_RETRY_DELAY     = 2         # seconds
         GIT_SSH_KEY_TYPE         = "ed25519" # rsa, ed25519, ecdsa, etc.
         GIT_SSH_PRIVATE_KEY_FILE = "/secrets/git_ssh_private_key_file"
       }

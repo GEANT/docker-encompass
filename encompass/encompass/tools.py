@@ -49,36 +49,51 @@ def payload_revision(payload: dict | None) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def _env_int(name: str, default: int) -> int:
-    """
-    Return an integer from environment or default if not set/invalid.
-    """
-    value = str(os.environ.get(name, default)).strip()
-    try:
-        return int(value)
-    except ValueError:
-        return default
-
-
-def _env_float(name: str, default: float) -> float:
-    """
-    Return a float from environment or default if not set/invalid.
-    """
-    value = str(os.environ.get(name, default)).strip()
-    try:
-        return float(value)
-    except ValueError:
-        return default
-
-
 def _git_sync_mode() -> str:
     """
-    Return git sync mode from environment, defaulting to 'sync' if invalid.
+    Return git sync mode from runtime settings, defaulting to 'sync' if invalid.
     """
-    mode = str(os.environ.get("GIT_SYNC_MODE", "sync")).strip().lower()
+    defaults = runtime_settings.GIT_SYNC_TEXT_DEFAULTS
+    mode = runtime_settings.get_text("GIT_SYNC_MODE", defaults["GIT_SYNC_MODE"])
+    mode = mode.strip().lower()
     if mode not in {"sync", "async"}:
         return "sync"
     return mode
+
+
+def _git_sync_timeout() -> int:
+    """Return git sync timeout from runtime settings with safe default."""
+    defaults = runtime_settings.GIT_SYNC_TEXT_DEFAULTS
+    raw = runtime_settings.get_text("GIT_SYNC_TIMEOUT", defaults["GIT_SYNC_TIMEOUT"])
+    try:
+        timeout = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return int(defaults["GIT_SYNC_TIMEOUT"])
+    return timeout if timeout > 0 else int(defaults["GIT_SYNC_TIMEOUT"])
+
+
+def _git_sync_retries() -> int:
+    """Return git sync retry count from runtime settings with safe default."""
+    defaults = runtime_settings.GIT_SYNC_TEXT_DEFAULTS
+    raw = runtime_settings.get_text("GIT_SYNC_RETRIES", defaults["GIT_SYNC_RETRIES"])
+    try:
+        retries = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return int(defaults["GIT_SYNC_RETRIES"])
+    return retries if retries >= 0 else int(defaults["GIT_SYNC_RETRIES"])
+
+
+def _git_sync_retry_delay() -> float:
+    """Return git sync retry delay from runtime settings with safe default."""
+    defaults = runtime_settings.GIT_SYNC_TEXT_DEFAULTS
+    raw = runtime_settings.get_text(
+        "GIT_SYNC_RETRY_DELAY", defaults["GIT_SYNC_RETRY_DELAY"]
+    )
+    try:
+        delay = float(str(raw).strip())
+    except (TypeError, ValueError):
+        return float(defaults["GIT_SYNC_RETRY_DELAY"])
+    return delay if delay >= 0 else float(defaults["GIT_SYNC_RETRY_DELAY"])
 
 
 def sync_runs_async() -> bool:
@@ -210,7 +225,7 @@ def _encapsule_sync_runtime_env() -> dict[str, str]:
 
 def _sync_git_repo(actor: dict | None = None, action: str | None = None) -> bool:
     """Commit and push ENC data if there are staged/unstaged changes."""
-    timeout = _env_int("GIT_SYNC_TIMEOUT", 30)
+    timeout = _git_sync_timeout()
 
     _run_checked(
         ["git", "add", "hosts.yaml", "groups.yaml", "csr_challenges.yaml"],
@@ -259,7 +274,7 @@ def _trigger_encapsule_sync() -> None:
         logger.info("USE_ENCAPSULE disabled: skipping enCapsule sync fan-out")
         return
 
-    timeout = _env_int("GIT_SYNC_TIMEOUT", 30)
+    timeout = _git_sync_timeout()
     sync_env = os.environ.copy()
     sync_env.update(_encapsule_sync_runtime_env())
     try:
@@ -299,8 +314,8 @@ def _sync_with_retries(
     """
     Perform sync with retries on failure, using environment-configured retry count and delay.
     """
-    retries = _env_int("GIT_SYNC_RETRIES", 2)
-    delay = _env_float("GIT_SYNC_RETRY_DELAY", 2.0)
+    retries = _git_sync_retries()
+    delay = _git_sync_retry_delay()
     total_attempts = retries + 1
     force_trigger = force_trigger_start
     changed = False
@@ -695,7 +710,7 @@ def get_git_log_patch_page(page: int = 1, per_page: int = 1) -> dict:
     if per_page < 1:
         per_page = 1
 
-    timeout = _env_int("GIT_SYNC_TIMEOUT", 30)
+    timeout = _git_sync_timeout()
     count_result = _run_checked(
         ["git", "rev-list", "--count", "HEAD"], cwd=ENC_REPO_DIR, timeout=timeout
     )

@@ -58,10 +58,6 @@ MYSQL_PASSWORD="encompass"
 # git settings (only SSH key-based authentication is supported)
 # ssh key must NOT be password-protected
 GIT_BRANCH=main
-GIT_SYNC_MODE=sync  # sync | async
-GIT_SYNC_TIMEOUT=30  # seconds for each git/sync command
-GIT_SYNC_RETRIES=2
-GIT_SYNC_RETRY_DELAY=2  # seconds
 GIT_HOST="prod-git01.example.org"
 GIT_REPO_PATH="puppet/enc-data.git"
 GIT_REPO_USERNAME="gitlab"

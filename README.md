@@ -559,16 +559,12 @@ When host/group data is changed from enCompass, the application automatically:
 2. pushes to the configured Git branch,
 3. triggers enCapsule sync fan-out.
 
-Git sync execution mode is configurable:
+Git sync execution is configurable in **Global Settings**:
 
-- `GIT_SYNC_MODE=sync` (default): request waits for commit/push/sync result
-- `GIT_SYNC_MODE=async`: request returns quickly and sync runs in a background worker
-
-Reliability and latency controls:
-
-- `GIT_SYNC_TIMEOUT` (seconds, default `30`)
-- `GIT_SYNC_RETRIES` (default `2`)
-- `GIT_SYNC_RETRY_DELAY` (seconds, default `2`)
+- `GIT_SYNC_MODE`: `sync` (default, request waits) or `async` (background worker)
+- `GIT_SYNC_TIMEOUT`: timeout in seconds (default `30`)
+- `GIT_SYNC_RETRIES`: retry count after first failure (default `2`)
+- `GIT_SYNC_RETRY_DELAY`: seconds between retries (default `2`)
 
 Common variables:
 

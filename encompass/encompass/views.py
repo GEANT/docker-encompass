@@ -1433,7 +1433,7 @@ def _encapsule_sync_settings_fields() -> list[dict]:
         {
             "key": "ENCAPSULE_SYNC_PORT",
             "label": "Sync Port",
-            "description": "Default target port when host entries omit a port (ignored when Use SRV Targets is true).",
+            "description": "Default target port when host entries omit a port (ignored when Use SRV Targets is true).",  # pylint: disable=line-too-long
             "suggestion": defaults["ENCAPSULE_SYNC_PORT"],
             "input_type": "number",
         },
@@ -1451,6 +1451,42 @@ def _encapsule_sync_settings_fields() -> list[dict]:
             "description": "Comma-separated targets. Supports multiple hosts (e.g. enc1.example.org,enc2.example.org:9092); use SRV names when Use SRV is true.",  # pylint: disable=line-too-long
             "suggestion": defaults["ENCAPSULE_SYNC_HOST"],
             "input_type": "text",
+        },
+    ]
+
+
+def _git_sync_settings_fields() -> list[dict]:
+    """Return Git sync settings metadata for Global Settings page."""
+    defaults = runtime_settings.GIT_SYNC_TEXT_DEFAULTS
+    return [
+        {
+            "key": "GIT_SYNC_MODE",
+            "label": "Git Sync Mode",
+            "description": "Run git/sync writes synchronously or asynchronously.",
+            "suggestion": defaults["GIT_SYNC_MODE"],
+            "input_type": "select",
+            "options": ["sync", "async"],
+        },
+        {
+            "key": "GIT_SYNC_TIMEOUT",
+            "label": "Git Sync Timeout",
+            "description": "Timeout in seconds for each git/sync command.",
+            "suggestion": defaults["GIT_SYNC_TIMEOUT"],
+            "input_type": "number",
+        },
+        {
+            "key": "GIT_SYNC_RETRIES",
+            "label": "Git Sync Retries",
+            "description": "Number of retries after an initial failed sync attempt.",
+            "suggestion": defaults["GIT_SYNC_RETRIES"],
+            "input_type": "number",
+        },
+        {
+            "key": "GIT_SYNC_RETRY_DELAY",
+            "label": "Git Sync Retry Delay",
+            "description": "Delay in seconds between sync retries.",
+            "suggestion": defaults["GIT_SYNC_RETRY_DELAY"],
+            "input_type": "number",
         },
     ]
 
@@ -1551,6 +1587,50 @@ def _validate_encapsule_sync_settings(values: dict[str, str]) -> list[str]:
     host = str(values.get("ENCAPSULE_SYNC_HOST", "")).strip()
     if not host:
         errors.append("Sync Hosts cannot be empty.")
+
+    return errors
+
+
+def _validate_git_sync_settings(values: dict[str, str]) -> list[str]:
+    """Validate Git sync settings submitted via Global Settings."""
+    errors: list[str] = []
+
+    mode = str(values.get("GIT_SYNC_MODE", "")).strip().lower()
+    if mode not in {"sync", "async"}:
+        errors.append("Git Sync Mode must be 'sync' or 'async'.")
+
+    timeout = str(values.get("GIT_SYNC_TIMEOUT", "")).strip()
+    if not timeout:
+        errors.append("Git Sync Timeout cannot be empty.")
+    elif not timeout.isdigit():
+        errors.append("Git Sync Timeout must be numeric.")
+    else:
+        timeout_value = int(timeout)
+        if timeout_value < 1 or timeout_value > 3600:
+            errors.append("Git Sync Timeout must be between 1 and 3600 seconds.")
+
+    retries = str(values.get("GIT_SYNC_RETRIES", "")).strip()
+    if not retries:
+        errors.append("Git Sync Retries cannot be empty.")
+    elif not retries.isdigit():
+        errors.append("Git Sync Retries must be numeric.")
+    else:
+        retries_value = int(retries)
+        if retries_value < 0 or retries_value > 100:
+            errors.append("Git Sync Retries must be between 0 and 100.")
+
+    retry_delay = str(values.get("GIT_SYNC_RETRY_DELAY", "")).strip()
+    if not retry_delay:
+        errors.append("Git Sync Retry Delay cannot be empty.")
+    else:
+        try:
+            retry_delay_value = float(retry_delay)
+            if retry_delay_value < 0 or retry_delay_value > 3600:
+                errors.append(
+                    "Git Sync Retry Delay must be between 0 and 3600 seconds."
+                )
+        except (TypeError, ValueError):
+            errors.append("Git Sync Retry Delay must be numeric.")
 
     return errors
 
@@ -1795,8 +1875,10 @@ def global_settings_page(request):
     ldap_sections = _ldap_settings_sections()
     puppetdb_fields = _puppetdb_settings_fields()
     encapsule_sync_fields = _encapsule_sync_settings_fields()
+    git_sync_fields = _git_sync_settings_fields()
     puppetdb_keys = [field["key"] for field in puppetdb_fields]
     encapsule_sync_keys = [field["key"] for field in encapsule_sync_fields]
+    git_sync_keys = [field["key"] for field in git_sync_fields]
     ldap_keys = [
         field["key"] for section in ldap_sections for field in section["fields"]
     ]
@@ -1808,6 +1890,8 @@ def global_settings_page(request):
     ldap_form_values: dict[str, str] | None = None
     ldap_form_toggles: dict[str, bool] | None = None
     ldap_panel_expanded = False
+    git_sync_form_values: dict[str, str] | None = None
+    git_sync_panel_expanded = False
 
     if request.method == "POST":
         if settings.DEMO_MODE:
@@ -1828,6 +1912,10 @@ def global_settings_page(request):
             encapsule_sync_values = {
                 key: str(request.POST.get(f"encapsule_sync_{key}", "")).strip()
                 for key in encapsule_sync_keys
+            }
+            git_sync_values = {
+                key: str(request.POST.get(f"git_sync_{key}", "")).strip()
+                for key in git_sync_keys
             }
             is_ldap_test = settings_section in ["ldap", "ldap_test"] and (
                 "test_ldap" in request.POST
@@ -1916,6 +2004,18 @@ def global_settings_page(request):
                         for key, value in puppetdb_values.items():
                             runtime_settings.set_text(key, value, updated_by=actor)
 
+                if settings_section in ["all", "git_sync"]:
+                    git_sync_panel_expanded = True
+                    git_sync_errors = _validate_git_sync_settings(git_sync_values)
+                    if git_sync_errors:
+                        has_errors = True
+                        git_sync_form_values = git_sync_values
+                        for error in git_sync_errors:
+                            messages.error(request, error)
+                    else:
+                        for key, value in git_sync_values.items():
+                            runtime_settings.set_text(key, value, updated_by=actor)
+
                 if settings_section in ["all", "ldap"]:
                     ldap_errors = _validate_ldap_settings(ldap_values)
                     if ldap_errors:
@@ -1980,6 +2080,13 @@ def global_settings_page(request):
             field["value"] = encapsule_sync_form_values.get(key, "")
         else:
             field["value"] = runtime_settings.get_text_raw(key)
+
+    for field in git_sync_fields:
+        key = field["key"]
+        if git_sync_form_values is not None:
+            field["value"] = git_sync_form_values.get(key, "")
+        else:
+            field["value"] = runtime_settings.get_text(key, field["suggestion"])
 
     toggle_items = [
         {
@@ -2065,9 +2172,11 @@ def global_settings_page(request):
         "ldap_toggle_keys": ldap_toggle_keys,
         "puppet_environments": runtime_settings.puppet_environments(),
         "puppetdb_fields": puppetdb_fields,
+        "git_sync_fields": git_sync_fields,
         "encapsule_sync_fields": encapsule_sync_fields,
         "ldap_sections": ldap_sections,
         "puppetdb_panel_expanded": puppetdb_panel_expanded,
+        "git_sync_panel_expanded": git_sync_panel_expanded,
         "encapsule_panel_expanded": encapsule_panel_expanded,
         "ldap_panel_expanded": ldap_panel_expanded,
         "watermark": settings.WATERMARK,

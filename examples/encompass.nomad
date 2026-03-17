@@ -31,9 +31,7 @@ job "encompass" {
         ALLOWED_CIDR_NETS    = "[\"192.168.10.0/24\"]"
         CSRF_TRUSTED_ORIGINS = "[\"https://encompass.example.org\", \"https://*.int.example.org\", \"https://127.0.0.1\"]"
         CORS_ALLOWED_ORIGINS = "[\"https://encompass.example.org\", \"https://encompass.int.example.org\"]"
-        DJANGO_SECRET_KEY    = "7544786B-4CB2-4B78-A799-3963D53DAFC5"
         # true/false variables
-        AUTH_LDAP_ENABLED = false
         DEBUG             = true
         # NGINX variables
         ENC_VIEWER_PASSWORD = ""
@@ -50,10 +48,6 @@ job "encompass" {
         GIT_REPO_PATH            = "puppet/enc-data.git"
         GIT_REPO_USERNAME        = "gitlab"
         GIT_BRANCH               = "main"
-        GIT_SYNC_MODE            = sync
-        GIT_SYNC_TIMEOUT         = 30
-        GIT_SYNC_RETRIES         = 2
-        GIT_SYNC_RETRY_DELAY     = 2
         GIT_SSH_KEY_TYPE         = "ed25519"
         GIT_SSH_PRIVATE_KEY_FILE = "/secrets/git_repo_private_ssh_key"
       }
