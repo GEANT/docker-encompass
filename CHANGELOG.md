@@ -10,6 +10,14 @@
 
 - Fix: rename GIT_SSH_KEY_FILE to GIT_SSH_PRIVATE_KEY_FILE for consistency
 - Fix: rename GIT_SSH_KEY_FILE to GIT_SSH_PRIVATE_KEY_FILE for clarity
+
+### 💼 Other
+
+- Merge branch 'main' of ssh://codeberg.org/GEANT/docker-encompass
+
+### 🚜 Refactor
+
+- Refactor: streamline environment variable settings and update nginx configuration
 ## [0.9.9] - 2026-03-16
 
 ### 🚀 Features
