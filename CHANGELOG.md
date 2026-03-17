@@ -1,3 +1,9 @@
+## [1.0.0] - 2026-03-17
+
+### 🚀 Features
+
+- Feat: add LDAP group mirroring feature and update global settings UI
+- Feat: update secret key references to DJANGO_SECRET_KEY and enhance CSR re-encryption process
 ## [0.9.9] - 2026-03-16
 
 ### 🚀 Features
