@@ -1827,6 +1827,14 @@ def _test_ldap_settings(
 @group_required_ldap(settings.ADMIN_ONLY_GROUPS)
 def global_settings_page(request):
     """View and update global runtime settings."""
+
+    def _text_value_for_placeholder(raw_value: str, suggestion: str) -> str:
+        """Keep default suggestions as placeholders instead of prefilled values."""
+        value = str(raw_value or "").strip()
+        if value == str(suggestion or "").strip():
+            return ""
+        return value
+
     identity = get_user_identity(request.user)
     groups = identity["groups"]
     group_name = tools.get_groups_info(groups)
@@ -2065,14 +2073,18 @@ def global_settings_page(request):
             if ldap_form_values is not None:
                 field["value"] = ldap_form_values.get(key, "")
             else:
-                field["value"] = runtime_settings.get_text(key, field["suggestion"])
+                field["value"] = _text_value_for_placeholder(
+                    runtime_settings.get_text_raw(key), field["suggestion"]
+                )
 
     for field in puppetdb_fields:
         key = field["key"]
         if puppetdb_form_values is not None:
             field["value"] = puppetdb_form_values.get(key, "")
         else:
-            field["value"] = runtime_settings.get_text_raw(key)
+            field["value"] = _text_value_for_placeholder(
+                runtime_settings.get_text_raw(key), field["suggestion"]
+            )
 
     for field in encapsule_sync_fields:
         key = field["key"]
