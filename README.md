@@ -634,6 +634,7 @@ When the authentication backend is MySQL, the database stores user information. 
 
 ## ToDo
 
+- create end-user documentation with screenshots and examples. This is a critical piece that’s currently missing.
 - approval flow for host/group changes. It might be a requirement in some environments, but it adds complexity and overhead.
 - add hints in the UI or validation for the classes. This feature is available in Foreman.
 

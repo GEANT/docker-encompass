@@ -62,8 +62,31 @@ def _is_ldap_authenticated(user) -> bool:
     """Return True when the current user was authenticated through LDAP."""
     if not getattr(settings, "USE_AUTH_LDAP", False):
         return False
+
     backend = str(getattr(user, "backend", "")).strip()
-    return backend == "django_auth_ldap.backend.LDAPBackend"
+    if backend == "django_auth_ldap.backend.LDAPBackend":
+        return True
+
+    ldap_user = getattr(user, "ldap_user", None)
+    if ldap_user is None:
+        return False
+
+    user_dn = str(getattr(ldap_user, "dn", "") or "").strip()
+    attrs = getattr(ldap_user, "attrs", None)
+    return bool(user_dn) or (isinstance(attrs, dict) and bool(attrs))
+
+
+def _ldap_attr_first(attrs: dict, *keys: str) -> str:
+    """Return first non-empty LDAP attribute value from provided keys."""
+    for key in keys:
+        raw = attrs.get(key)
+        if isinstance(raw, (list, tuple)):
+            value = str(raw[0] if raw else "").strip()
+        else:
+            value = str(raw or "").strip()
+        if value:
+            return value
+    return ""
 
 
 def get_user_groups(user):
@@ -86,22 +109,35 @@ def get_user_identity(user):
 
     if _is_ldap_authenticated(user):
         attrs = getattr(user.ldap_user, "attrs", None) or {}
+        username = (
+            _ldap_attr_first(attrs, "sAMAccountName", "uid", "cn")
+            if isinstance(attrs, dict)
+            else ""
+        )
+        if not username:
+            username = str(user.get_username() or "").strip()
+        if not username:
+            username = settings.UNLOGGED
+
+        display_name = (
+            _ldap_attr_first(attrs, "displayName", "displayname", "cn")
+            if isinstance(attrs, dict)
+            else ""
+        )
+        if not display_name:
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            display_name = full_name or username
+
+        email = (
+            _ldap_attr_first(attrs, "mail", "email")
+            if isinstance(attrs, dict)
+            else ""
+        )
+
         return {
-            "username": (
-                attrs.get("sAMAccountName", [user.get_username()])[0]
-                if isinstance(attrs, dict)
-                else user.get_username()
-            ),
-            "display_name": (
-                attrs.get("displayName", [settings.UNLOGGED])[0]
-                if isinstance(attrs, dict)
-                else user.get_username() or settings.UNLOGGED
-            ),
-            "email": (
-                attrs.get("mail", [None])[0]
-                if isinstance(attrs, dict)
-                else (user.email or None)
-            ),
+            "username": username,
+            "display_name": display_name,
+            "email": email or (user.email or None),
             "groups": get_user_groups(user),
         }
 
