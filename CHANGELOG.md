@@ -1,3 +1,11 @@
+## [1.0.3] - 2026-03-19
+
+### 🐛 Bug Fixes
+
+- Fix: update GIT_BRANCH variable in Nomad job configurations for encapsule and encompass
+- Fix: remove localhost from CSRF_TRUSTED_ORIGINS in Nomad job configurations
+- Fix: update global settings page to use placeholder suggestions for text fields
+- Fix: improve user identity retrieval by handling empty LDAP attributes
 ## [1.0.2] - 2026-03-17
 
 ### 🐛 Bug Fixes
