@@ -1298,7 +1298,7 @@ def _ldap_settings_sections() -> list[dict]:
             ],
         },
         {
-            "title": "Search Filters and Group Type",
+            "title": "Search Filters",
             "fields": [
                 {
                     "key": "LDAP_USER_SEARCH_FILTER",
@@ -1313,14 +1313,6 @@ def _ldap_settings_sections() -> list[dict]:
                     "description": "Optional LDAP group filter; leave empty for profile default.",
                     "suggestion": defaults["LDAP_GROUP_SEARCH_FILTER"],
                     "input_type": "text",
-                },
-                {
-                    "key": "LDAP_GROUP_TYPE",
-                    "label": "LDAP Group Type",
-                    "description": "Optional override: ad_nested, ad, groupofnames, posix.",
-                    "suggestion": defaults["LDAP_GROUP_TYPE"],
-                    "input_type": "select",
-                    "options": ["", "ad_nested", "ad", "groupofnames", "posix"],
                 },
             ],
         },
@@ -1559,12 +1551,6 @@ def _validate_ldap_settings(values: dict[str, str]) -> list[str]:
             port_value = int(port)
             if port_value < 1 or port_value > 65535:
                 errors.append("LDAP Port must be between 1 and 65535.")
-
-    group_type = str(values.get("LDAP_GROUP_TYPE", "")).strip().lower()
-    if group_type and group_type not in {"ad_nested", "ad", "groupofnames", "posix"}:
-        errors.append(
-            "LDAP Group Type must be one of: ad_nested, ad, groupofnames, posix."
-        )
 
     attr_map_raw = str(values.get("LDAP_USER_ATTR_MAP", "")).strip()
     if attr_map_raw:
@@ -1864,12 +1850,9 @@ def _test_ldap_settings(
 def global_settings_page(request):
     """View and update global runtime settings."""
 
-    def _text_value_for_placeholder(raw_value: str, suggestion: str) -> str:
-        """Keep default suggestions as placeholders instead of prefilled values."""
-        value = str(raw_value or "").strip()
-        if value == str(suggestion or "").strip():
-            return ""
-        return value
+    def _text_value_for_placeholder(raw_value: str, _suggestion: str) -> str:
+        """Return the stored value as-is; empty string lets the placeholder show."""
+        return str(raw_value or "").strip()
 
     identity = get_user_identity(request.user)
     groups = identity["groups"]

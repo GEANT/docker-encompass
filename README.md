@@ -447,6 +447,13 @@ Authentication behavior:
 - LDAP is optional and acts as a fallback when enabled in Global Settings.
 - If a username exists in both local DB and LDAP, local DB authentication wins.
 
+LDAP access groups:
+
+- Users must be members of one of these LDAP groups to log in: `enc_admin` or `enc_viewer`.
+- `enc_admin` grants read/write access to hosts and groups management.
+- `enc_viewer` grants read-only access to the UI.
+- With Active Directory profile, nested group membership is supported.
+
 LDAP connection/search settings are managed in **Global Settings**.
 
 Access control note:
@@ -457,6 +464,7 @@ Access control note:
 LDAP group mirroring behavior:
 
 - The **Mirror LDAP Groups into Django** toggle (in **Global Settings -> LDAP Settings**) controls whether LDAP memberships are mirrored into local Django `auth_group` entries on login.
+- The required LDAP access groups remain `enc_admin` and `enc_viewer`; mirroring only affects local Django group copies.
 - Set it to disabled to avoid importing all AD groups into Django.
 
 Local Django auth mode bootstraps two local users on first start:
@@ -637,6 +645,7 @@ When the authentication backend is MySQL, the database stores user information. 
 - create end-user documentation with screenshots and examples. This is a critical piece that’s currently missing.
 - approval flow for host/group changes. It might be a requirement in some environments, but it adds complexity and overhead.
 - add hints in the UI or validation for the classes. This feature is available in Foreman.
+- OpenLDAP is currently untested. Contributions are welcome.
 
 ## License
 

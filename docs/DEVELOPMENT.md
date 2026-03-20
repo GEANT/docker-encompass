@@ -81,7 +81,7 @@ python manage.py runserver
 - `409 Conflict` on `/hosts` or `/groups` writes:
   another write operation currently holds the lock; retry the request.
 - Login issues with LDAP:
-  verify LDAP settings in Global Settings and directory reachability from the container.
+  verify LDAP settings in Global Settings, membership in `enc_admin` or `enc_viewer`, and directory reachability from the container.
 - SSL startup failure:
   confirm certificate/key files exist and are readable in container paths.
 - Nginx error `stat() ... /code/static/static/... failed (13: Permission denied)` and broken CSS:

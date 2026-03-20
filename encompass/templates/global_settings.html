@@ -321,13 +321,7 @@
                   name="ldap_{{ field.key }}"
                 >
                   {% for option in field.options %}
-                  <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>
-                    {% if field.key == 'LDAP_GROUP_TYPE' and option == '' %}
-                    (Use profile default)
-                    {% else %}
-                    {{ option }}
-                    {% endif %}
-                  </option>
+                  <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>{{ option }}</option>
                   {% endfor %}
                 </select>
                 {% else %}

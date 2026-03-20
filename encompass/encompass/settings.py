@@ -303,19 +303,7 @@ if USE_AUTH_LDAP:
         "(objectClass=group)" if LDAP_PROF == "ad" else "(objectClass=groupOfNames)"
     )
 
-    DEFAULT_GOUP_TYPE = "ad_nested" if LDAP_PROF == "ad" else "groupofnames"
-    GROUP_TYPE_NAME = (
-        runtime_settings.get_text(
-            "LDAP_GROUP_TYPE", runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_GROUP_TYPE"]
-        )
-        .strip()
-        .lower()
-        or DEFAULT_GOUP_TYPE
-    )
-    if GROUP_TYPE_NAME not in {"ad_nested", "ad", "groupofnames", "posix"}:
-        raise SystemExit(
-            "LDAP_GROUP_TYPE must be one of: ad_nested, ad, groupofnames, posix"
-        )
+    GROUP_TYPE_NAME = "ad_nested" if LDAP_PROF == "ad" else "groupofnames"
     group_type_map = {
         "ad_nested": NestedActiveDirectoryGroupType,
         "ad": ActiveDirectoryGroupType,
