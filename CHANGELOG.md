@@ -1,5 +1,9 @@
 ## [1.0.4] - 2026-03-20
 
+### 🚀 Features
+
+- Feat: enhance LDAP user attribute mapping with profile selection and presets
+
 ### 🐛 Bug Fixes
 
 - Fix: enable LDAP nested groups
