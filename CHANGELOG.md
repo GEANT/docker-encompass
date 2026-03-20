@@ -1,3 +1,8 @@
+## [1.0.4] - 2026-03-20
+
+### 🐛 Bug Fixes
+
+- Fix: enable LDAP nested groups
 ## [1.0.3] - 2026-03-19
 
 ### 🐛 Bug Fixes
