@@ -54,10 +54,18 @@ LDAP_TEXT_DEFAULTS: Dict[str, str] = {
     "LDAP_GROUP_RDN_ATTR": "CN",
     "LDAP_USER_SEARCH_FILTER": "",
     "LDAP_GROUP_SEARCH_FILTER": "",
+    "LDAP_USER_ATTR_MAP_PROFILE": "",
     "LDAP_USER_ATTR_MAP": '{"first_name": "givenName", "last_name": "sn", "email": "mail"}',
     "LDAP_LOGGING": "ERROR",
     "LDAP_PASSWORD_RESET_URL": "",
     "LDAP_PASSWORD_RESET_HELP": "",
+}
+LDAP_USER_ATTR_MAP_PRESETS: Dict[str, Dict[str, str]] = {
+    "default": {
+        "first_name": "givenName",
+        "last_name": "sn",
+        "email": "mail",
+    },
 }
 PUPPETDB_TEXT_DEFAULTS: Dict[str, str] = {
     "PUPPETDB_SCHEMA": "http",
@@ -87,6 +95,29 @@ GIT_SYNC_TEXT_DEFAULTS: Dict[str, str] = {
     "GIT_SYNC_RETRIES": "2",
     "GIT_SYNC_RETRY_DELAY": "2",
 }
+
+
+def default_ldap_user_attr_map_profile(_ldap_profile: str) -> str:
+    """Return default attribute-map profile for the selected LDAP profile."""
+    return "default"
+
+
+def effective_ldap_user_attr_map_profile(ldap_profile: str) -> str:
+    """Return stored attribute-map profile or the profile-derived default."""
+    stored = str(get_text_raw("LDAP_USER_ATTR_MAP_PROFILE") or "").strip().lower()
+    if stored in {"ad_default", "openldap_default"}:
+        return "default"
+    if stored in LDAP_USER_ATTR_MAP_PRESETS or stored == "custom":
+        return stored
+    return default_ldap_user_attr_map_profile(ldap_profile)
+
+
+def effective_ldap_user_attr_map_text(ldap_profile: str) -> str:
+    """Return the effective LDAP user attribute map JSON text."""
+    profile_name = effective_ldap_user_attr_map_profile(ldap_profile)
+    if profile_name in LDAP_USER_ATTR_MAP_PRESETS:
+        return json.dumps(LDAP_USER_ATTR_MAP_PRESETS[profile_name])
+    return get_text("LDAP_USER_ATTR_MAP", LDAP_TEXT_DEFAULTS["LDAP_USER_ATTR_MAP"])
 
 
 def _parse_mysql_node(node: str, default_port: int = 3306) -> tuple[str, int]:

@@ -77,6 +77,6 @@ def get_user_commit_info(user):
 
     return {
         'name': name or username,
-        'email': email or f"{username}@localhost",
+        'email': email or f"{username}@encompass.local",
         'username': username
     }

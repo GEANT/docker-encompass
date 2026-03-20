@@ -313,7 +313,21 @@
               <h6 class="mb-3">{{ section.title }}</h6>
               {% for field in section.fields %}
               <div class="mb-3">
+                {% if field.key == 'LDAP_USER_ATTR_MAP' %}
+                <label class="form-label fw-semibold" for="ldap-user-attr-map-profile">LDAP User Attribute Map Profile</label>
+                <select class="form-select mb-2" id="ldap-user-attr-map-profile" name="ldap_user_attr_map_profile">
+                  <option value="default" {% if ldap_attr_map_profile == 'default' %}selected{% endif %}>Default</option>
+                  <option value="custom" {% if ldap_attr_map_profile == 'custom' %}selected{% endif %}>Custom</option>
+                </select>
+                <div class="text-muted mb-2"><small>Selecting Default auto-fills the JSON below and locks it read-only.</small></div>
+                <div class="text-muted mb-2"><small>The default preset uses the common attributes: <span class="font-monospace">givenName</span>, <span class="font-monospace">sn</span>, <span class="font-monospace">mail</span>.</small></div>
                 <label class="form-label fw-semibold" for="ldap-{{ field.key }}">{{ field.label }}</label>
+                <div id="ldap-user-attr-map-preview-wrapper" class="mb-2" {% if ldap_attr_map_profile == 'custom' %}style="display: none;"{% endif %}>
+                  <div id="ldap-user-attr-map-preview" class="form-control" style="background-color: #f3f4f6; font-family: monospace; white-space: pre-wrap;">{{ field.value }}</div>
+                </div>
+                {% else %}
+                <label class="form-label fw-semibold" for="ldap-{{ field.key }}">{{ field.label }}</label>
+                {% endif %}
                 {% if field.input_type == 'select' %}
                 <select
                   class="form-select"
@@ -332,6 +346,8 @@
                   name="ldap_{{ field.key }}"
                   value="{{ field.value }}"
                   placeholder="{{ field.suggestion }}"
+                  {% if field.key == 'LDAP_USER_ATTR_MAP' and ldap_attr_map_profile != 'custom' %}readonly aria-readonly="true" style="display: none; background-color: #f3f4f6;"{% endif %}
+                  {% if field.key == 'LDAP_SERVER' or field.key == 'LDAP_PORT' or field.key == 'LDAP_GROUPS_BASE_DN' or field.key == 'LDAP_USER_BASE_DN' or field.key == 'LDAP_GROUP_RDN_ATTR' or field.key == 'LDAP_USER_ATTR_MAP' %}required{% endif %}
                   {% if field.key == 'LDAP_PORT' %}min="1" max="65535"{% endif %}
                 >
                 {% endif %}
@@ -424,6 +440,41 @@
     });
 
     updateRemoveButtonsState();
+  })();
+
+  (function() {
+    const profileSelect = document.getElementById('ldap-user-attr-map-profile');
+    const mapInput = document.getElementById('ldap-LDAP_USER_ATTR_MAP');
+    const previewWrapper = document.getElementById('ldap-user-attr-map-preview-wrapper');
+    const preview = document.getElementById('ldap-user-attr-map-preview');
+    if (!profileSelect || !mapInput || !previewWrapper || !preview) return;
+
+    const presets = {
+      default: '{{ ldap_attr_map_presets.default|escapejs }}',
+    };
+
+    function applyProfileState() {
+      const selected = profileSelect.value;
+      const isCustom = selected === 'custom';
+      const presetValue = presets[selected];
+
+      if (!isCustom && presetValue) {
+        mapInput.value = presetValue;
+      }
+
+      mapInput.readOnly = !isCustom;
+      mapInput.setAttribute('aria-readonly', String(!isCustom));
+      mapInput.style.backgroundColor = isCustom ? '' : '#f3f4f6';
+      mapInput.style.display = isCustom ? '' : 'none';
+      previewWrapper.style.display = isCustom ? 'none' : '';
+      preview.textContent = mapInput.value;
+    }
+
+    profileSelect.addEventListener('change', () => {
+      applyProfileState();
+    });
+
+    applyProfileState();
   })();
 </script>
 {% endblock %}

@@ -388,10 +388,7 @@ if USE_AUTH_LDAP:
     # What to do once the user is authenticated
     try:
         AUTH_LDAP_USER_ATTR_MAP = json.loads(
-            runtime_settings.get_text(
-                "LDAP_USER_ATTR_MAP",
-                runtime_settings.LDAP_TEXT_DEFAULTS["LDAP_USER_ATTR_MAP"],
-            )
+            runtime_settings.effective_ldap_user_attr_map_text(LDAP_PROF)
         )
     except json.JSONDecodeError as err:
         raise SystemExit("LDAP_USER_ATTR_MAP must be valid JSON") from err

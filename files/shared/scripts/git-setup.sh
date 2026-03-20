@@ -176,7 +176,7 @@ elif [ -d /root/.templates ]; then
     # add and commit the initial files if there are changes
     git add hosts.yaml groups.yaml csr_challenges.yaml README.md
     git config user.name "${GIT_COMMIT_NAME:-encompass-bot}"
-    git config user.email "${GIT_COMMIT_EMAIL:-encompass@local}"
+    git config user.email "${GIT_COMMIT_EMAIL:-encompass@encompass.local}"
 
     # only commit and push if there are changes to avoid unnecessary commits
     if [ -z "$(git status -s)" ]; then

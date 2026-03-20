@@ -456,6 +456,12 @@ LDAP access groups:
 
 LDAP connection/search settings are managed in **Global Settings**.
 
+LDAP user attribute map behavior:
+
+- The **LDAP User Attribute Map Profile** selector supports `Default` and `Custom`.
+- `Default` uses the common directory attributes `givenName`, `sn`, and `mail`.
+- `Custom` lets you provide a JSON mapping when your directory uses different attribute names.
+
 Access control note:
 
 - **Global Settings** is available only to the local `admin` account.

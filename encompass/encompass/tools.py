@@ -127,7 +127,7 @@ def _commit_actor(actor: dict | None) -> tuple[str, str, str]:
     Returns (name, email, 'Name <email>').
     """
     default_name = str(os.environ.get("GIT_COMMIT_NAME", "encompass-bot")).strip()
-    default_email = str(os.environ.get("GIT_COMMIT_EMAIL", "encompass@local")).strip()
+    default_email = str(os.environ.get("GIT_COMMIT_EMAIL", "encompass@encompass.local")).strip()
 
     if isinstance(actor, dict):
         name = str(actor.get("name") or actor.get("username") or default_name).strip()

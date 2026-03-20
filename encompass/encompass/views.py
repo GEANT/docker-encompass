@@ -1338,6 +1338,37 @@ def _ldap_settings_sections() -> list[dict]:
     ]
 
 
+def _ldap_user_attr_map_presets() -> dict[str, dict[str, str]]:
+    """Return supported LDAP attribute-map presets."""
+    return runtime_settings.LDAP_USER_ATTR_MAP_PRESETS
+
+
+def _default_attr_map_profile_for_ldap_profile(ldap_profile: str) -> str:
+    """Return default attribute-map profile name for LDAP profile."""
+    return runtime_settings.default_ldap_user_attr_map_profile(ldap_profile)
+
+
+def _detect_ldap_attr_map_profile(raw_map: str, ldap_profile: str) -> str:
+    """Detect which attribute-map profile matches current JSON value."""
+    value = str(raw_map or "").strip()
+    if not value:
+        return _default_attr_map_profile_for_ldap_profile(ldap_profile)
+
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return "custom"
+
+    if not isinstance(parsed, dict):
+        return "custom"
+
+    canonical_current = json.dumps(parsed, sort_keys=True)
+    for name, preset in _ldap_user_attr_map_presets().items():
+        if canonical_current == json.dumps(preset, sort_keys=True):
+            return name
+    return "custom"
+
+
 def _puppetdb_settings_fields() -> list[dict]:
     """Return PuppetDB settings metadata for Global Settings page."""
     defaults = runtime_settings.PUPPETDB_TEXT_DEFAULTS
@@ -1523,6 +1554,17 @@ def _validate_ldap_settings(values: dict[str, str]) -> list[str]:
     """Validate LDAP text settings submitted via Global Settings."""
     errors: list[str] = []
 
+    required_fields = {
+        "LDAP_SERVER": "LDAP Server",
+        "LDAP_GROUPS_BASE_DN": "LDAP Groups Base DN",
+        "LDAP_USER_BASE_DN": "LDAP User Base DN",
+        "LDAP_GROUP_RDN_ATTR": "LDAP Group RDN Attribute",
+        "LDAP_USER_ATTR_MAP": "LDAP User Attribute Map",
+    }
+    for key, label in required_fields.items():
+        if not str(values.get(key, "")).strip():
+            errors.append(f"{label} cannot be empty.")
+
     profile = str(values.get("LDAP_PROFILE", "")).strip().lower()
     if profile and profile not in {"ad", "openldap"}:
         errors.append("LDAP Profile must be 'ad' or 'openldap'.")
@@ -1544,16 +1586,19 @@ def _validate_ldap_settings(values: dict[str, str]) -> list[str]:
         )
 
     port = str(values.get("LDAP_PORT", "")).strip()
-    if port:
-        if not port.isdigit():
-            errors.append("LDAP Port must be a numeric value.")
-        else:
-            port_value = int(port)
-            if port_value < 1 or port_value > 65535:
-                errors.append("LDAP Port must be between 1 and 65535.")
+    if not port:
+        errors.append("LDAP Port cannot be empty.")
+    elif not port.isdigit():
+        errors.append("LDAP Port must be a numeric value.")
+    else:
+        port_value = int(port)
+        if port_value < 1 or port_value > 65535:
+            errors.append("LDAP Port must be between 1 and 65535.")
 
     attr_map_raw = str(values.get("LDAP_USER_ATTR_MAP", "")).strip()
-    if attr_map_raw:
+    if not attr_map_raw:
+        errors.append("LDAP User Attribute Map cannot be empty.")
+    else:
         try:
             attr_map = json.loads(attr_map_raw)
             if not isinstance(attr_map, dict):
@@ -1916,6 +1961,7 @@ def global_settings_page(request):
     encapsule_panel_expanded = False
     ldap_form_values: dict[str, str] | None = None
     ldap_form_toggles: dict[str, bool] | None = None
+    ldap_attr_map_profile = ""
     ldap_panel_expanded = False
     git_sync_form_values: dict[str, str] | None = None
     git_sync_panel_expanded = False
@@ -1932,6 +1978,15 @@ def global_settings_page(request):
                 key: str(request.POST.get(f"ldap_{key}", "")).strip()
                 for key in ldap_keys
             }
+            ldap_attr_map_profile = str(
+                request.POST.get("ldap_user_attr_map_profile", "")
+            ).strip().lower()
+            if ldap_attr_map_profile in _ldap_user_attr_map_presets():
+                ldap_values["LDAP_USER_ATTR_MAP"] = json.dumps(
+                    _ldap_user_attr_map_presets()[ldap_attr_map_profile]
+                )
+            elif ldap_attr_map_profile not in {"", "custom"}:
+                ldap_attr_map_profile = "custom"
             puppetdb_values = {
                 key: str(request.POST.get(f"puppetdb_{key}", "")).strip()
                 for key in puppetdb_keys
@@ -2055,6 +2110,11 @@ def global_settings_page(request):
                         runtime_settings.set_bool(
                             key, key in request.POST, updated_by=actor
                         )
+                    runtime_settings.set_text(
+                        "LDAP_USER_ATTR_MAP_PROFILE",
+                        ldap_attr_map_profile or "custom",
+                        updated_by=actor,
+                    )
                     for key, value in ldap_values.items():
                         runtime_settings.set_text(key, value, updated_by=actor)
 
@@ -2095,6 +2155,42 @@ def global_settings_page(request):
                 field["value"] = _text_value_for_placeholder(
                     runtime_settings.get_text_raw(key), field["suggestion"]
                 )
+
+    if not ldap_attr_map_profile:
+        saved_attr_map_profile = str(
+            runtime_settings.get_text_raw("LDAP_USER_ATTR_MAP_PROFILE")
+        ).strip().lower()
+        if saved_attr_map_profile in {
+            "default",
+            "custom",
+        }:
+            ldap_attr_map_profile = saved_attr_map_profile
+        elif saved_attr_map_profile in {"ad_default", "openldap_default"}:
+            ldap_attr_map_profile = "default"
+
+    if not ldap_attr_map_profile:
+        ldap_profile_value = ""
+        ldap_user_attr_map_value = ""
+        for section in ldap_sections:
+            for field in section["fields"]:
+                if field["key"] == "LDAP_PROFILE":
+                    ldap_profile_value = str(field.get("value", "")).strip().lower()
+                if field["key"] == "LDAP_USER_ATTR_MAP":
+                    ldap_user_attr_map_value = str(field.get("value", "")).strip()
+        ldap_attr_map_profile = _detect_ldap_attr_map_profile(
+            ldap_user_attr_map_value,
+            ldap_profile_value,
+        )
+
+    if ldap_attr_map_profile in _ldap_user_attr_map_presets():
+        effective_attr_map_value = json.dumps(
+            _ldap_user_attr_map_presets()[ldap_attr_map_profile]
+        )
+        for section in ldap_sections:
+            for field in section["fields"]:
+                if field["key"] == "LDAP_USER_ATTR_MAP":
+                    field["value"] = effective_attr_map_value
+                    break
 
     for field in puppetdb_fields:
         key = field["key"]
@@ -2201,6 +2297,11 @@ def global_settings_page(request):
         "encapsule_toggle_keys": encapsule_toggle_keys,
         "ldap_toggle_items": ldap_toggle_items,
         "ldap_toggle_keys": ldap_toggle_keys,
+        "ldap_attr_map_profile": ldap_attr_map_profile,
+        "ldap_attr_map_presets": {
+            name: json.dumps(value)
+            for name, value in _ldap_user_attr_map_presets().items()
+        },
         "puppet_environments": runtime_settings.puppet_environments(),
         "puppetdb_fields": puppetdb_fields,
         "git_sync_fields": git_sync_fields,

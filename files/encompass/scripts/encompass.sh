@@ -48,7 +48,7 @@ viewer_password = 'viewer'
 admin_user, admin_created = User.objects.get_or_create(username='admin')
 if admin_created:
     admin_user.set_password(admin_password)
-    admin_user.email = 'admin@local'
+    admin_user.email = 'admin@example.invalid'
     admin_user.is_staff = True
     admin_user.is_superuser = True
     admin_user.save()
@@ -59,7 +59,7 @@ if admin_created:
 viewer_user, viewer_created = User.objects.get_or_create(username='viewer')
 if viewer_created:
     viewer_user.set_password(viewer_password)
-    viewer_user.email = 'user@local'
+    viewer_user.email = 'viewer@example.invalid'
     viewer_user.is_staff = False
     viewer_user.is_superuser = False
     viewer_user.save()
