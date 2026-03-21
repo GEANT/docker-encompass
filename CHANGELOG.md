@@ -1,8 +1,9 @@
-## [1.0.4] - 2026-03-20
+## [1.0.4] - 2026-03-21
 
 ### 🚀 Features
 
 - Feat: enhance LDAP user attribute mapping with profile selection and presets
+- Feat: add ALLOWED_CIDR_NETS support and update middleware in settings
 
 ### 🐛 Bug Fixes
 
