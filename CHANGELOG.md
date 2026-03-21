@@ -8,6 +8,25 @@
 ### 🐛 Bug Fixes
 
 - Fix: enable LDAP nested groups
+
+### 💼 Other
+
+- Merge pull request #6 from GEANT/dependabot/pip/files/encompass/django-6.0.3
+
+chore(deps): bump django from 6.0.2 to 6.0.3 in /files/encompass
+- Merge pull request #3 from GEANT/dependabot/pip/files/django-6.0.3
+
+chore(deps): bump django from 6.0.2 to 6.0.3 in /files
+- Merge pull request #4 from GEANT/dependabot/pip/files/cryptography-46.0.5
+
+chore(deps): bump cryptography from 45.0.7 to 46.0.5 in /files
+- Merge pull request #5 from GEANT/dependabot/pip/files/encapsule/cryptography-46.0.5
+
+chore(deps): bump cryptography from 45.0.7 to 46.0.5 in /files/encapsule
+
+### ⚙️ Miscellaneous Tasks
+
+- Chore(ci): simplify push-artifacts script and ensure required variables are set
 ## [1.0.3] - 2026-03-19
 
 ### 🐛 Bug Fixes
