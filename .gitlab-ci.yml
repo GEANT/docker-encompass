@@ -33,7 +33,7 @@ variables:
     expire_in: 30 days
   script:
     - chmod +x ./files/ci/push-artifacts-codeberg.sh
-    - ./files/ci/push-artifacts-codeberg.sh "$TOOL_NAME" "$TOOL_DIR" "true"
+    - ./files/ci/push-artifacts-codeberg.sh
 
 build_encompass:
   extends: .docker_build_and_push
@@ -50,15 +50,18 @@ build_encryptor:
   variables:
     TOOL_NAME: encryptor
     TOOL_DIR: cmd/encryptor
+    DELETE_EXISTING: "true"
 
 build_decryptor:
   extends: .go_binary_build
   variables:
     TOOL_NAME: decryptor
     TOOL_DIR: cmd/decryptor
+    DELETE_EXISTING: "true"
 
 build_puppet_enc:
   extends: .go_binary_build
   variables:
     TOOL_NAME: puppet-enc
     TOOL_DIR: cmd/puppet-enc
+    DELETE_EXISTING: "true"

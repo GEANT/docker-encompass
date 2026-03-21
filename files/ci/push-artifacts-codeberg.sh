@@ -1,13 +1,11 @@
 #!/bin/bash
 #
 set -euo pipefail
-#set -x
-
-TOOL_NAME="$1"
-TOOL_DIR="$2"
-DELETE_EXISTING="${3:-}"
 
 # Read CI-provided variables directly from the environment.
+TOOL_NAME="${TOOL_NAME:?missing TOOL_NAME}"
+TOOL_DIR="${TOOL_DIR:?missing TOOL_DIR}"
+DELETE_EXISTING="${DELETE_EXISTING:?missing DELETE_EXISTING}"
 CODEBERG_OWNER="${CODEBERG_OWNER:?missing CODEBERG_OWNER}"
 CODEBERG_HOST="${CODEBERG_HOST:?missing CODEBERG_HOST}"
 CODEBERG_USER="${CODEBERG_USER:?missing CODEBERG_USER}"
