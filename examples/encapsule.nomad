@@ -52,6 +52,7 @@ job "encapsule" {
         LANGUAGE_CODE            = "en-us"
         TIME_ZONE                = "UTC"
         ALLOWED_HOSTS            = "[\".example.org\", \".example.net\"]"
+        ALLOWED_CIDR_NETS        = "[\"192.168.10.0/24\"]"
         GIT_HOST                 = "prod-git01.example.org"
         GIT_BRANCH               = "${var.nomad_env}"
         GIT_REPO_PATH            = "puppet/enc-data.git"

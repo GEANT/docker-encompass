@@ -75,9 +75,18 @@ ALLOWED_HOSTS = (
 )
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
-INSTALLED_APPS = ("django.contrib.contenttypes",)
 
-MIDDLEWARE = ("django.middleware.common.CommonMiddleware",)
+# Add allow_cidr to middleware for ALLOWED_CIDR_NETS support
+INSTALLED_APPS = (
+    "django.contrib.contenttypes",
+)
+
+ALLOWED_CIDR_NETS = env_json("ALLOWED_CIDR_NETS", [])
+
+MIDDLEWARE = (
+    "django.middleware.common.CommonMiddleware",
+    "allow_cidr.middleware.AllowCIDRMiddleware",
+)
 
 ROOT_URLCONF = "encapsule.urls"
 
