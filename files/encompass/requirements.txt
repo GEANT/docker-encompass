@@ -7,5 +7,5 @@ gunicorn==25.1.0
 markdown==3.10.2
 mysqlclient>=2.2.1
 PyYAML==6.0.3
-requests==2.32.5
+requests==2.33.0
 # shyaml==0.6.2  # can be used in bash scripts, currently unused
