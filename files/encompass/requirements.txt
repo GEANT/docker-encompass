@@ -1,5 +1,5 @@
 django-allow-cidr==0.7.1
-cryptography==46.0.5
+cryptography==46.0.6
 django-auth-ldap==5.3.0
 django-cors-headers==4.9.0
 Django==6.0.3
